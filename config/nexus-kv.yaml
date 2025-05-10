@@ -1,0 +1,27 @@
+port: "8080"
+data_dir: "/opt/nexus-kv/data"
+etcd_endpoints:
+  - "localhost:2379"
+
+log:
+  run_dir: "/var/log/nexus-kv/run"
+  backup_dir: "/var/log/nexus-kv/bak"
+  level: "info" # 可动态调整debug/info/warn/error
+  max_size: 100 # MB
+  max_backup: 30
+  max_age: 90   # days
+
+raft:
+  election_timeout: "1s"
+  hearbeat_timeout: "500ms"
+  snapshot_interval: "2h"
+
+storage:
+  cache_size: 1024        # 1MB 缓存条目数
+  flush_interval: "10s"   # 10s 刷盘间隔
+  max_value_size: 1048576 # 1MB 单个value最大字节数
+
+performance:
+  max_connection: 500
+  read_timeout: "5s"
+  write_timeout: "10s"
