@@ -57,8 +57,19 @@ Completed:
 - legacy Go baseline is stable enough for comparison
 - shared schema now covers descriptor and planner boundary types
 - `nxradixtree` is a real planning/index subsystem
-- Python connectors are lifecycle-aware and planner-driven, but still use a Python planner protocol rather than live Rust bindings
+- Python connectors are lifecycle-aware and planner-driven
+- Python planner protocol is now backed by a real Rust `nxradixtree` execution path through a thin extension bridge
 
 ## Next Planned Step
 
-PR 6 should bind the Python planner surface to a real Rust-backed execution path and add integration tests that exercise connectors against the `nxradixtree` implementation rather than a fake planner.
+PR 7 should start transfer/materialization execution planning: narrow tier-aware execution decisions, transfer-path selection semantics, and the first concrete materialization runner stubs behind the existing connector decisions.
+
+## PR 6: Rust-Backed Planner Bridge
+
+Completed:
+
+- added a thin Python-to-Rust planner bridge using PyO3
+- extended the shared contract to include planner boundary types
+- kept the Python `ReusePlanner` protocol stable while replacing fake planner behavior with Rust-backed execution
+- added Python integration tests that exercise connectors against the real Rust planner
+- documented the binding mechanism and its current limitations

@@ -87,6 +87,7 @@ def generate_python(schema: dict) -> str:
 
 def generate_rust(schema: dict) -> str:
     lines: list[str] = [
+        "use serde::{Deserialize, Serialize};",
         "use std::collections::BTreeMap;",
         "",
         f'pub const SCHEMA_VERSION: &str = "{schema["schema_version"]}";',
@@ -96,7 +97,8 @@ def generate_rust(schema: dict) -> str:
     for enum_name, values in schema["enums"].items():
         lines.extend(
             [
-                "#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]",
+                '#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]',
+                '#[serde(rename_all = "snake_case")]',
                 f"pub enum {enum_name} {{",
             ]
         )
@@ -107,7 +109,7 @@ def generate_rust(schema: dict) -> str:
     for object_name, spec in schema["objects"].items():
         lines.extend(
             [
-                "#[derive(Clone, Debug, PartialEq, Eq)]",
+                "#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]",
                 f"pub struct {object_name} {{",
             ]
         )
