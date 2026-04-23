@@ -14,16 +14,16 @@ type Config struct {
 	HeartbeatTimeout time.Duration
 }
 
-type Node interface {
+type ReloadableNode interface {
 	ApplyConfig(config Config) error
 }
 
 type RaftReloadHandler struct {
-	node   Node
+	node   ReloadableNode
 	logger *zap.Logger
 }
 
-func NewRaftReloadHandler(node Node, logger *zap.Logger) *RaftReloadHandler {
+func NewRaftReloadHandler(node ReloadableNode, logger *zap.Logger) *RaftReloadHandler {
 	return &RaftReloadHandler{
 		node:   node,
 		logger: logger,

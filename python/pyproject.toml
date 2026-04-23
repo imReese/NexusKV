@@ -1,0 +1,8 @@
+[project]
+name = "nexuskv"
+version = "0.1.0"
+description = "Engine-facing adapters and compatibility shims for the NexusKV platform"
+requires-python = ">=3.12"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

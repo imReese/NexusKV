@@ -1,0 +1,188 @@
+{
+  "schema_version": "nexuskv.contract.v1",
+  "enums": {
+    "EngineFamily": ["UNKNOWN", "SGLANG", "VLLM"],
+    "StateSemanticType": ["MHA_KV", "GQA_KV", "MQA_KV", "MLA_STATE", "GENERIC_CONTAINER"],
+    "TensorRole": ["KEY", "VALUE", "LATENT", "POSITION", "AUXILIARY"],
+    "Granularity": ["TOKEN", "BLOCK", "PAGE", "SEGMENT"],
+    "CompatibilityFlag": [
+      "EXACT_REUSE",
+      "PREFIX_REUSE",
+      "PAGE_REUSE",
+      "BLOCK_REUSE",
+      "WARM_START",
+      "POST_EVICTION_RELOAD"
+    ],
+    "DeviceClass": ["CPU", "CUDA", "ROCM", "TPU", "OTHER"],
+    "BufferKind": ["DEVICE", "HOST_PINNED", "HOST_PAGEABLE", "REMOTE", "FILE_BACKED"],
+    "TransferBackend": ["BASELINE_TRANSPORT", "STAGED_COPY", "RDMA", "ZERO_COPY"],
+    "TransferCapability": [
+      "HOST_TO_DEVICE",
+      "DEVICE_TO_HOST",
+      "HOST_TO_STORE",
+      "STORE_TO_HOST",
+      "ASYNC",
+      "ZERO_COPY_CANDIDATE"
+    ],
+    "TierKind": ["DEVICE", "HOST_DRAM", "LOCAL_SSD", "REMOTE_SHARED", "OBJECT_STORE"],
+    "MaterializationCapability": ["FULL", "PARTIAL", "PREFETCH", "ASYNC_FETCH", "FALLBACK_RECOMPUTE"],
+    "MatchClassification": ["EXACT", "PREFIX", "PARTIAL"],
+    "PlanDisposition": ["FULL_REUSE", "PARTIAL_REUSE", "RECOMPUTE"]
+  },
+  "objects": {
+    "TensorSpec": {
+      "fields": [
+        {"name": "name", "type": "string"},
+        {"name": "role", "type": "TensorRole"},
+        {"name": "dtype", "type": "string"},
+        {"name": "shape", "type": "list[string]"}
+      ]
+    },
+    "QuantizationMetadata": {
+      "fields": [
+        {"name": "scheme", "type": "string"},
+        {"name": "bits", "type": "int"},
+        {"name": "group_size", "type": "int"}
+      ]
+    },
+    "LayoutMetadata": {
+      "fields": [
+        {"name": "layout", "type": "string"},
+        {"name": "page_tokens", "type": "int"},
+        {"name": "block_tokens", "type": "int"},
+        {"name": "packed", "type": "bool"}
+      ]
+    },
+    "TransferPath": {
+      "fields": [
+        {"name": "backend", "type": "TransferBackend"},
+        {"name": "capabilities", "type": "list[TransferCapability]"}
+      ]
+    },
+    "MaterializationProfile": {
+      "fields": [
+        {"name": "capabilities", "type": "list[MaterializationCapability]"},
+        {"name": "tier_kinds", "type": "list[TierKind]"},
+        {"name": "device_classes", "type": "list[DeviceClass]"},
+        {"name": "buffer_kinds", "type": "list[BufferKind]"}
+      ]
+    },
+    "AttentionStateDescriptor": {
+      "fields": [
+        {"name": "schema_version", "type": "string"},
+        {"name": "descriptor_id", "type": "string"},
+        {"name": "engine_family", "type": "EngineFamily"},
+        {"name": "semantic_type", "type": "StateSemanticType"},
+        {"name": "granularity", "type": "Granularity"},
+        {"name": "tensor_specs", "type": "list[TensorSpec]"},
+        {"name": "quantization", "type": "QuantizationMetadata"},
+        {"name": "layout", "type": "LayoutMetadata"},
+        {"name": "compatibility_flags", "type": "list[CompatibilityFlag]"},
+        {"name": "transfer_paths", "type": "list[TransferPath]"},
+        {"name": "materialization", "type": "MaterializationProfile"},
+        {"name": "layout_metadata", "type": "map[string,string]"}
+      ]
+    },
+    "KeyIdentity": {
+      "fields": [
+        {"name": "tenant", "type": "string"},
+        {"name": "namespace", "type": "string"},
+        {"name": "model", "type": "string"},
+        {"name": "engine_family", "type": "EngineFamily"},
+        {"name": "semantic_type", "type": "StateSemanticType"},
+        {"name": "tokens", "type": "list[int]"},
+        {"name": "block_id", "type": "optional[int]"},
+        {"name": "page_id", "type": "optional[int]"}
+      ]
+    },
+    "ReuseKey": {
+      "fields": [
+        {"name": "identity", "type": "KeyIdentity"}
+      ]
+    },
+    "QueryKey": {
+      "fields": [
+        {"name": "identity", "type": "KeyIdentity"}
+      ]
+    },
+    "EntryVersion": {
+      "fields": [
+        {"name": "generation", "type": "int"},
+        {"name": "lineage", "type": "string"}
+      ]
+    },
+    "EntryLocation": {
+      "fields": [
+        {"name": "tier", "type": "TierKind"},
+        {"name": "locator", "type": "string"}
+      ]
+    },
+    "PolicyHint": {
+      "fields": [
+        {"name": "reusable", "type": "bool"},
+        {"name": "admission_hint", "type": "string"},
+        {"name": "eviction_hint", "type": "string"}
+      ]
+    },
+    "EntryIdentity": {
+      "fields": [
+        {"name": "key", "type": "KeyIdentity"},
+        {"name": "entry_id", "type": "string"},
+        {"name": "version", "type": "EntryVersion"}
+      ]
+    },
+    "CacheEntry": {
+      "fields": [
+        {"name": "identity", "type": "EntryIdentity"},
+        {"name": "descriptor", "type": "AttentionStateDescriptor"},
+        {"name": "location", "type": "EntryLocation"},
+        {"name": "policy_hint", "type": "PolicyHint"}
+      ]
+    },
+    "MatchExtent": {
+      "fields": [
+        {"name": "units", "type": "int"},
+        {"name": "granularity", "type": "Granularity"}
+      ]
+    },
+    "RemainingWork": {
+      "fields": [
+        {"name": "tokens", "type": "list[int]"},
+        {"name": "fetch_required", "type": "bool"},
+        {"name": "recompute_required", "type": "bool"}
+      ]
+    },
+    "CompatibilitySignal": {
+      "fields": [
+        {"name": "reusable", "type": "bool"},
+        {"name": "fallback_to_recompute", "type": "bool"},
+        {"name": "reason", "type": "string"}
+      ]
+    },
+    "MatchResult": {
+      "fields": [
+        {"name": "classification", "type": "MatchClassification"},
+        {"name": "matched_key", "type": "ReuseKey"},
+        {"name": "requested_key", "type": "QueryKey"},
+        {"name": "matched_extent", "type": "MatchExtent"},
+        {"name": "entry", "type": "CacheEntry"},
+        {"name": "remaining", "type": "RemainingWork"},
+        {"name": "compatibility", "type": "CompatibilitySignal"}
+      ]
+    },
+    "ReusableSlice": {
+      "fields": [
+        {"name": "tokens", "type": "list[int]"},
+        {"name": "source_tier", "type": "TierKind"}
+      ]
+    },
+    "PartialHitPlan": {
+      "fields": [
+        {"name": "disposition", "type": "PlanDisposition"},
+        {"name": "reusable", "type": "ReusableSlice"},
+        {"name": "remaining", "type": "RemainingWork"},
+        {"name": "entry", "type": "CacheEntry"}
+      ]
+    }
+  }
+}

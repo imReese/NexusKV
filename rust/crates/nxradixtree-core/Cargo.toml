@@ -1,0 +1,10 @@
+[package]
+name = "nxradixtree-core"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+nexus-state = { path = "../nexus-state" }
+
+[lib]
+path = "src/lib.rs"

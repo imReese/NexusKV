@@ -1,2 +1,9 @@
 bin/
-
+.pytest_cache/
+__pycache__/
+*.pyc
+.venv/
+python/.venv/
+rust/target/
+go/bin/
+coverage/

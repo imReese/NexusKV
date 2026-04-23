@@ -52,11 +52,11 @@ func initStorageEngine(logger *zap.Logger) (storage.Engine, error) {
 }
 
 func initRaftNode(logger *zap.Logger, storageEngine storage.Engine) (*raft.Node, error) {
-	walInstance, err := wal.NewWAL(defaultDataDir, logger)
+	walInstance, err := wal.NewWAL(defaultDataDir)
 	if err != nil {
 		return nil, err
 	}
-	return raft.NewNode(raft.Config{
+	return raft.NewNode(raft.NodeConfig{
 		Storage:    storageEngine,
 		WAL:        walInstance,
 		Transport:  raft.NewGRPCTransport(),
@@ -95,7 +95,7 @@ func startServer(grpcServer *grpc.Server, lis net.Listener, logger *zap.Logger) 
 	}()
 }
 
-func initConfigWatcher(logger *zap.Logger, storageEngine storage.Engine, raftNode raft.Node) *config.ConfigWatcher {
+func initConfigWatcher(logger *zap.Logger, storageEngine storage.Engine, raftNode *raft.Node) *config.ConfigWatcher {
 	watcher := config.NewConfigWatcher("config/nexus-kv.yaml", logger, 5*time.Second)
 	config.RegisterReloadHandler(log.NewLogReloadHandler(logger))
 	config.RegisterReloadHandler(storage.NewStorageReloadHandler(storageEngine, logger))

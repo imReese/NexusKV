@@ -1,29 +1,30 @@
-# NexusKV Architecture Overview
+# NexusKV
 
-![NexusKV Architecture](https://via.placeholder.com/800x500.png?text=NexusKV+Architecture+Diagram)
+NexusKV is being evolved from a small Go prototype into a production-grade KV cache platform for LLM inference. The target system separates control-plane, data-plane, and engine-adapter concerns across Go, Rust, and Python rather than treating the cache as a single monolithic service.
 
-## Core Modules
+## Repository Status
 
-### 1. Log Module (WAL)
-- **Segmented Log**: 分片日志存储，单个文件不超过512MB
-- **Memory Mapped I/O**: 零拷贝快速读写
-- **Batch Commit**: 批量提交降低磁盘IO次数
-- **CRC32C Checksum**: 数据完整性校验
+- `cmd/` and `pkg/` contain the original Go prototype. It is useful as a baseline reference, but it is not the long-term architecture.
+- `go/` contains the new control-plane scaffold.
+- `rust/` contains the new data-plane and state/index scaffolds.
+- `python/` contains engine-facing adapters and compatibility layers.
+- `docs/` contains the migration, architecture, benchmark, and reliability documents that define the next phases.
 
-### 2. Storage Engine
-- **LSM Tree + B+ Tree Hybrid**
-- **Value Log Separation**
-- **Bloom Filter Acceleration**
+## Start Here
 
-### 3. Distributed Layer
-- **Raft Consensus**
-- **Consistent Hashing**
-- **gRPC Streaming**
+- [docs/architecture/repo-assessment.md](docs/architecture/repo-assessment.md)
+- [docs/architecture/target-platform.md](docs/architecture/target-platform.md)
+- [docs/design/attention-state-descriptor.md](docs/design/attention-state-descriptor.md)
+- [docs/design/nxradixtree.md](docs/design/nxradixtree.md)
+- [docs/benchmarks/benchmark-methodology.md](docs/benchmarks/benchmark-methodology.md)
+- [docs/ops/reliability-model.md](docs/ops/reliability-model.md)
 
-### 4. Cache System
-- **LRU Memory Cache**
-- **SSD Cold Cache**
-- **SingleFlight Control**
+## Near-Term Direction
 
-## Data Flow
-Client → gRPC API → Log Module → Storage Engine → Distributed Sync → Cache
+The first migration milestone does not try to replace the legacy prototype in one step. It establishes:
+
+1. Versioned state descriptors for multiple attention/state types.
+2. A Rust-first `nxradixtree` core for exact and prefix reuse planning.
+3. Python connector surfaces for SGLang and vLLM.
+4. A new Go control-plane scaffold for health, admin, and policy-facing services.
+5. Test and benchmark scaffolding that can grow with the platform.

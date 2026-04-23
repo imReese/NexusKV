@@ -3,6 +3,7 @@ package wal
 
 import (
 	"fmt"
+	"hash/crc32"
 	"os"
 	"sync"
 	"testing"
@@ -65,7 +66,7 @@ func TestWAL_ConcurrentAppend(t *testing.T) {
 		}
 		seenEntries[entry.Index] = true
 
-		expectedCRC := crc32.ChecksumIEEE(entry.Data)
+		expectedCRC := crc32.Checksum(entry.Data, castagnoli)
 		if entry.CRC32 != expectedCRC {
 			t.Fatalf("CRC 校验失败 (索引 %d)", entry.Index)
 		}

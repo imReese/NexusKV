@@ -1,0 +1,6 @@
+[workspace]
+members = [
+    "crates/nexus-state",
+    "crates/nxradixtree-core",
+]
+resolver = "2"
