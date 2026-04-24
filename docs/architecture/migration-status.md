@@ -59,10 +59,11 @@ Completed:
 - `nxradixtree` is a real planning/index subsystem
 - Python connectors are lifecycle-aware and planner-driven
 - Python planner protocol is now backed by a real Rust `nxradixtree` execution path through a thin extension bridge
+- Python connectors now route planner results through a tier-aware execution boundary instead of keeping materialization policy in connector-local branches
 
 ## Next Planned Step
 
-PR 7 should start transfer/materialization execution planning: narrow tier-aware execution decisions, transfer-path selection semantics, and the first concrete materialization runner stubs behind the existing connector decisions.
+PR 8 should start turning the execution boundary into a real transport/materialization surface: narrow execution backend protocol, baseline transfer/materialization stub implementation, and end-to-end planner-to-executor integration around concrete materialization actions.
 
 ## PR 6: Rust-Backed Planner Bridge
 
@@ -73,3 +74,13 @@ Completed:
 - kept the Python `ReusePlanner` protocol stable while replacing fake planner behavior with Rust-backed execution
 - added Python integration tests that exercise connectors against the real Rust planner
 - documented the binding mechanism and its current limitations
+
+## PR 7: Tier-Aware Materialization Execution Boundary
+
+Completed:
+
+- introduced a narrow execution-layer contract for materialize, prefetch, store, recompute, and skip decisions
+- centralized tier-aware and backend-aware execution semantics in a baseline runner
+- integrated SGLang and vLLM connectors with the execution boundary while preserving their lifecycle differences
+- added deterministic tests for exact hits, partial hits, backend downgrade, unsupported prefetch, and recompute fallback
+- documented what is implemented now versus what remains deferred to future transport and tiering work

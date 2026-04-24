@@ -23,10 +23,8 @@ from nexuskv.connectors.base import (
     EngineConnector,
     LifecycleDecision,
     LookupStatus,
-    MaterializationDecision,
-    SGLangLifecycleContext,
-    TransferBackend,
     ReusePlanner,
+    SGLangLifecycleContext,
 )
 
 
@@ -34,7 +32,7 @@ class SGLangConnector(EngineConnector):
     engine_name = "sglang"
 
     def supported_hooks(self) -> tuple[str, ...]:
-        return ("prefill", "decode", "evict")
+        return ("prefill", "extend", "decode")
 
     def default_descriptor(self) -> AttentionStateDescriptor:
         return AttentionStateDescriptor(
@@ -96,55 +94,33 @@ class SGLangConnector(EngineConnector):
 
     def on_prefill(self, context: SGLangLifecycleContext, planner: ReusePlanner) -> LifecycleDecision:
         lookup = self.lookup(context, planner)
-        materialization = self._materialize_for_prefill_or_extend(context, lookup)
-        return LifecycleDecision(
+        return self.execute_lifecycle(
             hook="prefill",
+            context=context,
             lookup=lookup,
-            materialization=materialization,
-            prefetch=None,
-            should_store_after_stage=lookup.status != LookupStatus.HIT,
+            allow_store_after_stage=lookup.status != LookupStatus.HIT,
+            enable_prefetch=False,
         )
 
     def on_extend(self, context: SGLangLifecycleContext, planner: ReusePlanner) -> LifecycleDecision:
         lookup = self.lookup(context, planner)
-        materialization = self._materialize_for_prefill_or_extend(context, lookup)
-        return LifecycleDecision(
+        return self.execute_lifecycle(
             hook="extend",
+            context=context,
             lookup=lookup,
-            materialization=materialization,
-            prefetch=None,
-            should_store_after_stage=lookup.status != LookupStatus.HIT,
+            allow_store_after_stage=lookup.status != LookupStatus.HIT,
+            enable_prefetch=False,
         )
 
     def on_decode(self, context: SGLangLifecycleContext, planner: ReusePlanner) -> LifecycleDecision:
-        return LifecycleDecision(
-            hook="decode",
-            lookup=self.unsupported_lookup(
-                context,
-                "sglang decode stays on local state and does not issue planner lookups in v1",
-            ),
-            materialization=None,
-            prefetch=None,
-            should_store_after_stage=False,
+        lookup = self.unsupported_lookup(
+            context,
+            "sglang decode stays on local state and does not issue planner lookups in v1",
         )
-
-    def _materialize_for_prefill_or_extend(
-        self,
-        context: SGLangLifecycleContext,
-        lookup,
-    ) -> MaterializationDecision | None:
-        if lookup.status == LookupStatus.HIT and lookup.match is not None:
-            return self.materialize(
-                context.descriptor,
-                match=lookup.match,
-                preferred_backend=context.preferred_backend or TransferBackend.BASELINE_TRANSPORT,
-            )
-
-        if lookup.status == LookupStatus.PARTIAL:
-            return self.materialize(
-                context.descriptor,
-                partial_plan=lookup.partial_plan or (lookup.match and self.partial_plan_from_match(lookup.match)),
-                preferred_backend=context.preferred_backend or TransferBackend.BASELINE_TRANSPORT,
-            )
-
-        return None
+        return self.execute_lifecycle(
+            hook="decode",
+            context=context,
+            lookup=lookup,
+            allow_store_after_stage=False,
+            enable_prefetch=False,
+        )

@@ -19,7 +19,29 @@ The planner interface exposed to Python is intentionally small:
 - `lookup(query)`
 - `plan_partial_hit(query)`
 
-That keeps `nxradixtree` as the canonical reuse-planning boundary while leaving Rust bindings and transport work for a later PR.
+That keeps `nxradixtree` as the canonical reuse-planning boundary while letting the execution layer make materialization, prefetch, store, skip, and recompute decisions after planning.
+
+## Execution boundary
+
+Connectors no longer carry the main materialization policy logic themselves.
+
+Each lifecycle hook now does four things:
+
+1. build engine-specific lifecycle context
+2. call the planner through the shared `ReusePlanner` protocol
+3. hand `LookupOutcome` into the execution runner
+4. return a structured `LifecycleDecision`
+
+The execution runner is responsible for:
+
+- target tier selection
+- transfer backend selection
+- downgrade to simpler backend when needed
+- recompute fallback
+- safe skip behavior for unsupported paths
+- post-stage store and prefetch decisions
+
+That keeps connector code thin while preserving real engine differences at the hook level.
 
 ## SGLang lifecycle model
 
@@ -71,11 +93,11 @@ Fallback is explicit and safe:
 
 - if the preferred transfer backend is unsupported but another supported backend exists, degrade to a simpler transfer path
 - if the descriptor exposes no viable path for the requested operation, degrade to recompute
-- unsupported decode/prefetch paths return explicit skip or recompute decisions rather than silently pretending reuse happened
+- unsupported decode paths return explicit skip or recompute decisions rather than silently pretending reuse happened
+- unsupported prefetch returns explicit skip rather than triggering connector-local fallback logic
 
 ## Deferred
 
-- Python-to-Rust bindings for live `nxradixtree` execution
 - remote transport implementations
 - RDMA and zero-copy execution paths
 - policy-engine integration beyond placeholders

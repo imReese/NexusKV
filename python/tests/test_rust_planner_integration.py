@@ -7,6 +7,7 @@ from nexuskv.connectors.base import LookupStatus, SGLangLifecycleContext, VLLMLi
 from nexuskv.connectors.sglang.connector import SGLangConnector
 from nexuskv.connectors.vllm.connector import VLLMConnector
 from nexuskv.contracts.generated import TierKind, TransferBackend
+from nexuskv.execution.types import ExecutionDisposition, FallbackReason
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -91,7 +92,7 @@ class RustPlannerIntegrationTest(unittest.TestCase):
 
         self.assertEqual(decision.lookup.status, LookupStatus.PARTIAL)
         self.assertEqual(decision.lookup.partial_plan.remaining.tokens, [24, 25])
-        self.assertEqual(decision.prefetch.status.value, "scheduled")
+        self.assertEqual(decision.prefetch.disposition, ExecutionDisposition.PREFETCH)
 
     def test_identity_isolation_is_preserved_through_rust_planner(self) -> None:
         from nexuskv.planner.rust_backend import RustPlanner
@@ -168,7 +169,8 @@ class RustPlannerIntegrationTest(unittest.TestCase):
 
         decision = connector.on_extend(query, planner)
         self.assertEqual(decision.lookup.status, LookupStatus.PARTIAL)
-        self.assertEqual(decision.materialization.fallback.mode.value, "recompute")
+        self.assertEqual(decision.materialization.disposition, ExecutionDisposition.RECOMPUTE)
+        self.assertEqual(decision.materialization.fallback_reason, FallbackReason.UNSUPPORTED_CAPABILITY)
 
 
 if __name__ == "__main__":

@@ -26,7 +26,6 @@ from nexuskv.connectors.base import (
     LifecycleDecision,
     LookupStatus,
     ReusePlanner,
-    TransferBackend,
     VLLMLifecycleContext,
 )
 
@@ -103,51 +102,30 @@ class VLLMConnector(EngineConnector):
 
     def on_request_start(self, context: VLLMLifecycleContext, planner: ReusePlanner) -> LifecycleDecision:
         lookup = self.lookup(context, planner)
-        materialization = self._materialize_lookup(context, lookup)
-        prefetch = self.prefetch(context, planner) if lookup.status == LookupStatus.PARTIAL else None
-        return LifecycleDecision(
+        return self.execute_lifecycle(
             hook="request_start",
+            context=context,
             lookup=lookup,
-            materialization=materialization,
-            prefetch=prefetch,
-            should_store_after_stage=lookup.status != LookupStatus.HIT,
+            allow_store_after_stage=lookup.status != LookupStatus.HIT,
+            enable_prefetch=lookup.status == LookupStatus.PARTIAL,
         )
 
     def on_block_table_extend(self, context: VLLMLifecycleContext, planner: ReusePlanner) -> LifecycleDecision:
         lookup = self.lookup(context, planner)
-        materialization = self._materialize_lookup(context, lookup)
-        prefetch = self.prefetch(context, planner)
-        return LifecycleDecision(
+        return self.execute_lifecycle(
             hook="block_table_extend",
+            context=context,
             lookup=lookup,
-            materialization=materialization,
-            prefetch=prefetch,
-            should_store_after_stage=lookup.status != LookupStatus.HIT,
+            allow_store_after_stage=lookup.status != LookupStatus.HIT,
+            enable_prefetch=True,
         )
 
     def on_decode_step(self, context: VLLMLifecycleContext, planner: ReusePlanner) -> LifecycleDecision:
         lookup = self.lookup(context, planner)
-        materialization = self._materialize_lookup(context, lookup) if lookup.status != LookupStatus.MISS else None
-        prefetch = self.prefetch(context, planner)
-        return LifecycleDecision(
+        return self.execute_lifecycle(
             hook="decode_step",
+            context=context,
             lookup=lookup,
-            materialization=materialization,
-            prefetch=prefetch,
-            should_store_after_stage=False,
+            allow_store_after_stage=False,
+            enable_prefetch=True,
         )
-
-    def _materialize_lookup(self, context: VLLMLifecycleContext, lookup):
-        if lookup.status == LookupStatus.HIT and lookup.match is not None:
-            return self.materialize(
-                context.descriptor,
-                match=lookup.match,
-                preferred_backend=context.preferred_backend or TransferBackend.STAGED_COPY,
-            )
-        if lookup.status == LookupStatus.PARTIAL:
-            return self.materialize(
-                context.descriptor,
-                partial_plan=lookup.partial_plan or (lookup.match and self.partial_plan_from_match(lookup.match)),
-                preferred_backend=context.preferred_backend or TransferBackend.STAGED_COPY,
-            )
-        return None

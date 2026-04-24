@@ -1,7 +1,6 @@
 import unittest
 
 from nexuskv.connectors.base import (
-    FallbackMode,
     LookupStatus,
     SGLangLifecycleContext,
     TransferBackend,
@@ -27,6 +26,7 @@ from nexuskv.contracts.generated import (
     ReuseKey,
     TierKind,
 )
+from nexuskv.execution.types import ExecutionDisposition, FallbackReason
 
 
 class FakePlanner:
@@ -133,7 +133,8 @@ class ConnectorLifecycleTest(unittest.TestCase):
         decision = connector.on_prefill(context, planner)
 
         self.assertEqual(decision.lookup.status, LookupStatus.HIT)
-        self.assertEqual(decision.materialization.backend, TransferBackend.BASELINE_TRANSPORT)
+        self.assertEqual(decision.materialization.disposition, ExecutionDisposition.MATERIALIZE)
+        self.assertEqual(decision.materialization.transfer.selected_backend, TransferBackend.BASELINE_TRANSPORT)
         self.assertFalse(decision.should_store_after_stage)
 
     def test_sglang_extend_degrades_partial_hit_to_recompute(self) -> None:
@@ -152,8 +153,8 @@ class ConnectorLifecycleTest(unittest.TestCase):
         decision = connector.on_extend(context, planner)
 
         self.assertEqual(decision.lookup.status, LookupStatus.PARTIAL)
-        self.assertIsNotNone(decision.materialization.fallback)
-        self.assertEqual(decision.materialization.fallback.mode, FallbackMode.RECOMPUTE)
+        self.assertEqual(decision.materialization.disposition, ExecutionDisposition.RECOMPUTE)
+        self.assertEqual(decision.materialization.fallback_reason, FallbackReason.UNSUPPORTED_CAPABILITY)
         self.assertTrue(decision.should_store_after_stage)
 
     def test_vllm_request_start_uses_partial_plan_and_prefetch(self) -> None:
@@ -173,8 +174,8 @@ class ConnectorLifecycleTest(unittest.TestCase):
         decision = connector.on_request_start(context, planner)
 
         self.assertEqual(decision.lookup.status, LookupStatus.PARTIAL)
-        self.assertEqual(decision.materialization.backend, TransferBackend.STAGED_COPY)
-        self.assertEqual(decision.prefetch.status.value, "scheduled")
+        self.assertEqual(decision.materialization.transfer.selected_backend, TransferBackend.STAGED_COPY)
+        self.assertEqual(decision.prefetch.disposition, ExecutionDisposition.PREFETCH)
         self.assertTrue(decision.should_store_after_stage)
 
     def test_vllm_decode_step_degrades_to_available_transfer_backend(self) -> None:
@@ -194,9 +195,9 @@ class ConnectorLifecycleTest(unittest.TestCase):
         decision = connector.on_decode_step(context, planner)
 
         self.assertEqual(decision.lookup.status, LookupStatus.HIT)
-        self.assertTrue(decision.materialization.degraded)
-        self.assertEqual(decision.materialization.backend, TransferBackend.STAGED_COPY)
-        self.assertEqual(decision.materialization.fallback.mode, FallbackMode.SIMPLER_TRANSFER)
+        self.assertTrue(decision.materialization.capability_check.degraded)
+        self.assertEqual(decision.materialization.transfer.selected_backend, TransferBackend.STAGED_COPY)
+        self.assertEqual(decision.materialization.fallback_reason, FallbackReason.PREFERRED_BACKEND_UNAVAILABLE)
 
     def test_prepare_store_uses_generated_reuse_key_boundary(self) -> None:
         connector = VLLMConnector()

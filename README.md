@@ -16,6 +16,7 @@ NexusKV is being evolved from a small Go prototype into a production-grade KV ca
 - [docs/architecture/target-platform.md](docs/architecture/target-platform.md)
 - [docs/design/attention-state-descriptor.md](docs/design/attention-state-descriptor.md)
 - [docs/design/nxradixtree.md](docs/design/nxradixtree.md)
+- [docs/design/execution-boundary.md](docs/design/execution-boundary.md)
 - [docs/benchmarks/benchmark-methodology.md](docs/benchmarks/benchmark-methodology.md)
 - [docs/ops/reliability-model.md](docs/ops/reliability-model.md)
 

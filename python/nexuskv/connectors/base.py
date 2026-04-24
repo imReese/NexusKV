@@ -3,31 +3,29 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from enum import StrEnum
-from typing import Protocol
+from typing import TYPE_CHECKING, Protocol
 
 from nexuskv.contracts.generated import (
     AttentionStateDescriptor,
     CacheEntry,
     CompatibilityFlag,
-    CompatibilitySignal,
     EntryIdentity,
     EntryLocation,
     EntryVersion,
     KeyIdentity,
     MatchClassification,
-    MatchExtent,
     MatchResult,
-    MaterializationCapability,
     PartialHitPlan,
-    PlanDisposition,
     PolicyHint,
     QueryKey,
-    RemainingWork,
-    ReusableSlice,
     ReuseKey,
     TierKind,
     TransferBackend,
 )
+
+if TYPE_CHECKING:
+    from nexuskv.execution.runner import BaselineExecutionRunner
+    from nexuskv.execution.types import MaterializationOutcome, MaterializationRequest
 
 
 class LookupStatus(StrEnum):
@@ -35,23 +33,6 @@ class LookupStatus(StrEnum):
     PARTIAL = "partial"
     MISS = "miss"
     UNSUPPORTED = "unsupported"
-
-
-class MaterializationMode(StrEnum):
-    FULL = "full"
-    PARTIAL = "partial"
-
-
-class PrefetchStatus(StrEnum):
-    SCHEDULED = "scheduled"
-    SKIPPED = "skipped"
-    UNSUPPORTED = "unsupported"
-
-
-class FallbackMode(StrEnum):
-    RECOMPUTE = "recompute"
-    SIMPLER_TRANSFER = "simpler_transfer"
-    SKIP = "skip"
 
 
 @dataclass(slots=True)
@@ -89,37 +70,12 @@ class VLLMLifecycleContext(EngineRequestContext):
 
 
 @dataclass(slots=True)
-class FallbackPlan:
-    mode: FallbackMode
-    reason: str
-    selected_backend: TransferBackend | None
-
-
-@dataclass(slots=True)
 class LookupOutcome:
     query: QueryKey
     status: LookupStatus
     match: MatchResult | None
     partial_plan: PartialHitPlan | None
-    fallback: FallbackPlan | None
-
-
-@dataclass(slots=True)
-class MaterializationDecision:
-    mode: MaterializationMode | None
-    backend: TransferBackend | None
-    target_tier: TierKind | None
-    degraded: bool
-    fallback: FallbackPlan | None
-
-
-@dataclass(slots=True)
-class PrefetchDecision:
-    status: PrefetchStatus
-    backend: TransferBackend | None
-    degraded: bool
-    plan: PartialHitPlan | None
-    fallback: FallbackPlan | None
+    reason: str | None = None
 
 
 @dataclass(slots=True)
@@ -132,9 +88,20 @@ class StoreIntent:
 class LifecycleDecision:
     hook: str
     lookup: LookupOutcome
-    materialization: MaterializationDecision | None
-    prefetch: PrefetchDecision | None
+    execution: "MaterializationOutcome"
     should_store_after_stage: bool
+
+    @property
+    def materialization(self):
+        return self.execution.primary
+
+    @property
+    def prefetch(self):
+        return self.execution.prefetch
+
+    @property
+    def store(self):
+        return self.execution.store
 
 
 class ReusePlanner(Protocol):
@@ -147,6 +114,13 @@ class ReusePlanner(Protocol):
 
 class EngineConnector(ABC):
     engine_name: str
+
+    def __init__(self, execution_runner: "BaselineExecutionRunner | None" = None) -> None:
+        if execution_runner is None:
+            from nexuskv.execution.runner import BaselineExecutionRunner
+
+            execution_runner = BaselineExecutionRunner()
+        self.execution_runner = execution_runner
 
     @abstractmethod
     def supported_hooks(self) -> tuple[str, ...]:
@@ -178,29 +152,14 @@ class EngineConnector(ABC):
         query = self.build_query_key(context)
         match = planner.lookup(query)
         if match is None:
-            return LookupOutcome(
-                query=query,
-                status=LookupStatus.MISS,
-                match=None,
-                partial_plan=None,
-                fallback=None,
-            )
-
+            return LookupOutcome(query=query, status=LookupStatus.MISS, match=None, partial_plan=None)
         if match.classification == MatchClassification.EXACT:
-            return LookupOutcome(
-                query=query,
-                status=LookupStatus.HIT,
-                match=match,
-                partial_plan=None,
-                fallback=None,
-            )
-
+            return LookupOutcome(query=query, status=LookupStatus.HIT, match=match, partial_plan=None)
         return LookupOutcome(
             query=query,
             status=LookupStatus.PARTIAL,
             match=match,
             partial_plan=planner.plan_partial_hit(query),
-            fallback=None,
         )
 
     def unsupported_lookup(self, context: EngineRequestContext, reason: str) -> LookupOutcome:
@@ -209,110 +168,52 @@ class EngineConnector(ABC):
             status=LookupStatus.UNSUPPORTED,
             match=None,
             partial_plan=None,
-            fallback=FallbackPlan(mode=FallbackMode.SKIP, reason=reason, selected_backend=None),
+            reason=reason,
         )
 
-    def materialize(
+    def partial_plan_from_match(self, match: MatchResult) -> PartialHitPlan:
+        from nexuskv.contracts.generated import PlanDisposition, RemainingWork, ReusableSlice
+
+        return PartialHitPlan(
+            disposition=PlanDisposition.FULL_REUSE if not match.remaining.tokens else PlanDisposition.PARTIAL_REUSE,
+            reusable=ReusableSlice(
+                tokens=list(match.requested_key.identity.tokens[: match.matched_extent.units]),
+                source_tier=match.entry.location.tier,
+            ),
+            remaining=RemainingWork(
+                tokens=list(match.remaining.tokens),
+                fetch_required=match.remaining.fetch_required,
+                recompute_required=match.remaining.recompute_required,
+            ),
+            entry=match.entry,
+        )
+
+    def execute_lifecycle(
         self,
-        descriptor: AttentionStateDescriptor,
         *,
-        match: MatchResult | None = None,
-        partial_plan: PartialHitPlan | None = None,
-        preferred_backend: TransferBackend | None = None,
-    ) -> MaterializationDecision:
-        if partial_plan is not None:
-            if MaterializationCapability.PARTIAL not in descriptor.materialization.capabilities:
-                return MaterializationDecision(
-                    mode=None,
-                    backend=None,
-                    target_tier=None,
-                    degraded=False,
-                    fallback=self.fallback(
-                        descriptor,
-                        "partial materialization is unsupported for this descriptor",
-                        preferred_backend,
-                    ),
-                )
-            backend, degraded, fallback = self.select_transfer_backend(descriptor, preferred_backend)
-            return MaterializationDecision(
-                mode=MaterializationMode.PARTIAL,
-                backend=backend,
-                target_tier=partial_plan.reusable.source_tier,
-                degraded=degraded,
-                fallback=fallback,
-            )
+        hook: str,
+        context: EngineRequestContext,
+        lookup: LookupOutcome,
+        allow_store_after_stage: bool,
+        enable_prefetch: bool,
+    ) -> LifecycleDecision:
+        from nexuskv.execution.types import MaterializationRequest
 
-        if match is not None:
-            if MaterializationCapability.FULL not in descriptor.materialization.capabilities:
-                return MaterializationDecision(
-                    mode=None,
-                    backend=None,
-                    target_tier=None,
-                    degraded=False,
-                    fallback=self.fallback(
-                        descriptor,
-                        "full materialization is unsupported for this descriptor",
-                        preferred_backend,
-                    ),
-                )
-            backend, degraded, fallback = self.select_transfer_backend(descriptor, preferred_backend)
-            return MaterializationDecision(
-                mode=MaterializationMode.FULL,
-                backend=backend,
-                target_tier=match.entry.location.tier,
-                degraded=degraded,
-                fallback=fallback,
+        outcome = self.execution_runner.execute(
+            MaterializationRequest(
+                hook=hook,
+                context=context,
+                lookup=lookup,
+                preferred_backend=context.preferred_backend,
+                allow_store_after_stage=allow_store_after_stage,
+                enable_prefetch=enable_prefetch,
             )
-
-        return MaterializationDecision(
-            mode=None,
-            backend=None,
-            target_tier=None,
-            degraded=False,
-            fallback=None,
         )
-
-    def prefetch(self, context: EngineRequestContext, planner: ReusePlanner) -> PrefetchDecision:
-        descriptor = context.descriptor
-        if MaterializationCapability.PREFETCH not in descriptor.materialization.capabilities:
-            return PrefetchDecision(
-                status=PrefetchStatus.UNSUPPORTED,
-                backend=None,
-                degraded=False,
-                plan=None,
-                fallback=FallbackPlan(
-                    mode=FallbackMode.SKIP,
-                    reason="prefetch is unsupported for this descriptor",
-                    selected_backend=None,
-                ),
-            )
-
-        plan = planner.plan_partial_hit(self.build_query_key(context))
-        if plan is None:
-            return PrefetchDecision(
-                status=PrefetchStatus.SKIPPED,
-                backend=None,
-                degraded=False,
-                plan=None,
-                fallback=None,
-            )
-
-        backend, degraded, fallback = self.select_transfer_backend(descriptor, context.preferred_backend)
-        if backend is None:
-            return PrefetchDecision(
-                status=PrefetchStatus.SKIPPED,
-                backend=None,
-                degraded=False,
-                plan=plan,
-                fallback=fallback,
-            )
-
-        return PrefetchDecision(
-            status=PrefetchStatus.SCHEDULED,
-            backend=backend,
-            degraded=degraded,
-            plan=plan,
-            fallback=fallback,
+        return LifecycleDecision(
+            hook=hook,
+            lookup=lookup,
+            execution=outcome,
+            should_store_after_stage=allow_store_after_stage,
         )
 
     def prepare_store(
@@ -342,64 +243,3 @@ class EngineConnector(ABC):
             ),
         )
         return StoreIntent(reuse_key=reuse_key, entry=entry)
-
-    def fallback(
-        self,
-        descriptor: AttentionStateDescriptor,
-        reason: str,
-        preferred_backend: TransferBackend | None,
-    ) -> FallbackPlan:
-        available = tuple(path.backend for path in descriptor.transfer_paths)
-        if preferred_backend is not None and preferred_backend not in available and available:
-            return FallbackPlan(
-                mode=FallbackMode.SIMPLER_TRANSFER,
-                reason=reason,
-                selected_backend=available[0],
-            )
-        return FallbackPlan(
-            mode=FallbackMode.RECOMPUTE,
-            reason=reason,
-            selected_backend=None,
-        )
-
-    def select_transfer_backend(
-        self,
-        descriptor: AttentionStateDescriptor,
-        preferred_backend: TransferBackend | None,
-    ) -> tuple[TransferBackend | None, bool, FallbackPlan | None]:
-        available = tuple(path.backend for path in descriptor.transfer_paths)
-        if not available:
-            return None, False, FallbackPlan(
-                mode=FallbackMode.RECOMPUTE,
-                reason="descriptor exposes no transfer paths",
-                selected_backend=None,
-            )
-
-        if preferred_backend is None:
-            return available[0], False, None
-
-        if preferred_backend in available:
-            return preferred_backend, False, None
-
-        fallback = FallbackPlan(
-            mode=FallbackMode.SIMPLER_TRANSFER,
-            reason=f"preferred backend {preferred_backend} is unavailable",
-            selected_backend=available[0],
-        )
-        return available[0], True, fallback
-
-    def partial_plan_from_match(self, match: MatchResult) -> PartialHitPlan:
-        reusable_tokens = match.requested_key.identity.tokens[: match.matched_extent.units]
-        disposition = (
-            PlanDisposition.FULL_REUSE if not match.remaining.tokens else PlanDisposition.PARTIAL_REUSE
-        )
-        return PartialHitPlan(
-            disposition=disposition,
-            reusable=ReusableSlice(tokens=list(reusable_tokens), source_tier=match.entry.location.tier),
-            remaining=RemainingWork(
-                tokens=list(match.remaining.tokens),
-                fetch_required=match.remaining.fetch_required,
-                recompute_required=match.remaining.recompute_required,
-            ),
-            entry=match.entry,
-        )
