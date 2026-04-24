@@ -12,7 +12,7 @@
 
 ### What was fixed
 
-- root `go test ./...` now passes under Go `1.23.9`
+- root `go test ./...` now passes under Go `1.25.9`
 - `pkg/health` now returns a minimal serving response
 - `pkg/wal` now has a minimal working segmented-log baseline sufficient for the legacy tests
 - `pkg/raft` now has explicit no-op legacy placeholders so the old server binary compiles
@@ -69,6 +69,15 @@ Completed:
 ## Next Planned Step
 
 PR 13 should introduce the first admission/quota policy hook behind the execution policy, keeping quota enforcement explicit and testable before staged-buffer reuse work.
+
+## PR 12.5: Go Toolchain Baseline
+
+Completed:
+
+- updated the root Go module baseline to Go `1.25.9`
+- updated the nested `go/` control-plane module baseline to Go `1.25.9`
+- updated test documentation to use `GOTOOLCHAIN=go1.25.9`
+- kept this separate from quota/admission work
 
 ## PR 6: Rust-Backed Planner Bridge
 

@@ -6,7 +6,7 @@
 
 **Architecture:** Add the new target layout in parallel with the existing root Go module. Keep the new control plane, data plane, and engine adapters isolated so later PRs can add real behavior behind stable contracts.
 
-**Tech Stack:** Go 1.23, Rust 1.95, Python 3.12, stdlib-first scaffolding
+**Tech Stack:** Go 1.25.9, Rust 1.95, Python 3.12, stdlib-first scaffolding
 
 ---
 
@@ -67,7 +67,7 @@
 
 - [ ] Implement default control-plane config.
 - [ ] Implement a tiny admin/health HTTP surface.
-- [ ] Run `go test ./...` in `go/`.
+- [ ] Run `GOTOOLCHAIN=go1.25.9 go test ./...` in `go/`.
 
 ### Task 5: Add test and benchmark scaffold directories
 

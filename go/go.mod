@@ -1,3 +1,3 @@
 module github.com/imReese/NexusKV/go
 
-go 1.23.9
+go 1.25.9

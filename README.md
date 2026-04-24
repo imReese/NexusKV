@@ -20,6 +20,15 @@ NexusKV is being evolved from a small Go prototype into a production-grade KV ca
 - [docs/benchmarks/benchmark-methodology.md](docs/benchmarks/benchmark-methodology.md)
 - [docs/ops/reliability-model.md](docs/ops/reliability-model.md)
 
+## Toolchain And Tests
+
+Go control-plane and legacy baseline tests currently use Go `1.25.9`:
+
+```bash
+GOTOOLCHAIN=go1.25.9 go test ./...
+cd go && GOTOOLCHAIN=go1.25.9 go test ./...
+```
+
 ## Near-Term Direction
 
 The first migration milestone does not try to replace the legacy prototype in one step. It establishes:
