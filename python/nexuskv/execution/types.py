@@ -24,6 +24,22 @@ class FallbackReason(StrEnum):
     ENGINE_POLICY = "engine_policy"
 
 
+class BackendActionKind(StrEnum):
+    MATERIALIZE = "materialize"
+    PREFETCH = "prefetch"
+    STORE = "store"
+    SKIP = "skip"
+    RECOMPUTE = "recompute"
+
+
+class BackendActionStatus(StrEnum):
+    SUCCEEDED = "succeeded"
+    SKIPPED = "skipped"
+    RECOMPUTED = "recomputed"
+    FALLBACK = "fallback"
+    REJECTED = "rejected"
+
+
 @dataclass(slots=True)
 class SourceTier:
     tier: TierKind | None
@@ -74,6 +90,36 @@ class MaterializationDecision:
 
 @dataclass(slots=True)
 class MaterializationOutcome:
-    primary: MaterializationDecision
-    prefetch: MaterializationDecision | None
-    store: MaterializationDecision
+    primary: "ExecutionStepOutcome"
+    prefetch: "ExecutionStepOutcome | None"
+    store: "ExecutionStepOutcome"
+
+
+@dataclass(slots=True)
+class BackendActionRequest:
+    kind: BackendActionKind
+    hook: str
+    context: EngineRequestContext
+    lookup: LookupOutcome
+    decision: MaterializationDecision
+
+
+@dataclass(slots=True)
+class BackendActionResult:
+    requested_kind: BackendActionKind
+    executed_kind: BackendActionKind
+    status: BackendActionStatus
+    final_disposition: ExecutionDisposition
+    backend_name: str
+    selected_backend: TransferBackend | None
+    source: SourceTier
+    target: TargetTier
+    degraded: bool
+    fallback_reason: FallbackReason | None
+    detail: str | None = None
+
+
+@dataclass(slots=True)
+class ExecutionStepOutcome:
+    decision: MaterializationDecision
+    result: BackendActionResult

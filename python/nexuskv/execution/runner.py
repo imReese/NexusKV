@@ -4,8 +4,14 @@ from dataclasses import dataclass
 
 from nexuskv.connectors.base import LookupStatus
 from nexuskv.contracts.generated import BufferKind, MaterializationCapability, TierKind, TransferBackend
+from nexuskv.execution.backend import BaselineExecutionBackend, ExecutionBackend
 from nexuskv.execution.types import (
+    BackendActionKind,
+    BackendActionRequest,
+    BackendActionResult,
+    BackendActionStatus,
     CapabilityCheckResult,
+    ExecutionStepOutcome,
     ExecutionDisposition,
     FallbackReason,
     MaterializationDecision,
@@ -19,11 +25,34 @@ from nexuskv.execution.types import (
 
 @dataclass(slots=True)
 class BaselineExecutionRunner:
+    backend: ExecutionBackend | None = None
+
     def execute(self, request: MaterializationRequest) -> MaterializationOutcome:
-        primary = self._decide_primary(request)
-        prefetch = self._decide_prefetch(request)
-        store = self._decide_store(request)
+        if self.backend is None:
+            self.backend = BaselineExecutionBackend()
+
+        primary = self._execute_step(request, self._decide_primary(request))
+        prefetch_decision = self._decide_prefetch(request)
+        prefetch = None if prefetch_decision is None else self._execute_step(request, prefetch_decision)
+        store = self._execute_step(request, self._decide_store(request))
         return MaterializationOutcome(primary=primary, prefetch=prefetch, store=store)
+
+    def _execute_step(
+        self,
+        request: MaterializationRequest,
+        decision: MaterializationDecision,
+    ) -> ExecutionStepOutcome:
+        action_request = BackendActionRequest(
+            kind=self._action_kind_for(decision.disposition),
+            hook=request.hook,
+            context=request.context,
+            lookup=request.lookup,
+            decision=decision,
+        )
+        result = self._dispatch(action_request)
+        if result.status == BackendActionStatus.REJECTED:
+            result = self._fallback_after_rejection(action_request, result)
+        return ExecutionStepOutcome(decision=decision, result=result)
 
     def _decide_primary(self, request: MaterializationRequest) -> MaterializationDecision:
         descriptor = request.context.descriptor
@@ -248,4 +277,63 @@ class BaselineExecutionRunner:
                 selected_backend=None,
             ),
             fallback_reason=fallback_reason,
+        )
+
+    def _action_kind_for(self, disposition: ExecutionDisposition) -> BackendActionKind:
+        return BackendActionKind(disposition.value)
+
+    def _dispatch(self, request: BackendActionRequest) -> BackendActionResult:
+        assert self.backend is not None
+        if request.kind == BackendActionKind.MATERIALIZE:
+            return self.backend.materialize(request)
+        if request.kind == BackendActionKind.PREFETCH:
+            return self.backend.prefetch(request)
+        if request.kind == BackendActionKind.STORE:
+            return self.backend.store(request)
+        if request.kind == BackendActionKind.RECOMPUTE:
+            return self.backend.recompute(request)
+        return self.backend.skip(request)
+
+    def _fallback_after_rejection(
+        self,
+        request: BackendActionRequest,
+        rejected: BackendActionResult,
+    ) -> BackendActionResult:
+        if request.kind == BackendActionKind.MATERIALIZE:
+            fallback_kind = (
+                BackendActionKind.RECOMPUTE
+                if MaterializationCapability.FALLBACK_RECOMPUTE in request.context.descriptor.materialization.capabilities
+                else BackendActionKind.SKIP
+            )
+        else:
+            fallback_kind = BackendActionKind.SKIP
+
+        fallback_decision = MaterializationDecision(
+            disposition=ExecutionDisposition(fallback_kind.value),
+            source=request.decision.source,
+            target=request.decision.target,
+            transfer=TransferMode(selected_backend=None),
+            capability_check=request.decision.capability_check,
+            fallback_reason=request.decision.fallback_reason or rejected.fallback_reason or FallbackReason.NO_TRANSFER_PATH,
+        )
+        fallback_request = BackendActionRequest(
+            kind=fallback_kind,
+            hook=request.hook,
+            context=request.context,
+            lookup=request.lookup,
+            decision=fallback_decision,
+        )
+        fallback_result = self._dispatch(fallback_request)
+        return BackendActionResult(
+            requested_kind=request.kind,
+            executed_kind=fallback_result.executed_kind,
+            status=BackendActionStatus.FALLBACK,
+            final_disposition=fallback_result.final_disposition,
+            backend_name=fallback_result.backend_name,
+            selected_backend=rejected.selected_backend,
+            source=fallback_result.source,
+            target=fallback_result.target,
+            degraded=request.decision.capability_check.degraded,
+            fallback_reason=request.decision.fallback_reason or rejected.fallback_reason or FallbackReason.NO_TRANSFER_PATH,
+            detail=rejected.detail,
         )

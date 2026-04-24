@@ -25,7 +25,7 @@ from nexuskv.contracts.generated import (
 
 if TYPE_CHECKING:
     from nexuskv.execution.runner import BaselineExecutionRunner
-    from nexuskv.execution.types import MaterializationOutcome, MaterializationRequest
+    from nexuskv.execution.types import BackendActionResult, MaterializationOutcome, MaterializationRequest
 
 
 class LookupStatus(StrEnum):
@@ -93,15 +93,27 @@ class LifecycleDecision:
 
     @property
     def materialization(self):
-        return self.execution.primary
+        return self.execution.primary.decision
 
     @property
     def prefetch(self):
-        return self.execution.prefetch
+        return None if self.execution.prefetch is None else self.execution.prefetch.decision
 
     @property
     def store(self):
-        return self.execution.store
+        return self.execution.store.decision
+
+    @property
+    def materialization_result(self) -> "BackendActionResult":
+        return self.execution.primary.result
+
+    @property
+    def prefetch_result(self) -> "BackendActionResult | None":
+        return None if self.execution.prefetch is None else self.execution.prefetch.result
+
+    @property
+    def store_result(self) -> "BackendActionResult":
+        return self.execution.store.result
 
 
 class ReusePlanner(Protocol):

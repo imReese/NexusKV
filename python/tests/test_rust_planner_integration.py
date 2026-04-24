@@ -7,6 +7,8 @@ from nexuskv.connectors.base import LookupStatus, SGLangLifecycleContext, VLLMLi
 from nexuskv.connectors.sglang.connector import SGLangConnector
 from nexuskv.connectors.vllm.connector import VLLMConnector
 from nexuskv.contracts.generated import TierKind, TransferBackend
+from nexuskv.execution.backend import BaselineExecutionBackend
+from nexuskv.execution.runner import BaselineExecutionRunner
 from nexuskv.execution.types import ExecutionDisposition, FallbackReason
 
 
@@ -27,7 +29,8 @@ class RustPlannerIntegrationTest(unittest.TestCase):
     def test_python_can_insert_and_lookup_exact_hit_via_rust(self) -> None:
         from nexuskv.planner.rust_backend import RustPlanner
 
-        connector = VLLMConnector()
+        backend = BaselineExecutionBackend()
+        connector = VLLMConnector(execution_runner=BaselineExecutionRunner(backend=backend))
         planner = RustPlanner()
         context = VLLMLifecycleContext(
             tenant="tenant-a",
@@ -49,11 +52,14 @@ class RustPlannerIntegrationTest(unittest.TestCase):
 
         self.assertEqual(decision.lookup.status, LookupStatus.HIT)
         self.assertEqual(decision.lookup.match.entry.identity.entry_id, "entry-exact")
+        self.assertEqual(decision.materialization_result.executed_kind.value, "materialize")
+        self.assertEqual(backend.calls[0].request.kind.value, "materialize")
 
     def test_python_can_plan_partial_hit_via_rust(self) -> None:
         from nexuskv.planner.rust_backend import RustPlanner
 
-        connector = VLLMConnector()
+        backend = BaselineExecutionBackend()
+        connector = VLLMConnector(execution_runner=BaselineExecutionRunner(backend=backend))
         planner = RustPlanner()
         base = VLLMLifecycleContext(
             tenant="tenant-a",
@@ -93,6 +99,8 @@ class RustPlannerIntegrationTest(unittest.TestCase):
         self.assertEqual(decision.lookup.status, LookupStatus.PARTIAL)
         self.assertEqual(decision.lookup.partial_plan.remaining.tokens, [24, 25])
         self.assertEqual(decision.prefetch.disposition, ExecutionDisposition.PREFETCH)
+        self.assertEqual(decision.prefetch_result.executed_kind.value, "prefetch")
+        self.assertEqual([call.request.kind.value for call in backend.calls[:3]], ["materialize", "prefetch", "store"])
 
     def test_identity_isolation_is_preserved_through_rust_planner(self) -> None:
         from nexuskv.planner.rust_backend import RustPlanner
@@ -135,7 +143,8 @@ class RustPlannerIntegrationTest(unittest.TestCase):
     def test_unsupported_partial_materialization_degrades_safely_through_real_planner(self) -> None:
         from nexuskv.planner.rust_backend import RustPlanner
 
-        connector = SGLangConnector()
+        backend = BaselineExecutionBackend()
+        connector = SGLangConnector(execution_runner=BaselineExecutionRunner(backend=backend))
         planner = RustPlanner()
         stored = SGLangLifecycleContext(
             tenant="tenant-a",
@@ -171,6 +180,7 @@ class RustPlannerIntegrationTest(unittest.TestCase):
         self.assertEqual(decision.lookup.status, LookupStatus.PARTIAL)
         self.assertEqual(decision.materialization.disposition, ExecutionDisposition.RECOMPUTE)
         self.assertEqual(decision.materialization.fallback_reason, FallbackReason.UNSUPPORTED_CAPABILITY)
+        self.assertEqual(decision.materialization_result.executed_kind.value, "recompute")
 
 
 if __name__ == "__main__":

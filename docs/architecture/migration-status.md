@@ -60,10 +60,11 @@ Completed:
 - Python connectors are lifecycle-aware and planner-driven
 - Python planner protocol is now backed by a real Rust `nxradixtree` execution path through a thin extension bridge
 - Python connectors now route planner results through a tier-aware execution boundary instead of keeping materialization policy in connector-local branches
+- execution decisions now flow through a concrete backend protocol with observable materialize, prefetch, store, skip, and recompute calls
 
 ## Next Planned Step
 
-PR 8 should start turning the execution boundary into a real transport/materialization surface: narrow execution backend protocol, baseline transfer/materialization stub implementation, and end-to-end planner-to-executor integration around concrete materialization actions.
+PR 9 should introduce a transport backend catalog and backend selection contract so the execution runner can choose among multiple backend implementations without connector changes.
 
 ## PR 6: Rust-Backed Planner Bridge
 
@@ -84,3 +85,13 @@ Completed:
 - integrated SGLang and vLLM connectors with the execution boundary while preserving their lifecycle differences
 - added deterministic tests for exact hits, partial hits, backend downgrade, unsupported prefetch, and recompute fallback
 - documented what is implemented now versus what remains deferred to future transport and tiering work
+
+## PR 8: Execution Backend Protocol
+
+Completed:
+
+- introduced a narrow execution backend protocol for materialize, prefetch, store, skip, and recompute actions
+- added a baseline backend that records calls and returns structured outcomes
+- wired the execution runner to dispatch decisions into backend calls and handle deterministic fallback on backend rejection
+- added focused backend-aware execution tests and connector integration tests against the real Rust planner
+- documented how future RDMA, host-staged, remote shared-store, and file-backed backends will plug into the same boundary
