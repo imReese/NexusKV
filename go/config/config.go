@@ -6,8 +6,9 @@ type AdminConfig struct {
 }
 
 type ControlPlaneConfig struct {
-	ClusterName string
-	Admin       AdminConfig
+	ClusterName     string
+	Admin           AdminConfig
+	ExecutionPolicy ExecutionPolicy
 }
 
 func DefaultConfig() ControlPlaneConfig {
@@ -17,5 +18,10 @@ func DefaultConfig() ControlPlaneConfig {
 			Enabled:       true,
 			ListenAddress: "127.0.0.1:8081",
 		},
+		ExecutionPolicy: DefaultExecutionPolicy(),
 	}
+}
+
+func (c ControlPlaneConfig) Validate() error {
+	return c.ExecutionPolicy.Validate()
 }

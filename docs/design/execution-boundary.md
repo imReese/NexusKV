@@ -74,6 +74,7 @@ The baseline guarantees in PR 8 are:
 
 PR 9 adds deterministic backend selection in front of those calls through a transport backend catalog.
 PR 10 adds explicit payload handles and transfer-session metadata to those calls and results.
+PR 11 adds a versioned control-plane execution policy contract that filters backend registration, applies backend priority, constrains allowed tiers and hardware/buffer targets, and controls recompute versus skip fallback behavior.
 
 ## Decision model
 
@@ -126,6 +127,16 @@ Current behavior:
 - if partial materialization is unsupported for the descriptor, degrade the primary action to recompute
 - if prefetch is unsupported, return an explicit safe skip instead of pretending prefetch happened
 - if the selected transport backend is rejected by the execution backend, the runner degrades the step to recompute or skip and records that fallback outcome
+
+With PR 11, execution policy can additionally:
+
+- disable transfer backends entirely
+- reorder backend preference independently of descriptor order
+- disallow source tiers
+- disallow target tiers
+- disallow target device classes
+- disallow target buffer kinds
+- force policy-denied paths to skip instead of recompute
 
 ## Baseline backend behavior
 
@@ -196,6 +207,15 @@ Implemented in PR 10:
 - staged-copy stub now exposes intermediate host-staging metadata
 - remote shared-store stub now exposes remote payload handles
 
+Implemented in PR 11:
+
+- versioned Go/Python execution policy contract
+- Go control-plane config loading, validation, and rendering for execution policy
+- Python policy loading and validation
+- policy-aware backend registration and deterministic backend priority
+- policy-aware filtering of source tiers, target tiers, device classes, and buffer kinds
+- policy-driven recompute versus skip fallback behavior
+
 Deferred:
 
 - real transport backend implementations
@@ -206,6 +226,7 @@ Deferred:
 - SSD or file-backed materialization backend
 - batching and throughput optimization
 - policy-engine-driven execution decisions
+- tenant-specific execution policy overrides
 - distributed execution coordination
 
 ## Future backend extension points
@@ -222,6 +243,7 @@ Those implementations should not require connector changes. They should plug in 
 
 See also: [transport-backend-catalog.md](transport-backend-catalog.md)
 See also: [payload-transfer-contract.md](payload-transfer-contract.md)
+See also: [controlplane-execution-policy.md](controlplane-execution-policy.md)
 
 ## Why this boundary exists now
 

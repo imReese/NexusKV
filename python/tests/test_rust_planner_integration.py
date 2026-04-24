@@ -8,6 +8,7 @@ from nexuskv.connectors.sglang.connector import SGLangConnector
 from nexuskv.connectors.vllm.connector import VLLMConnector
 from nexuskv.contracts.generated import TierKind, TransferBackend
 from nexuskv.execution.backend import BaselineExecutionBackend
+from nexuskv.execution.policy import ExecutionPolicy
 from nexuskv.execution.runner import BaselineExecutionRunner
 from nexuskv.execution.types import ExecutionDisposition, FallbackReason, TransferStatus
 
@@ -232,6 +233,49 @@ class RustPlannerIntegrationTest(unittest.TestCase):
         self.assertIsNotNone(decision.materialization_result.payload_handle)
         self.assertIsNotNone(decision.store_result.payload_handle)
         self.assertIsNotNone(decision.materialization_result.transfer_session.result.intermediate_handle)
+
+    def test_connector_execution_remains_stable_under_policy_change(self) -> None:
+        from nexuskv.planner.rust_backend import RustPlanner
+
+        policy = ExecutionPolicy.from_dict(
+            {
+                **ExecutionPolicy.default().to_dict(),
+                "allowed_target_tiers": ["host_dram"],
+                "allowed_buffer_kinds": ["host_pinned"],
+            }
+        )
+        backend = BaselineExecutionBackend(supported_backends=(TransferBackend.STAGED_COPY,))
+        connector = VLLMConnector(execution_runner=BaselineExecutionRunner(backend=backend, policy=policy))
+        planner = RustPlanner()
+        base = VLLMLifecycleContext(
+            tenant="tenant-a",
+            namespace="chat",
+            model="llama-70b",
+            tokens=[90, 91, 92],
+            descriptor=connector.default_descriptor(),
+            page_id=12,
+        )
+        planner.insert(
+            connector.prepare_store(
+                base,
+                entry_id="entry-policy",
+                locator="remote://entry-policy",
+                tier=TierKind.REMOTE_SHARED,
+            ).reuse_key,
+            connector.prepare_store(
+                base,
+                entry_id="entry-policy",
+                locator="remote://entry-policy",
+                tier=TierKind.REMOTE_SHARED,
+            ).entry,
+        )
+
+        decision = connector.on_request_start(base, planner)
+
+        self.assertEqual(decision.lookup.status, LookupStatus.HIT)
+        self.assertEqual(decision.materialization_result.status.value, "succeeded")
+        self.assertEqual(decision.materialization_result.target.tier, TierKind.HOST_DRAM)
+        self.assertEqual(decision.materialization_result.payload_handle.location.tier, TierKind.HOST_DRAM)
 
 
 if __name__ == "__main__":

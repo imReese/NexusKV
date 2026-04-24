@@ -1,0 +1,182 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nexuskv.dev/schema/nexuskv_execution_policy_v1.json",
+  "title": "NexusKV Execution Policy v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "enabled_transfer_backends",
+    "backend_priority_order",
+    "allowed_source_tiers",
+    "allowed_target_tiers",
+    "allowed_device_classes",
+    "allowed_buffer_kinds",
+    "default_fallback_behavior",
+    "recompute_fallback_policy",
+    "tenant_namespace_policy",
+    "quota_admission_policy"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "nexuskv.execution_policy.v1"
+    },
+    "enabled_transfer_backends": {
+      "type": "array",
+      "uniqueItems": true,
+      "minItems": 1,
+      "items": {
+        "enum": [
+          "baseline_transport",
+          "staged_copy",
+          "rdma",
+          "zero_copy"
+        ]
+      }
+    },
+    "backend_priority_order": {
+      "type": "array",
+      "uniqueItems": true,
+      "minItems": 1,
+      "items": {
+        "enum": [
+          "baseline_transport",
+          "staged_copy",
+          "rdma",
+          "zero_copy"
+        ]
+      }
+    },
+    "allowed_source_tiers": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "device",
+          "host_dram",
+          "local_ssd",
+          "remote_shared",
+          "object_store"
+        ]
+      }
+    },
+    "allowed_target_tiers": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "device",
+          "host_dram",
+          "local_ssd",
+          "remote_shared",
+          "object_store"
+        ]
+      }
+    },
+    "allowed_device_classes": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "cpu",
+          "cuda",
+          "rocm",
+          "tpu",
+          "other"
+        ]
+      }
+    },
+    "allowed_buffer_kinds": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "device",
+          "host_pinned",
+          "host_pageable",
+          "remote",
+          "file_backed"
+        ]
+      }
+    },
+    "default_fallback_behavior": {
+      "enum": [
+        "degrade",
+        "recompute",
+        "skip"
+      ]
+    },
+    "recompute_fallback_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "on_cache_miss",
+        "on_backend_rejection",
+        "on_capability_miss",
+        "on_policy_denial"
+      ],
+      "properties": {
+        "on_cache_miss": {
+          "type": "boolean"
+        },
+        "on_backend_rejection": {
+          "type": "boolean"
+        },
+        "on_capability_miss": {
+          "type": "boolean"
+        },
+        "on_policy_denial": {
+          "type": "boolean"
+        }
+      }
+    },
+    "tenant_namespace_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "mode",
+        "default_tenant",
+        "default_namespace"
+      ],
+      "properties": {
+        "mode": {
+          "enum": [
+            "disabled",
+            "advisory"
+          ]
+        },
+        "default_tenant": {
+          "type": "string"
+        },
+        "default_namespace": {
+          "type": "string"
+        }
+      }
+    },
+    "quota_admission_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "mode",
+        "max_payload_bytes",
+        "max_entries"
+      ],
+      "properties": {
+        "mode": {
+          "enum": [
+            "disabled",
+            "advisory"
+          ]
+        },
+        "max_payload_bytes": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "max_entries": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    }
+  }
+}

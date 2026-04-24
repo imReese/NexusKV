@@ -1,5 +1,14 @@
 from .backend import BackendInvocation, BaselineExecutionBackend, ExecutionBackend
 from .catalog import BackendCatalog, BackendRegistration
+from .policy import (
+    SCHEMA_VERSION as EXECUTION_POLICY_SCHEMA_VERSION,
+    ExecutionPolicy,
+    FallbackBehavior,
+    PlaceholderMode,
+    QuotaAdmissionPolicy,
+    RecomputeFallbackPolicy,
+    TenantNamespacePolicy,
+)
 from .runner import BaselineExecutionRunner
 from .store import InMemoryEntryStore, PrefetchIntent, StoreRecord
 from .types import (
@@ -42,8 +51,11 @@ __all__ = [
     "BackendSelection",
     "CapabilityCheckResult",
     "ExecutionBackend",
+    "ExecutionPolicy",
+    "EXECUTION_POLICY_SCHEMA_VERSION",
     "ExecutionStepOutcome",
     "ExecutionDisposition",
+    "FallbackBehavior",
     "FallbackReason",
     "MaterializationDecision",
     "MaterializationOutcome",
@@ -52,11 +64,15 @@ __all__ = [
     "PayloadHandle",
     "PayloadLocation",
     "PayloadOwnership",
+    "PlaceholderMode",
     "InMemoryEntryStore",
     "PrefetchIntent",
+    "QuotaAdmissionPolicy",
+    "RecomputeFallbackPolicy",
     "SourceTier",
     "StateSliceDescriptor",
     "StoreRecord",
+    "TenantNamespacePolicy",
     "TargetTier",
     "TransferRequest",
     "TransferResult",

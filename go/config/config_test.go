@@ -12,4 +12,8 @@ func TestDefaultConfigEnablesAdminAPI(t *testing.T) {
 	if cfg.Admin.ListenAddress == "" {
 		t.Fatalf("expected listen address to be populated")
 	}
+
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("expected default config to validate: %v", err)
+	}
 }

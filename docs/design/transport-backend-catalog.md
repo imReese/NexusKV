@@ -23,6 +23,7 @@ Backends are registered against a structured capability profile:
 - materialization capability
 
 The runner builds a `BackendActionRequest`, and the catalog selects a backend by matching those fields in a deterministic order.
+Since PR 11, the catalog also consumes a control-plane execution policy that can disable transfer backends, override backend priority, and reject disallowed source/target tier or hardware/buffer combinations before backend dispatch.
 
 Since PR 10, `BackendActionRequest` also carries:
 
@@ -32,12 +33,13 @@ Since PR 10, `BackendActionRequest` also carries:
 
 ## Selection rules
 
-Current selection behavior in PR 9:
+Current selection behavior in PR 11:
 
 1. filter registrations by action kind, tier, device, buffer, and materialization capability
-2. if a preferred `TransferBackend` exists, choose an exact transfer-backend match first
-3. if no exact transfer-backend match exists, choose the first deterministic degraded candidate
-4. if no candidate exists, return no selection and let the runner fall back to recompute or skip
+2. apply control-plane policy filtering for enabled backends and allowed source/target tier, device, and buffer constraints
+3. if a preferred `TransferBackend` exists, choose an exact transfer-backend match first
+4. if no exact transfer-backend match exists, choose the first deterministic degraded candidate when policy allows degrade
+5. if no candidate exists, return no selection and let the runner fall back to recompute or skip
 
 Determinism is provided by:
 

@@ -23,6 +23,7 @@ from nexuskv.execution.backend import (
     StagedCopyExecutionBackend,
 )
 from nexuskv.execution.catalog import BackendCatalog, BackendRegistration
+from nexuskv.execution.policy import ExecutionPolicy
 from nexuskv.execution.store import InMemoryEntryStore
 from nexuskv.execution.types import (
     BackendActionKind,
@@ -54,10 +55,15 @@ from nexuskv.execution.types import (
 class BaselineExecutionRunner:
     backend: ExecutionBackend | None = None
     catalog: BackendCatalog | None = None
+    policy: ExecutionPolicy | None = None
 
     def execute(self, request: MaterializationRequest) -> MaterializationOutcome:
+        if self.policy is None:
+            self.policy = ExecutionPolicy.default()
         if self.catalog is None:
             self.catalog = self._build_default_catalog()
+        elif self.catalog.policy is None:
+            self.catalog.policy = self.policy
 
         primary = self._execute_step(request, self._decide_primary(request))
         prefetch_decision = self._decide_prefetch(request)
@@ -80,7 +86,9 @@ class BaselineExecutionRunner:
             payload_handle=self._build_input_payload_handle(request, decision),
             transfer_request=self._build_transfer_request(request, decision),
         )
-        action_request, selection = self._prepare_action_request(initial_request)
+        policy_fallback = self._policy_fallback_request(initial_request)
+        prepared = initial_request if policy_fallback is None else policy_fallback
+        action_request, selection = self._prepare_action_request(prepared)
         result = self._dispatch(action_request, selection)
         if result.status == BackendActionStatus.REJECTED:
             result = self._fallback_after_rejection(action_request, result)
@@ -99,7 +107,7 @@ class BaselineExecutionRunner:
 
         if request.lookup.status == LookupStatus.MISS:
             return self._decision(
-                ExecutionDisposition.RECOMPUTE,
+                self._fallback_disposition(request.context.descriptor, FallbackReason.CACHE_MISS, primary=True),
                 target=target,
                 fallback_reason=FallbackReason.CACHE_MISS,
             )
@@ -129,7 +137,7 @@ class BaselineExecutionRunner:
             )
 
         return self._decision(
-            ExecutionDisposition.RECOMPUTE,
+            self._fallback_disposition(request.context.descriptor, FallbackReason.CACHE_MISS, primary=True),
             target=target,
             fallback_reason=FallbackReason.CACHE_MISS,
         )
@@ -216,11 +224,7 @@ class BaselineExecutionRunner:
         descriptor = request.context.descriptor
         if required_capability not in descriptor.materialization.capabilities:
             fallback_reason = FallbackReason.UNSUPPORTED_CAPABILITY
-            fallback_disposition = (
-                ExecutionDisposition.RECOMPUTE
-                if MaterializationCapability.FALLBACK_RECOMPUTE in descriptor.materialization.capabilities
-                else ExecutionDisposition.SKIP
-            )
+            fallback_disposition = self._fallback_disposition(descriptor, fallback_reason, primary=True)
             return MaterializationDecision(
                 disposition=fallback_disposition,
                 source=source,
@@ -264,45 +268,40 @@ class BaselineExecutionRunner:
         *,
         preferred_backend: TransferBackend | None,
     ) -> tuple[TransferBackend | None, bool, FallbackReason | None]:
-        available = tuple(path.backend for path in descriptor.transfer_paths)
+        available = tuple(
+            path.backend
+            for path in descriptor.transfer_paths
+            if self.policy is None or self.policy.allows_transfer_backend(path.backend)
+        )
+        if self.policy is not None:
+            available = tuple(sorted(available, key=lambda backend: self.policy.priority_for(backend, 100)))
         if not available:
-            return None, False, FallbackReason.NO_TRANSFER_PATH
+            reason = FallbackReason.ENGINE_POLICY if descriptor.transfer_paths else FallbackReason.NO_TRANSFER_PATH
+            return None, False, reason
         if preferred_backend is None:
             return available[0], False, None
         if preferred_backend in available:
             return preferred_backend, False, None
-        return available[0], True, FallbackReason.PREFERRED_BACKEND_UNAVAILABLE
+        if self.policy is not None and not self.policy.allows_degraded_backend_selection():
+            return None, False, FallbackReason.ENGINE_POLICY
+        return available[0], True, (
+            FallbackReason.ENGINE_POLICY
+            if self.policy is not None and not self.policy.allows_transfer_backend(preferred_backend)
+            else FallbackReason.PREFERRED_BACKEND_UNAVAILABLE
+        )
 
     def _select_target_tier(self, descriptor) -> TargetTier:
-        tiers = descriptor.materialization.tier_kinds
-        buffer_kinds = descriptor.materialization.buffer_kinds
-        device_classes = descriptor.materialization.device_classes
-
-        if TierKind.DEVICE in tiers:
-            return TargetTier(
-                tier=TierKind.DEVICE,
-                device_class=device_classes[0] if device_classes else None,
-                buffer_kind=BufferKind.DEVICE if BufferKind.DEVICE in buffer_kinds else None,
-            )
-        if TierKind.HOST_DRAM in tiers:
-            buffer_kind = (
-                BufferKind.HOST_PINNED
-                if BufferKind.HOST_PINNED in buffer_kinds
-                else BufferKind.HOST_PAGEABLE
-                if BufferKind.HOST_PAGEABLE in buffer_kinds
-                else None
-            )
-            return TargetTier(tier=TierKind.HOST_DRAM, buffer_kind=buffer_kind)
-        if TierKind.LOCAL_SSD in tiers:
-            return TargetTier(tier=TierKind.LOCAL_SSD, buffer_kind=BufferKind.FILE_BACKED)
-        if TierKind.REMOTE_SHARED in tiers:
-            return TargetTier(tier=TierKind.REMOTE_SHARED, buffer_kind=BufferKind.REMOTE)
+        for target in self._candidate_targets(descriptor):
+            if self._target_allowed(target):
+                return target
         return TargetTier(tier=None)
 
     def _select_store_tier(self, descriptor) -> TargetTier:
         tiers = descriptor.materialization.tier_kinds
         if TierKind.REMOTE_SHARED in tiers:
-            return TargetTier(tier=TierKind.REMOTE_SHARED, buffer_kind=BufferKind.REMOTE)
+            target = TargetTier(tier=TierKind.REMOTE_SHARED, buffer_kind=BufferKind.REMOTE)
+            if self._target_allowed(target):
+                return target
         return self._select_target_tier(descriptor)
 
     def _decision(
@@ -336,6 +335,14 @@ class BaselineExecutionRunner:
         selection: tuple[ExecutionBackend, BackendSelection] | None,
     ) -> BackendActionResult:
         if selection is None:
+            fallback_reason = (
+                request.decision.fallback_reason
+                or (
+                    FallbackReason.ENGINE_POLICY
+                    if self.policy is not None and not self._request_allowed(request)
+                    else FallbackReason.NO_TRANSFER_PATH
+                )
+            )
             return BackendActionResult(
                 requested_kind=request.kind,
                 executed_kind=request.kind,
@@ -346,7 +353,7 @@ class BaselineExecutionRunner:
                 source=request.decision.source,
                 target=request.decision.target,
                 degraded=request.decision.capability_check.degraded,
-                fallback_reason=request.decision.fallback_reason or FallbackReason.NO_TRANSFER_PATH,
+                fallback_reason=fallback_reason,
                 payload_handle=request.payload_handle,
                 transfer_session=None,
                 detail="backend catalog could not select a compatible execution backend",
@@ -368,14 +375,14 @@ class BaselineExecutionRunner:
         request: BackendActionRequest,
         rejected: BackendActionResult,
     ) -> BackendActionResult:
-        if request.kind == BackendActionKind.MATERIALIZE:
-            fallback_kind = (
-                BackendActionKind.RECOMPUTE
-                if MaterializationCapability.FALLBACK_RECOMPUTE in request.context.descriptor.materialization.capabilities
-                else BackendActionKind.SKIP
-            )
-        else:
-            fallback_kind = BackendActionKind.SKIP
+        fallback_reason = request.decision.fallback_reason or rejected.fallback_reason or FallbackReason.NO_TRANSFER_PATH
+        fallback_kind = BackendActionKind(
+            self._fallback_disposition(
+                request.context.descriptor,
+                fallback_reason,
+                primary=request.kind == BackendActionKind.MATERIALIZE,
+            ).value
+        )
 
         fallback_decision = MaterializationDecision(
             disposition=ExecutionDisposition(fallback_kind.value),
@@ -383,7 +390,7 @@ class BaselineExecutionRunner:
             target=request.decision.target,
             transfer=TransferMode(selected_backend=None),
             capability_check=request.decision.capability_check,
-            fallback_reason=request.decision.fallback_reason or rejected.fallback_reason or FallbackReason.NO_TRANSFER_PATH,
+            fallback_reason=fallback_reason,
         )
         fallback_request = BackendActionRequest(
             kind=fallback_kind,
@@ -405,7 +412,7 @@ class BaselineExecutionRunner:
             source=fallback_result.source,
             target=fallback_result.target,
             degraded=request.decision.capability_check.degraded,
-            fallback_reason=request.decision.fallback_reason or rejected.fallback_reason or FallbackReason.NO_TRANSFER_PATH,
+            fallback_reason=fallback_reason,
             payload_handle=fallback_result.payload_handle,
             transfer_session=fallback_result.transfer_session,
             detail=rejected.detail,
@@ -443,9 +450,40 @@ class BaselineExecutionRunner:
             )
         return replace(request, decision=effective_decision), selection
 
+    def _policy_fallback_request(self, request: BackendActionRequest) -> BackendActionRequest | None:
+        if self.policy is None:
+            return None
+        if self._request_allowed(request):
+            return None
+
+        fallback_reason = FallbackReason.ENGINE_POLICY
+        primary = request.kind == BackendActionKind.MATERIALIZE
+        fallback_disposition = self._fallback_disposition(request.context.descriptor, fallback_reason, primary=primary)
+        fallback_kind = BackendActionKind(fallback_disposition.value)
+        fallback_decision = MaterializationDecision(
+            disposition=fallback_disposition,
+            source=request.decision.source,
+            target=request.decision.target,
+            transfer=TransferMode(selected_backend=None),
+            capability_check=CapabilityCheckResult(
+                supported=False,
+                degraded=False,
+                required_capability=request.decision.capability_check.required_capability,
+                fallback_reason=fallback_reason,
+                selected_backend=None,
+            ),
+            fallback_reason=fallback_reason,
+        )
+        return replace(
+            request,
+            kind=fallback_kind,
+            decision=fallback_decision,
+            transfer_request=None,
+        )
+
     def _build_default_catalog(self) -> BackendCatalog:
         if self.backend is not None:
-            catalog = BackendCatalog()
+            catalog = BackendCatalog(policy=self.policy)
             backend_name = getattr(self.backend, "backend_name", "custom-execution-backend")
             for transfer_backend in TransferBackend:
                 catalog.register(
@@ -477,7 +515,7 @@ class BaselineExecutionRunner:
         staged = StagedCopyExecutionBackend()
         remote = RemoteSharedStoreExecutionBackend()
 
-        catalog = BackendCatalog()
+        catalog = BackendCatalog(policy=self.policy)
         catalog.register(
             BackendRegistration(
                 name=baseline.backend_name,
@@ -529,6 +567,68 @@ class BaselineExecutionRunner:
             )
         )
         return catalog
+
+    def _candidate_targets(self, descriptor) -> list[TargetTier]:
+        tiers = descriptor.materialization.tier_kinds
+        buffer_kinds = descriptor.materialization.buffer_kinds
+        device_classes = descriptor.materialization.device_classes
+        candidates: list[TargetTier] = []
+
+        if TierKind.DEVICE in tiers:
+            candidates.append(
+                TargetTier(
+                    tier=TierKind.DEVICE,
+                    device_class=device_classes[0] if device_classes else None,
+                    buffer_kind=BufferKind.DEVICE if BufferKind.DEVICE in buffer_kinds else None,
+                )
+            )
+        if TierKind.HOST_DRAM in tiers:
+            buffer_kind = (
+                BufferKind.HOST_PINNED
+                if BufferKind.HOST_PINNED in buffer_kinds
+                else BufferKind.HOST_PAGEABLE
+                if BufferKind.HOST_PAGEABLE in buffer_kinds
+                else None
+            )
+            candidates.append(TargetTier(tier=TierKind.HOST_DRAM, buffer_kind=buffer_kind))
+        if TierKind.LOCAL_SSD in tiers:
+            candidates.append(TargetTier(tier=TierKind.LOCAL_SSD, buffer_kind=BufferKind.FILE_BACKED))
+        if TierKind.REMOTE_SHARED in tiers:
+            candidates.append(TargetTier(tier=TierKind.REMOTE_SHARED, buffer_kind=BufferKind.REMOTE))
+        return candidates
+
+    def _request_allowed(self, request: BackendActionRequest) -> bool:
+        assert self.policy is not None
+        if request.kind in {BackendActionKind.MATERIALIZE, BackendActionKind.PREFETCH, BackendActionKind.STORE}:
+            if request.decision.target.tier is None:
+                return False
+        return (
+            self.policy.allows_source_tier(request.decision.source.tier)
+            and self._target_allowed(request.decision.target)
+            and self.policy.allows_transfer_backend(request.decision.transfer.selected_backend)
+        )
+
+    def _target_allowed(self, target: TargetTier) -> bool:
+        if self.policy is None:
+            return True
+        return (
+            self.policy.allows_target_tier(target.tier)
+            and self.policy.allows_device_class(target.device_class)
+            and self.policy.allows_buffer_kind(target.buffer_kind)
+        )
+
+    def _fallback_disposition(
+        self,
+        descriptor,
+        fallback_reason: FallbackReason,
+        *,
+        primary: bool,
+    ) -> ExecutionDisposition:
+        if self.policy is None:
+            if primary and MaterializationCapability.FALLBACK_RECOMPUTE in descriptor.materialization.capabilities:
+                return ExecutionDisposition.RECOMPUTE
+            return ExecutionDisposition.SKIP
+        return self.policy.fallback_disposition(descriptor, fallback_reason, action_is_primary=primary)
 
     def _build_store_entry(
         self,

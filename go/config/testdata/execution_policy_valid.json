@@ -1,0 +1,47 @@
+{
+  "schema_version": "nexuskv.execution_policy.v1",
+  "enabled_transfer_backends": [
+    "baseline_transport",
+    "staged_copy"
+  ],
+  "backend_priority_order": [
+    "staged_copy",
+    "baseline_transport"
+  ],
+  "allowed_source_tiers": [
+    "host_dram",
+    "remote_shared"
+  ],
+  "allowed_target_tiers": [
+    "device",
+    "host_dram",
+    "remote_shared"
+  ],
+  "allowed_device_classes": [
+    "cpu",
+    "cuda"
+  ],
+  "allowed_buffer_kinds": [
+    "device",
+    "host_pinned",
+    "host_pageable",
+    "remote"
+  ],
+  "default_fallback_behavior": "degrade",
+  "recompute_fallback_policy": {
+    "on_cache_miss": true,
+    "on_backend_rejection": true,
+    "on_capability_miss": true,
+    "on_policy_denial": false
+  },
+  "tenant_namespace_policy": {
+    "mode": "advisory",
+    "default_tenant": "tenant-default",
+    "default_namespace": "namespace-default"
+  },
+  "quota_admission_policy": {
+    "mode": "advisory",
+    "max_payload_bytes": 0,
+    "max_entries": 0
+  }
+}

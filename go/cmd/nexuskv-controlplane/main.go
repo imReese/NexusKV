@@ -12,6 +12,10 @@ import (
 func main() {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	cfg := config.DefaultConfig()
+	if err := cfg.Validate(); err != nil {
+		logger.Error("invalid control plane configuration", "error", err)
+		os.Exit(1)
+	}
 	server := app.NewServer(app.ServerConfig{
 		ListenAddress: cfg.Admin.ListenAddress,
 	})

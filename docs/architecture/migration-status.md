@@ -63,10 +63,11 @@ Completed:
 - execution decisions now flow through a concrete backend protocol with observable materialize, prefetch, store, skip, and recompute calls
 - backend selection is now deterministic through a transport catalog, and the baseline backend has a minimal stateful store model for exact store/materialize testing
 - execution results now carry explicit payload-handle and transfer-session metadata, creating a stable seam for future data-movement implementations
+- Go control-plane and Python execution now share a versioned execution-policy contract for backend enablement, backend priority, allowed tiers/devices/buffers, and fallback behavior
 
 ## Next Planned Step
 
-PR 11 should start formalizing reusable materialization payload policies above the payload/transfer contract: payload caching hints, staged buffer reuse semantics, and the first tenant-aware payload admission constraints.
+PR 12 should start introducing control-plane-driven backend capability overlays or initial policy distribution mechanics so the current execution policy can move beyond static local configuration.
 
 ## PR 6: Rust-Backed Planner Bridge
 
@@ -117,3 +118,15 @@ Completed:
 - updated backend actions so store receives payload metadata and materialize/prefetch return payload and transfer-session metadata
 - kept transport fake/stubbed while exposing staged-copy intermediate handles and remote-store payload handles
 - added tests proving payload metadata is visible through execution outcomes and end-to-end connector flows
+
+## PR 11: Control-Plane Execution Policy Contract
+
+Completed:
+
+- added a separate versioned execution-policy JSON schema for operator-authored control-plane configuration
+- added Go control-plane execution policy types, validation, load helpers, and render helpers
+- added Python execution policy loading and validation
+- wired backend catalog registration and selection through policy-controlled backend enablement and priority
+- wired runner target/source tier and device/buffer enforcement through policy
+- made recompute versus skip fallback behavior configurable through policy
+- kept SGLang and vLLM connectors policy-agnostic while proving connector behavior remains stable under policy changes
