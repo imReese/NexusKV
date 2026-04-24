@@ -23,7 +23,7 @@ Backends are registered against a structured capability profile:
 - materialization capability
 
 The runner builds a `BackendActionRequest`, and the catalog selects a backend by matching those fields in a deterministic order.
-Since PR 11, the catalog also consumes a control-plane execution policy that can disable transfer backends, override backend priority, and reject disallowed source/target tier or hardware/buffer combinations before backend dispatch.
+Since PR 12, the catalog also consumes the active control-plane execution policy at selection time, including backend capability overlays.
 
 Since PR 10, `BackendActionRequest` also carries:
 
@@ -33,17 +33,20 @@ Since PR 10, `BackendActionRequest` also carries:
 
 ## Selection rules
 
-Current selection behavior in PR 11:
+Current selection behavior in PR 12:
 
 1. filter registrations by action kind, tier, device, buffer, and materialization capability
 2. apply control-plane policy filtering for enabled backends and allowed source/target tier, device, and buffer constraints
-3. if a preferred `TransferBackend` exists, choose an exact transfer-backend match first
-4. if no exact transfer-backend match exists, choose the first deterministic degraded candidate when policy allows degrade
-5. if no candidate exists, return no selection and let the runner fall back to recompute or skip
+3. apply backend-specific overlays for enabled state, priority, tiers, device class, buffer kind, materialization capability, and degraded-selection allowance
+4. if a preferred `TransferBackend` exists, choose an exact transfer-backend match first
+5. if no exact transfer-backend match exists, choose the first deterministic degraded candidate when policy allows degrade
+6. if no candidate exists, return no selection and let the runner fall back to recompute or skip
 
 Determinism is provided by:
 
-- explicit registration priority
+- overlay priority override when present
+- global backend priority order
+- explicit registration priority as the fallback
 - stable registration insertion order
 
 ## Current backend set

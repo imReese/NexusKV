@@ -78,18 +78,30 @@ type QuotaAdmissionPolicy struct {
 	MaxEntries      int64           `json:"max_entries"`
 }
 
+type BackendCapabilityOverlay struct {
+	Enabled                            *bool         `json:"enabled,omitempty"`
+	PriorityOverride                   *int          `json:"priority_override,omitempty"`
+	AllowedSourceTiers                 []TierKind    `json:"allowed_source_tiers,omitempty"`
+	AllowedTargetTiers                 []TierKind    `json:"allowed_target_tiers,omitempty"`
+	AllowedDeviceClasses               []DeviceClass `json:"allowed_device_classes,omitempty"`
+	AllowedBufferKinds                 []BufferKind  `json:"allowed_buffer_kinds,omitempty"`
+	AllowedMaterializationCapabilities []string      `json:"allowed_materialization_capabilities,omitempty"`
+	AllowDegradedSelection             *bool         `json:"allow_degraded_selection,omitempty"`
+}
+
 type ExecutionPolicy struct {
-	SchemaVersion           string                  `json:"schema_version"`
-	EnabledTransferBackends []TransferBackend       `json:"enabled_transfer_backends"`
-	BackendPriorityOrder    []TransferBackend       `json:"backend_priority_order"`
-	AllowedSourceTiers      []TierKind              `json:"allowed_source_tiers"`
-	AllowedTargetTiers      []TierKind              `json:"allowed_target_tiers"`
-	AllowedDeviceClasses    []DeviceClass           `json:"allowed_device_classes"`
-	AllowedBufferKinds      []BufferKind            `json:"allowed_buffer_kinds"`
-	DefaultFallbackBehavior FallbackBehavior        `json:"default_fallback_behavior"`
-	RecomputeFallback       RecomputeFallbackPolicy `json:"recompute_fallback_policy"`
-	TenantNamespacePolicy   TenantNamespacePolicy   `json:"tenant_namespace_policy"`
-	QuotaAdmissionPolicy    QuotaAdmissionPolicy    `json:"quota_admission_policy"`
+	SchemaVersion           string                                       `json:"schema_version"`
+	EnabledTransferBackends []TransferBackend                            `json:"enabled_transfer_backends"`
+	BackendPriorityOrder    []TransferBackend                            `json:"backend_priority_order"`
+	AllowedSourceTiers      []TierKind                                   `json:"allowed_source_tiers"`
+	AllowedTargetTiers      []TierKind                                   `json:"allowed_target_tiers"`
+	AllowedDeviceClasses    []DeviceClass                                `json:"allowed_device_classes"`
+	AllowedBufferKinds      []BufferKind                                 `json:"allowed_buffer_kinds"`
+	DefaultFallbackBehavior FallbackBehavior                             `json:"default_fallback_behavior"`
+	RecomputeFallback       RecomputeFallbackPolicy                      `json:"recompute_fallback_policy"`
+	TenantNamespacePolicy   TenantNamespacePolicy                        `json:"tenant_namespace_policy"`
+	QuotaAdmissionPolicy    QuotaAdmissionPolicy                         `json:"quota_admission_policy"`
+	BackendOverlays         map[TransferBackend]BackendCapabilityOverlay `json:"backend_overlays"`
 }
 
 func DefaultExecutionPolicy() ExecutionPolicy {
@@ -151,6 +163,7 @@ func DefaultExecutionPolicy() ExecutionPolicy {
 			MaxPayloadBytes: 0,
 			MaxEntries:      0,
 		},
+		BackendOverlays: map[TransferBackend]BackendCapabilityOverlay{},
 	}
 }
 
@@ -178,6 +191,14 @@ func RenderExecutionPolicy(policy ExecutionPolicy) ([]byte, error) {
 		return nil, err
 	}
 	return json.MarshalIndent(policy, "", "  ")
+}
+
+func ExportExecutionPolicy(path string, policy ExecutionPolicy) error {
+	data, err := RenderExecutionPolicy(policy)
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(path, append(data, '\n'), 0o644)
 }
 
 func (p ExecutionPolicy) Validate() error {
@@ -225,6 +246,46 @@ func (p ExecutionPolicy) Validate() error {
 	}
 	if p.QuotaAdmissionPolicy.MaxEntries < 0 {
 		return errors.New("quota_admission_policy.max_entries must be >= 0")
+	}
+	for backend, overlay := range p.BackendOverlays {
+		if !isValidTransferBackend(backend) {
+			return fmt.Errorf("backend_overlays contains unsupported backend %q", backend)
+		}
+		if overlay.PriorityOverride != nil && *overlay.PriorityOverride < 0 {
+			return fmt.Errorf("backend_overlays.%s.priority_override must be >= 0", backend)
+		}
+		if err := validateUniqueTiers(fmt.Sprintf("backend_overlays.%s.allowed_source_tiers", backend), overlay.AllowedSourceTiers); err != nil {
+			return err
+		}
+		if err := validateUniqueTiers(fmt.Sprintf("backend_overlays.%s.allowed_target_tiers", backend), overlay.AllowedTargetTiers); err != nil {
+			return err
+		}
+		if err := validateUniqueDeviceClasses(fmt.Sprintf("backend_overlays.%s.allowed_device_classes", backend), overlay.AllowedDeviceClasses); err != nil {
+			return err
+		}
+		if err := validateUniqueBufferKinds(fmt.Sprintf("backend_overlays.%s.allowed_buffer_kinds", backend), overlay.AllowedBufferKinds); err != nil {
+			return err
+		}
+		if err := validateMaterializationCapabilities(
+			fmt.Sprintf("backend_overlays.%s.allowed_materialization_capabilities", backend),
+			overlay.AllowedMaterializationCapabilities,
+		); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func validateMaterializationCapabilities(name string, values []string) error {
+	seen := map[string]struct{}{}
+	for _, value := range values {
+		if !isValidMaterializationCapability(value) {
+			return fmt.Errorf("%s contains unsupported materialization capability %q", name, value)
+		}
+		if _, ok := seen[value]; ok {
+			return fmt.Errorf("%s contains duplicate materialization capability %q", name, value)
+		}
+		seen[value] = struct{}{}
 	}
 	return nil
 }
@@ -345,6 +406,15 @@ func isValidDeviceClass(value DeviceClass) bool {
 func isValidBufferKind(value BufferKind) bool {
 	switch value {
 	case BufferKindDevice, BufferKindHostPinned, BufferKindHostPageable, BufferKindRemote, BufferKindFileBacked:
+		return true
+	default:
+		return false
+	}
+}
+
+func isValidMaterializationCapability(value string) bool {
+	switch value {
+	case "full", "partial", "prefetch", "async_fetch", "fallback_recompute":
 		return true
 	default:
 		return false

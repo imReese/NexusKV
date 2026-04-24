@@ -75,6 +75,7 @@ The baseline guarantees in PR 8 are:
 PR 9 adds deterministic backend selection in front of those calls through a transport backend catalog.
 PR 10 adds explicit payload handles and transfer-session metadata to those calls and results.
 PR 11 adds a versioned control-plane execution policy contract that filters backend registration, applies backend priority, constrains allowed tiers and hardware/buffer targets, and controls recompute versus skip fallback behavior.
+PR 12 adds file-based policy handoff, last-known-good reload behavior, and backend capability overlays that affect future backend selections without connector changes.
 
 ## Decision model
 
@@ -137,6 +138,15 @@ With PR 11, execution policy can additionally:
 - disallow target device classes
 - disallow target buffer kinds
 - force policy-denied paths to skip instead of recompute
+
+With PR 12, backend overlays can additionally constrain one backend at a time:
+
+- disable a backend
+- override priority
+- narrow source and target tiers
+- narrow device and buffer constraints
+- narrow materialization capabilities
+- disable degraded selection for that backend
 
 ## Baseline backend behavior
 
@@ -216,6 +226,13 @@ Implemented in PR 11:
 - policy-aware filtering of source tiers, target tiers, device classes, and buffer kinds
 - policy-driven recompute versus skip fallback behavior
 
+Implemented in PR 12:
+
+- file-based control-plane policy handoff into Python execution
+- reloadable Python policy provider with last-known-good behavior
+- backend capability overlays applied during catalog selection
+- runner integration with the active policy provider
+
 Deferred:
 
 - real transport backend implementations
@@ -225,7 +242,6 @@ Deferred:
 - remote shared-store transport backend
 - SSD or file-backed materialization backend
 - batching and throughput optimization
-- policy-engine-driven execution decisions
 - tenant-specific execution policy overrides
 - distributed execution coordination
 

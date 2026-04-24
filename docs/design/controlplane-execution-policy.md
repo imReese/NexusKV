@@ -34,6 +34,7 @@ Why:
 - recompute fallback policy
 - tenant and namespace placeholder policy
 - quota and admission placeholder policy
+- backend capability overlays
 
 Current fallback behavior values:
 
@@ -54,13 +55,17 @@ Go control plane owns:
 - config loading
 - config rendering
 - config validation
-- future policy distribution surfaces
+- file export for Python process handoff
+- future API-server and operator distribution surfaces
 
 Python execution owns:
 
 - policy consumption
+- file-based initial load and reload
+- last-known-good policy retention on invalid reload
 - backend catalog filtering
 - backend priority application
+- backend overlay application
 - execution fallback interpretation
 - target/source tier and device/buffer enforcement
 
@@ -79,6 +84,32 @@ The policy currently affects:
 - whether target buffer kinds are permitted
 - whether fallback becomes recompute or skip
 
+Backend overlays can narrow or override behavior for a single transfer backend:
+
+- enable or disable that backend
+- override backend priority
+- restrict source tiers
+- restrict target tiers
+- restrict device classes
+- restrict buffer kinds
+- restrict materialization capabilities
+- disable degraded selection for that backend
+
+Overlay restrictions are additive. A backend must satisfy both the global policy and its backend-specific overlay.
+
+## Distribution and reload
+
+The current distribution model is file-based:
+
+- Go renders a validated policy file through `ExportExecutionPolicy`
+- Python receives an explicit path or reads `NEXUSKV_EXECUTION_POLICY_PATH`
+- Python validates before activation
+- invalid initial load fails clearly
+- invalid reload preserves the last-known-good policy and records the reload error
+- successful reload updates future execution decisions without connector changes
+
+This is intentionally smaller than an API server. It gives us a stable contract for process startup, tests, and local deployment while leaving room for later Kubernetes `ConfigMap`, operator, or control-plane API distribution.
+
 Current placeholders are explicit but non-operative:
 
 - tenant and namespace policy
@@ -90,11 +121,10 @@ Those fields are validated and carried in config, but they do not yet drive admi
 
 Deferred to later PRs:
 
-- distribution of policy from a Go service into Python processes
-- live reload or rollout semantics
+- RPC or watch-based policy distribution from a Go service into Python processes
+- Kubernetes `ConfigMap` and operator rollout semantics
 - tenant-specific overrides beyond placeholders
 - quota enforcement
 - staged-buffer reuse and admission policy
-- richer backend capability predicates
 
-This PR is only about establishing the cross-layer contract so future policy work does not drift away from the control plane.
+This policy layer is the control point future admission, quota, and staged-buffer behavior should plug into.

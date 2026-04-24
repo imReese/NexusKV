@@ -284,6 +284,9 @@ class ExecutionPolicy:
             },
         }
 
+    def to_json(self) -> str:
+        return json.dumps(self.to_dict(), indent=2, sort_keys=True)
+
     def validate(self) -> None:
         if self.schema_version != SCHEMA_VERSION:
             raise ValueError(f"schema_version must be {SCHEMA_VERSION!r}")

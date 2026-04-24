@@ -43,5 +43,20 @@
     "mode": "advisory",
     "max_payload_bytes": 0,
     "max_entries": 0
+  },
+  "backend_overlays": {
+    "staged_copy": {
+      "enabled": true,
+      "priority_override": 1,
+      "allowed_target_tiers": [
+        "device",
+        "host_dram"
+      ],
+      "allowed_materialization_capabilities": [
+        "full",
+        "partial",
+        "prefetch"
+      ]
+    }
   }
 }

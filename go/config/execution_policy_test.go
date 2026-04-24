@@ -1,6 +1,7 @@
 package config
 
 import (
+	"os"
 	"path/filepath"
 	"testing"
 )
@@ -24,6 +25,9 @@ func TestLoadExecutionPolicyFromJSON(t *testing.T) {
 	}
 	if len(policy.EnabledTransferBackends) != 2 {
 		t.Fatalf("expected 2 enabled backends, got %d", len(policy.EnabledTransferBackends))
+	}
+	if policy.BackendOverlays[TransferBackendStagedCopy].PriorityOverride == nil {
+		t.Fatalf("expected staged-copy overlay priority override")
 	}
 }
 
@@ -108,5 +112,50 @@ func TestRenderExecutionPolicyRoundTrips(t *testing.T) {
 
 	if parsed.SchemaVersion != ExecutionPolicySchemaVersion {
 		t.Fatalf("expected schema version %q, got %q", ExecutionPolicySchemaVersion, parsed.SchemaVersion)
+	}
+}
+
+func TestExportExecutionPolicyWritesStableJSON(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "execution-policy.json")
+	policy := DefaultExecutionPolicy()
+	priority := 3
+	policy.BackendOverlays[TransferBackendStagedCopy] = BackendCapabilityOverlay{
+		PriorityOverride: &priority,
+		AllowedTargetTiers: []TierKind{
+			TierKindDevice,
+			TierKindHostDRAM,
+		},
+		AllowedMaterializationCapabilities: []string{
+			"full",
+			"partial",
+		},
+	}
+
+	if err := ExportExecutionPolicy(path, policy); err != nil {
+		t.Fatalf("expected export to succeed: %v", err)
+	}
+
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("expected exported policy to be readable: %v", err)
+	}
+	parsed, err := ParseExecutionPolicy(raw)
+	if err != nil {
+		t.Fatalf("expected exported policy to parse: %v", err)
+	}
+	if parsed.BackendOverlays[TransferBackendStagedCopy].PriorityOverride == nil {
+		t.Fatalf("expected exported overlay priority")
+	}
+}
+
+func TestExecutionPolicyRejectsInvalidOverlay(t *testing.T) {
+	priority := -1
+	policy := DefaultExecutionPolicy()
+	policy.BackendOverlays[TransferBackendStagedCopy] = BackendCapabilityOverlay{
+		PriorityOverride: &priority,
+	}
+
+	if err := policy.Validate(); err == nil {
+		t.Fatalf("expected negative overlay priority to be rejected")
 	}
 }

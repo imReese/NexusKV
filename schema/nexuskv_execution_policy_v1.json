@@ -177,6 +177,90 @@
           "minimum": 0
         }
       }
+    },
+    "backend_overlays": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "priority_override": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "allowed_source_tiers": {
+            "type": "array",
+            "uniqueItems": true,
+            "items": {
+              "enum": [
+                "device",
+                "host_dram",
+                "local_ssd",
+                "remote_shared",
+                "object_store"
+              ]
+            }
+          },
+          "allowed_target_tiers": {
+            "type": "array",
+            "uniqueItems": true,
+            "items": {
+              "enum": [
+                "device",
+                "host_dram",
+                "local_ssd",
+                "remote_shared",
+                "object_store"
+              ]
+            }
+          },
+          "allowed_device_classes": {
+            "type": "array",
+            "uniqueItems": true,
+            "items": {
+              "enum": [
+                "cpu",
+                "cuda",
+                "rocm",
+                "tpu",
+                "other"
+              ]
+            }
+          },
+          "allowed_buffer_kinds": {
+            "type": "array",
+            "uniqueItems": true,
+            "items": {
+              "enum": [
+                "device",
+                "host_pinned",
+                "host_pageable",
+                "remote",
+                "file_backed"
+              ]
+            }
+          },
+          "allowed_materialization_capabilities": {
+            "type": "array",
+            "uniqueItems": true,
+            "items": {
+              "enum": [
+                "full",
+                "partial",
+                "prefetch",
+                "async_fetch",
+                "fallback_recompute"
+              ]
+            }
+          },
+          "allow_degraded_selection": {
+            "type": "boolean"
+          }
+        }
+      }
     }
   }
 }

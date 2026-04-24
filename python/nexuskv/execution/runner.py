@@ -23,7 +23,7 @@ from nexuskv.execution.backend import (
     StagedCopyExecutionBackend,
 )
 from nexuskv.execution.catalog import BackendCatalog, BackendRegistration
-from nexuskv.execution.policy import ExecutionPolicy
+from nexuskv.execution.policy import ExecutionPolicy, ExecutionPolicyProvider
 from nexuskv.execution.store import InMemoryEntryStore
 from nexuskv.execution.types import (
     BackendActionKind,
@@ -56,13 +56,13 @@ class BaselineExecutionRunner:
     backend: ExecutionBackend | None = None
     catalog: BackendCatalog | None = None
     policy: ExecutionPolicy | None = None
+    policy_provider: ExecutionPolicyProvider | None = None
 
     def execute(self, request: MaterializationRequest) -> MaterializationOutcome:
-        if self.policy is None:
-            self.policy = ExecutionPolicy.default()
+        self.policy = self._active_policy()
         if self.catalog is None:
             self.catalog = self._build_default_catalog()
-        elif self.catalog.policy is None:
+        else:
             self.catalog.policy = self.policy
 
         primary = self._execute_step(request, self._decide_primary(request))
@@ -282,7 +282,7 @@ class BaselineExecutionRunner:
             return available[0], False, None
         if preferred_backend in available:
             return preferred_backend, False, None
-        if self.policy is not None and not self.policy.allows_degraded_backend_selection():
+        if self.policy is not None and not self.policy.allows_degraded_backend_selection(available[0]):
             return None, False, FallbackReason.ENGINE_POLICY
         return available[0], True, (
             FallbackReason.ENGINE_POLICY
@@ -629,6 +629,13 @@ class BaselineExecutionRunner:
                 return ExecutionDisposition.RECOMPUTE
             return ExecutionDisposition.SKIP
         return self.policy.fallback_disposition(descriptor, fallback_reason, action_is_primary=primary)
+
+    def _active_policy(self) -> ExecutionPolicy:
+        if self.policy_provider is not None:
+            return self.policy_provider.active_policy()
+        if self.policy is not None:
+            return self.policy
+        return ExecutionPolicy.default()
 
     def _build_store_entry(
         self,

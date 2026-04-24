@@ -56,10 +56,6 @@ class BackendCatalog:
     _next_order: int = field(default=0, init=False, repr=False)
 
     def register(self, registration: BackendRegistration) -> None:
-        if self.policy is not None and registration.transfer_backend is not None:
-            if not self.policy.allows_transfer_backend(registration.transfer_backend):
-                return
-            registration.priority = self.policy.priority_for(registration.transfer_backend, registration.priority)
         registration._order = self._next_order
         self._next_order += 1
         self.registrations.append(registration)
@@ -70,11 +66,16 @@ class BackendCatalog:
         if self.policy is not None and not self._request_allowed_by_policy(request):
             return None
 
-        common = [reg for reg in self.registrations if reg.matches_common(request, required_capability)]
+        common = [
+            reg
+            for reg in self.registrations
+            if reg.matches_common(request, required_capability)
+            and self._registration_allowed_by_policy(reg, request, required_capability)
+        ]
         if not common:
             return None
 
-        common.sort(key=lambda reg: (reg.priority, reg._order))
+        common.sort(key=lambda reg: (self._effective_priority(reg), reg._order))
         if desired_backend is not None:
             exact = [reg for reg in common if reg.transfer_backend == desired_backend]
             if exact:
@@ -87,10 +88,12 @@ class BackendCatalog:
                     required_capability=required_capability,
                 )
 
-            if self.policy is not None and not self.policy.allows_degraded_backend_selection():
-                return None
-
-            degraded = [reg for reg in common if reg.transfer_backend is not None]
+            degraded = [
+                reg
+                for reg in common
+                if reg.transfer_backend is not None
+                and (self.policy is None or self.policy.allows_degraded_backend_selection(reg.transfer_backend))
+            ]
             if degraded:
                 chosen = degraded[0]
                 return chosen.backend, BackendSelection(
@@ -123,9 +126,30 @@ class BackendCatalog:
     def _request_allowed_by_policy(self, request: BackendActionRequest) -> bool:
         assert self.policy is not None
         return (
-            self.policy.allows_transfer_backend(request.decision.transfer.selected_backend)
-            and self.policy.allows_source_tier(request.decision.source.tier)
+            self.policy.allows_source_tier(request.decision.source.tier)
             and self.policy.allows_target_tier(request.decision.target.tier)
             and self.policy.allows_device_class(request.decision.target.device_class)
             and self.policy.allows_buffer_kind(request.decision.target.buffer_kind)
         )
+
+    def _registration_allowed_by_policy(
+        self,
+        registration: BackendRegistration,
+        request: BackendActionRequest,
+        required_capability: MaterializationCapability | None,
+    ) -> bool:
+        if self.policy is None or registration.transfer_backend is None:
+            return True
+        return (
+            self.policy.allows_transfer_backend(registration.transfer_backend)
+            and self.policy.allows_source_tier(request.decision.source.tier, registration.transfer_backend)
+            and self.policy.allows_target_tier(request.decision.target.tier, registration.transfer_backend)
+            and self.policy.allows_device_class(request.decision.target.device_class, registration.transfer_backend)
+            and self.policy.allows_buffer_kind(request.decision.target.buffer_kind, registration.transfer_backend)
+            and self.policy.allows_materialization_capability(required_capability, registration.transfer_backend)
+        )
+
+    def _effective_priority(self, registration: BackendRegistration) -> int:
+        if self.policy is None or registration.transfer_backend is None:
+            return registration.priority
+        return self.policy.priority_for(registration.transfer_backend, registration.priority)

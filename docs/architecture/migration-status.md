@@ -64,10 +64,11 @@ Completed:
 - backend selection is now deterministic through a transport catalog, and the baseline backend has a minimal stateful store model for exact store/materialize testing
 - execution results now carry explicit payload-handle and transfer-session metadata, creating a stable seam for future data-movement implementations
 - Go control-plane and Python execution now share a versioned execution-policy contract for backend enablement, backend priority, allowed tiers/devices/buffers, and fallback behavior
+- execution policy now has a file-based handoff/reload path and backend capability overlays that affect future backend selections without connector changes
 
 ## Next Planned Step
 
-PR 12 should start introducing control-plane-driven backend capability overlays or initial policy distribution mechanics so the current execution policy can move beyond static local configuration.
+PR 13 should introduce the first admission/quota policy hook behind the execution policy, keeping quota enforcement explicit and testable before staged-buffer reuse work.
 
 ## PR 6: Rust-Backed Planner Bridge
 
@@ -130,3 +131,16 @@ Completed:
 - wired runner target/source tier and device/buffer enforcement through policy
 - made recompute versus skip fallback behavior configurable through policy
 - kept SGLang and vLLM connectors policy-agnostic while proving connector behavior remains stable under policy changes
+
+## PR 12: Policy Distribution And Backend Overlays
+
+Completed:
+
+- added file-based Go-to-Python execution policy distribution support
+- added Go-side `ExportExecutionPolicy` rendering with validation before write
+- added Python `FileExecutionPolicyProvider` with explicit path and `NEXUSKV_EXECUTION_POLICY_PATH` support
+- added last-known-good behavior for invalid Python reloads
+- added backend capability overlays for backend enabled state, priority, tiers, devices, buffers, materialization capabilities, and degraded-selection allowance
+- updated the backend catalog to apply overlays deterministically during selection
+- updated the execution runner to consume an active policy provider on every execution call
+- kept SGLang and vLLM connectors policy-agnostic while proving policy reload changes connector-observable execution behavior
