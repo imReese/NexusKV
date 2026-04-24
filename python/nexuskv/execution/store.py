@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 from nexuskv.contracts.generated import CacheEntry, KeyIdentity, QueryKey
+from nexuskv.execution.types import PayloadHandle
 
 
 def identity_tuple(identity: KeyIdentity) -> tuple:
@@ -21,6 +22,7 @@ def identity_tuple(identity: KeyIdentity) -> tuple:
 @dataclass(slots=True)
 class StoreRecord:
     entry: CacheEntry
+    payload_handle: PayloadHandle
     writes: int = 1
 
 
@@ -28,6 +30,7 @@ class StoreRecord:
 class PrefetchIntent:
     query: QueryKey
     locator: str | None
+    payload_handle: PayloadHandle | None = None
 
 
 @dataclass(slots=True)
@@ -35,14 +38,15 @@ class InMemoryEntryStore:
     entries: dict[tuple, StoreRecord] = field(default_factory=dict)
     prefetch_intents: list[PrefetchIntent] = field(default_factory=list)
 
-    def put(self, entry: CacheEntry) -> StoreRecord:
+    def put(self, entry: CacheEntry, payload_handle: PayloadHandle) -> StoreRecord:
         key = identity_tuple(entry.identity.key)
         existing = self.entries.get(key)
         if existing is None:
-            record = StoreRecord(entry=entry)
+            record = StoreRecord(entry=entry, payload_handle=payload_handle)
             self.entries[key] = record
             return record
         existing.entry = entry
+        existing.payload_handle = payload_handle
         existing.writes += 1
         return existing
 
@@ -52,5 +56,5 @@ class InMemoryEntryStore:
     def get_identity(self, identity: KeyIdentity) -> StoreRecord | None:
         return self.entries.get(identity_tuple(identity))
 
-    def record_prefetch(self, query: QueryKey, locator: str | None) -> None:
-        self.prefetch_intents.append(PrefetchIntent(query=query, locator=locator))
+    def record_prefetch(self, query: QueryKey, locator: str | None, payload_handle: PayloadHandle | None) -> None:
+        self.prefetch_intents.append(PrefetchIntent(query=query, locator=locator, payload_handle=payload_handle))

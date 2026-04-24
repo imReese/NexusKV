@@ -24,6 +24,12 @@ Backends are registered against a structured capability profile:
 
 The runner builds a `BackendActionRequest`, and the catalog selects a backend by matching those fields in a deterministic order.
 
+Since PR 10, `BackendActionRequest` also carries:
+
+- optional source payload handle
+- optional store payload handle
+- optional transfer request metadata
+
 ## Selection rules
 
 Current selection behavior in PR 9:
@@ -56,6 +62,7 @@ Current semantics:
 - materialize reads from that map when the source locator is `memory://...`
 - prefetch records intent in the same in-memory model
 - preserves tenant / namespace / model / key isolation through the stored key identity
+- returns stored payload handles on materialize when a matching in-memory entry exists
 
 ### `staged-copy-backend`
 
@@ -69,6 +76,7 @@ Current semantics:
 - no real transport runtime
 - validates the selected backend path
 - records successful transfer-like action execution
+- returns intermediate host-staging metadata in the transfer session
 
 ### `remote-shared-store-backend`
 
@@ -80,6 +88,7 @@ Current semantics:
 
 - selected for remote-target store actions where the staged-copy path matches
 - records store execution but does not implement remote networking
+- returns remote locator payload handles
 
 ## Minimal store state model
 
@@ -112,3 +121,5 @@ This catalog is the intended home for future:
 - object-store backends
 
 Those additions should register new backend implementations and capability profiles without requiring connector rewrites.
+
+They should also consume and produce the payload/transfer contract described in [payload-transfer-contract.md](payload-transfer-contract.md).

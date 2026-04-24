@@ -62,10 +62,11 @@ Completed:
 - Python connectors now route planner results through a tier-aware execution boundary instead of keeping materialization policy in connector-local branches
 - execution decisions now flow through a concrete backend protocol with observable materialize, prefetch, store, skip, and recompute calls
 - backend selection is now deterministic through a transport catalog, and the baseline backend has a minimal stateful store model for exact store/materialize testing
+- execution results now carry explicit payload-handle and transfer-session metadata, creating a stable seam for future data-movement implementations
 
 ## Next Planned Step
 
-PR 10 should start formalizing tier-aware data movement contracts above the backend catalog: explicit materialization payload handles, transfer session semantics, and the first narrow host/device movement API without adding real RDMA or GPU-direct execution yet.
+PR 11 should start formalizing reusable materialization payload policies above the payload/transfer contract: payload caching hints, staged buffer reuse semantics, and the first tenant-aware payload admission constraints.
 
 ## PR 6: Rust-Backed Planner Bridge
 
@@ -106,3 +107,13 @@ Completed:
 - added a small in-memory store model behind the baseline backend for exact store/materialize tests
 - updated the runner to select backends through the catalog and preserve degraded-path behavior
 - added tests for backend selection, missing backend fallback, minimal store semantics, and connector stability through the real Rust planner
+
+## PR 10: Payload Handles And Transfer Sessions
+
+Completed:
+
+- introduced explicit payload handle, descriptor, location, ownership, and slice types
+- added a narrow transfer request/result/session contract across the execution layer
+- updated backend actions so store receives payload metadata and materialize/prefetch return payload and transfer-session metadata
+- kept transport fake/stubbed while exposing staged-copy intermediate handles and remote-store payload handles
+- added tests proving payload metadata is visible through execution outcomes and end-to-end connector flows

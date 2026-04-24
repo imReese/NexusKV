@@ -4,6 +4,7 @@ from nexuskv.connectors.base import LookupOutcome, LookupStatus, SGLangLifecycle
 from nexuskv.connectors.sglang.connector import SGLangConnector
 from nexuskv.connectors.vllm.connector import VLLMConnector
 from nexuskv.contracts.generated import (
+    BufferKind,
     CompatibilitySignal,
     EntryIdentity,
     EntryLocation,
@@ -29,8 +30,10 @@ from nexuskv.execution.types import (
     FallbackReason,
     MaterializationDecision,
     MaterializationRequest,
+    PayloadOwnership,
     SourceTier,
     TargetTier,
+    TransferStatus,
     TransferMode,
 )
 from nexuskv.testsupport.matches import make_lookup_outcome
@@ -68,6 +71,10 @@ class ExecutionLayerTest(unittest.TestCase):
         self.assertEqual(outcome.primary.result.status, BackendActionStatus.SUCCEEDED)
         self.assertEqual(outcome.primary.result.executed_kind, BackendActionKind.MATERIALIZE)
         self.assertEqual(backend.calls[0].request.kind, BackendActionKind.MATERIALIZE)
+        self.assertIsNotNone(outcome.primary.result.payload_handle)
+        self.assertEqual(outcome.primary.result.payload_handle.location.tier, TierKind.DEVICE)
+        self.assertIsNotNone(outcome.primary.result.transfer_session)
+        self.assertEqual(outcome.primary.result.transfer_session.result.status, TransferStatus.COMPLETED)
 
     def test_partial_hit_recomputes_when_partial_materialization_is_unsupported(self) -> None:
         connector = SGLangConnector()
@@ -131,6 +138,8 @@ class ExecutionLayerTest(unittest.TestCase):
         self.assertEqual(outcome.primary.decision.fallback_reason, FallbackReason.PREFERRED_BACKEND_UNAVAILABLE)
         self.assertEqual(outcome.primary.result.status, BackendActionStatus.SUCCEEDED)
         self.assertEqual(outcome.primary.result.selected_backend, TransferBackend.STAGED_COPY)
+        self.assertIsNotNone(outcome.primary.result.transfer_session)
+        self.assertEqual(outcome.primary.result.transfer_session.request.degraded_from, TransferBackend.ZERO_COPY)
 
     def test_unsupported_prefetch_returns_safe_skip(self) -> None:
         connector = SGLangConnector()
@@ -308,6 +317,9 @@ class ExecutionLayerTest(unittest.TestCase):
 
         self.assertEqual(store_outcome.store.result.status, BackendActionStatus.SUCCEEDED)
         self.assertEqual(store_outcome.store.result.executed_kind, BackendActionKind.STORE)
+        self.assertIsNotNone(store_outcome.store.result.payload_handle)
+        self.assertEqual(store_outcome.store.result.payload_handle.ownership, PayloadOwnership.BORROWED)
+        self.assertEqual(store.entries[next(iter(store.entries))].payload_handle.handle_id, store_outcome.store.result.payload_handle.handle_id)
 
         materialize_lookup = make_lookup_outcome(connector, [20, 21, 22], [])
         materialize_outcome = runner.execute(
@@ -323,6 +335,10 @@ class ExecutionLayerTest(unittest.TestCase):
 
         self.assertEqual(materialize_outcome.primary.result.status, BackendActionStatus.SUCCEEDED)
         self.assertIn("materialized stored entry", materialize_outcome.primary.result.detail)
+        self.assertEqual(
+            materialize_outcome.primary.result.payload_handle.handle_id,
+            store_outcome.store.result.payload_handle.handle_id,
+        )
 
     def test_missing_materialize_returns_structured_miss(self) -> None:
         connector = SGLangConnector()
@@ -397,6 +413,8 @@ class ExecutionLayerTest(unittest.TestCase):
         self.assertEqual(outcome.primary.result.status, BackendActionStatus.FALLBACK)
         self.assertEqual(outcome.primary.result.executed_kind, BackendActionKind.RECOMPUTE)
         self.assertEqual(outcome.primary.result.fallback_reason, FallbackReason.CACHE_MISS)
+        self.assertIsNotNone(outcome.primary.result.transfer_session)
+        self.assertEqual(outcome.primary.result.transfer_session.result.status, TransferStatus.FALLBACK)
 
     def test_baseline_store_preserves_namespace_model_isolation(self) -> None:
         connector = SGLangConnector()
@@ -510,6 +528,13 @@ class ExecutionLayerTest(unittest.TestCase):
         )
 
         self.assertEqual(outcome.primary.result.backend_name, "staged-copy-backend")
+        self.assertIsNotNone(outcome.primary.result.payload_handle)
+        self.assertEqual(outcome.primary.result.payload_handle.location.handle_kind, "target_payload")
+        self.assertIsNotNone(outcome.primary.result.transfer_session.result.intermediate_handle)
+        self.assertEqual(
+            outcome.primary.result.transfer_session.result.intermediate_handle.location.buffer_kind,
+            BufferKind.HOST_PINNED,
+        )
 
     def test_remote_shared_store_backend_is_selected_when_capabilities_match(self) -> None:
         connector = VLLMConnector()
@@ -541,6 +566,9 @@ class ExecutionLayerTest(unittest.TestCase):
         )
 
         self.assertEqual(outcome.store.result.backend_name, "remote-shared-store-backend")
+        self.assertIsNotNone(outcome.store.result.payload_handle)
+        self.assertTrue(outcome.store.result.payload_handle.location.locator.startswith("remote://"))
+        self.assertEqual(outcome.store.result.transfer_session.result.status, TransferStatus.COMPLETED)
 
 
 if __name__ == "__main__":

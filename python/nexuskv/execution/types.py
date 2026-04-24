@@ -8,7 +8,10 @@ from nexuskv.contracts.generated import (
     BufferKind,
     CacheEntry,
     DeviceClass,
+    EngineFamily,
+    Granularity,
     MaterializationCapability,
+    StateSemanticType,
     TierKind,
     TransferBackend,
 )
@@ -47,6 +50,21 @@ class BackendActionStatus(StrEnum):
     REJECTED = "rejected"
 
 
+class PayloadOwnership(StrEnum):
+    OWNED = "owned"
+    BORROWED = "borrowed"
+    CACHED = "cached"
+    EPHEMERAL = "ephemeral"
+
+
+class TransferStatus(StrEnum):
+    COMPLETED = "completed"
+    REGISTERED = "registered"
+    MISSING = "missing"
+    FALLBACK = "fallback"
+    REJECTED = "rejected"
+
+
 @dataclass(slots=True)
 class SourceTier:
     tier: TierKind | None
@@ -73,6 +91,68 @@ class CapabilityCheckResult:
     required_capability: str | None
     fallback_reason: FallbackReason | None
     selected_backend: TransferBackend | None
+
+
+@dataclass(slots=True)
+class StateSliceDescriptor:
+    granularity: Granularity
+    token_count: int
+    token_start: int = 0
+    block_id: int | None = None
+    page_id: int | None = None
+
+
+@dataclass(slots=True)
+class PayloadDescriptor:
+    descriptor_id: str
+    engine_family: EngineFamily
+    semantic_type: StateSemanticType
+    state_slice: StateSliceDescriptor
+    byte_size_hint: int | None = None
+
+
+@dataclass(slots=True)
+class PayloadLocation:
+    tier: TierKind | None
+    buffer_kind: BufferKind | None = None
+    device_class: DeviceClass | None = None
+    locator: str | None = None
+    handle_kind: str = "opaque"
+
+
+@dataclass(slots=True)
+class PayloadHandle:
+    handle_id: str
+    location: PayloadLocation
+    descriptor: PayloadDescriptor
+    ownership: PayloadOwnership
+    opaque_ref: str | None = None
+
+
+@dataclass(slots=True)
+class TransferRequest:
+    action_kind: BackendActionKind
+    source_handle: PayloadHandle | None
+    desired_target: PayloadLocation
+    transfer_backend: TransferBackend | None
+    degraded_from: TransferBackend | None = None
+    required_capability: MaterializationCapability | None = None
+    fallback_reason: FallbackReason | None = None
+
+
+@dataclass(slots=True)
+class TransferResult:
+    status: TransferStatus
+    result_handle: PayloadHandle | None
+    intermediate_handle: PayloadHandle | None = None
+    detail: str | None = None
+
+
+@dataclass(slots=True)
+class TransferSession:
+    session_id: str
+    request: TransferRequest
+    result: TransferResult
 
 
 @dataclass(slots=True)
@@ -110,6 +190,8 @@ class BackendActionRequest:
     lookup: LookupOutcome
     decision: MaterializationDecision
     store_entry: CacheEntry | None = None
+    payload_handle: PayloadHandle | None = None
+    transfer_request: TransferRequest | None = None
 
 
 @dataclass(slots=True)
@@ -124,6 +206,8 @@ class BackendActionResult:
     target: TargetTier
     degraded: bool
     fallback_reason: FallbackReason | None
+    payload_handle: PayloadHandle | None = None
+    transfer_session: TransferSession | None = None
     detail: str | None = None
 
 

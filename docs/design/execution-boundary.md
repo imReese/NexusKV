@@ -35,6 +35,12 @@ The execution layer is currently a narrow Python adapter surface:
 - `TargetTier`
 - `TransferMode`
 - `CapabilityCheckResult`
+- `PayloadHandle`
+- `PayloadDescriptor`
+- `PayloadLocation`
+- `TransferRequest`
+- `TransferResult`
+- `TransferSession`
 
 These types intentionally reuse generated shared-contract enums where possible:
 
@@ -67,6 +73,7 @@ The baseline guarantees in PR 8 are:
 - connector code stays unaware of backend implementation details
 
 PR 9 adds deterministic backend selection in front of those calls through a transport backend catalog.
+PR 10 adds explicit payload handles and transfer-session metadata to those calls and results.
 
 ## Decision model
 
@@ -80,6 +87,8 @@ The baseline runner decides:
 - whether the selected path degraded from a preferred backend
 - whether fallback happened because of unsupported capability, missing path, lookup policy, or cache miss
 - which backend action was requested and which action was ultimately executed
+- which payload handle is being moved or produced
+- which transfer session metadata is visible to the caller
 
 ## Tier awareness
 
@@ -146,6 +155,13 @@ The current store model is only large enough to prove:
 - namespace, model, and key identity remain isolated
 - prefetch records intent without pretending a real transport runtime exists
 
+PR 10 adds explicit payload and transfer-session metadata on top of that store model so:
+
+- store actions carry a source payload handle
+- materialize actions return a result payload handle
+- prefetch actions return registered transfer sessions and ephemeral target handles
+- missing payload sources produce structured fallback with transfer-session metadata
+
 ## Implemented versus deferred
 
 Implemented in PR 7:
@@ -172,6 +188,14 @@ Implemented in PR 9:
 - runner-side backend selection and degraded backend routing
 - tests that cover exact selection, degraded selection, missing backend fallback, store/materialize statefulness, and connector stability
 
+Implemented in PR 10:
+
+- explicit payload handle, descriptor, location, ownership, and slice types
+- narrow transfer request/result/session contract
+- payload propagation through runner, backend actions, and connector-visible outcomes
+- staged-copy stub now exposes intermediate host-staging metadata
+- remote shared-store stub now exposes remote payload handles
+
 Deferred:
 
 - real transport backend implementations
@@ -197,6 +221,7 @@ The current backend protocol is the intended plug-in point for:
 Those implementations should not require connector changes. They should plug in behind the execution runner and consume the same structured action requests.
 
 See also: [transport-backend-catalog.md](transport-backend-catalog.md)
+See also: [payload-transfer-contract.md](payload-transfer-contract.md)
 
 ## Why this boundary exists now
 

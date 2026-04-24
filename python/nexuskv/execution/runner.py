@@ -6,9 +6,11 @@ from nexuskv.connectors.base import LookupStatus
 from nexuskv.contracts.generated import (
     BufferKind,
     CacheEntry,
+    DeviceClass,
     EntryIdentity,
     EntryLocation,
     EntryVersion,
+    Granularity,
     MaterializationCapability,
     PolicyHint,
     TierKind,
@@ -35,8 +37,15 @@ from nexuskv.execution.types import (
     MaterializationDecision,
     MaterializationOutcome,
     MaterializationRequest,
+    PayloadDescriptor,
+    PayloadHandle,
+    PayloadLocation,
+    PayloadOwnership,
     SourceTier,
+    StateSliceDescriptor,
     TargetTier,
+    TransferRequest,
+    TransferStatus,
     TransferMode,
 )
 
@@ -68,6 +77,8 @@ class BaselineExecutionRunner:
             lookup=request.lookup,
             decision=decision,
             store_entry=self._build_store_entry(request, decision),
+            payload_handle=self._build_input_payload_handle(request, decision),
+            transfer_request=self._build_transfer_request(request, decision),
         )
         action_request, selection = self._prepare_action_request(initial_request)
         result = self._dispatch(action_request, selection)
@@ -336,6 +347,8 @@ class BaselineExecutionRunner:
                 target=request.decision.target,
                 degraded=request.decision.capability_check.degraded,
                 fallback_reason=request.decision.fallback_reason or FallbackReason.NO_TRANSFER_PATH,
+                payload_handle=request.payload_handle,
+                transfer_session=None,
                 detail="backend catalog could not select a compatible execution backend",
             )
 
@@ -393,6 +406,8 @@ class BaselineExecutionRunner:
             target=fallback_result.target,
             degraded=request.decision.capability_check.degraded,
             fallback_reason=request.decision.fallback_reason or rejected.fallback_reason or FallbackReason.NO_TRANSFER_PATH,
+            payload_handle=fallback_result.payload_handle,
+            transfer_session=fallback_result.transfer_session,
             detail=rejected.detail,
         )
 
@@ -528,6 +543,11 @@ class BaselineExecutionRunner:
             f"runtime:{identity.tenant}:{identity.namespace}:{identity.model}:"
             f"{','.join(str(token) for token in identity.tokens)}"
         )
+        locator = (
+            f"remote://{entry_id}"
+            if (decision.target.tier or TierKind.HOST_DRAM) == TierKind.REMOTE_SHARED
+            else f"memory://{entry_id}"
+        )
         return CacheEntry(
             identity=EntryIdentity(
                 key=identity,
@@ -537,7 +557,7 @@ class BaselineExecutionRunner:
             descriptor=request.context.descriptor,
             location=EntryLocation(
                 tier=decision.target.tier or TierKind.HOST_DRAM,
-                locator=f"memory://{entry_id}",
+                locator=locator,
             ),
             policy_hint=PolicyHint(
                 reusable=True,
@@ -545,3 +565,116 @@ class BaselineExecutionRunner:
                 eviction_hint="default",
             ),
         )
+
+    def _build_input_payload_handle(
+        self,
+        request: MaterializationRequest,
+        decision: MaterializationDecision,
+    ) -> PayloadHandle | None:
+        descriptor = self._payload_descriptor(request)
+        if decision.disposition == ExecutionDisposition.STORE:
+            source = self._select_target_tier(request.context.descriptor)
+            return PayloadHandle(
+                handle_id=f"runtime:{request.hook}:{request.context.tenant}:{request.context.namespace}:{request.context.model}",
+                location=self._payload_location_from_target(source, locator="runtime://engine-state", handle_kind="runtime_state"),
+                descriptor=descriptor,
+                ownership=PayloadOwnership.BORROWED,
+                opaque_ref="runtime-engine-state",
+            )
+
+        if request.lookup.match is not None:
+            return PayloadHandle(
+                handle_id=f"source:{request.lookup.match.entry.identity.entry_id}",
+                location=self._payload_location_from_source(request.lookup.match.entry.location.tier, request.lookup.match.entry.location.locator),
+                descriptor=descriptor,
+                ownership=PayloadOwnership.CACHED,
+                opaque_ref=request.lookup.match.entry.location.locator,
+            )
+
+        if request.lookup.partial_plan is not None:
+            return PayloadHandle(
+                handle_id=f"source:{request.lookup.partial_plan.entry.identity.entry_id}",
+                location=self._payload_location_from_source(
+                    request.lookup.partial_plan.entry.location.tier,
+                    request.lookup.partial_plan.entry.location.locator,
+                ),
+                descriptor=descriptor,
+                ownership=PayloadOwnership.CACHED,
+                opaque_ref=request.lookup.partial_plan.entry.location.locator,
+            )
+        return None
+
+    def _build_transfer_request(
+        self,
+        request: MaterializationRequest,
+        decision: MaterializationDecision,
+    ) -> TransferRequest | None:
+        if decision.disposition in {ExecutionDisposition.SKIP, ExecutionDisposition.RECOMPUTE}:
+            return None
+        return TransferRequest(
+            action_kind=self._action_kind_for(decision.disposition),
+            source_handle=self._build_input_payload_handle(request, decision),
+            desired_target=self._payload_location_from_target(decision.target),
+            transfer_backend=decision.transfer.selected_backend,
+            degraded_from=decision.transfer.degraded_from,
+            required_capability=(
+                None
+                if decision.capability_check.required_capability is None
+                else MaterializationCapability(decision.capability_check.required_capability)
+            ),
+            fallback_reason=decision.fallback_reason,
+        )
+
+    def _payload_descriptor(self, request: MaterializationRequest) -> PayloadDescriptor:
+        return PayloadDescriptor(
+            descriptor_id=request.context.descriptor.descriptor_id,
+            engine_family=request.context.descriptor.engine_family,
+            semantic_type=request.context.descriptor.semantic_type,
+            state_slice=StateSliceDescriptor(
+                granularity=request.context.descriptor.granularity,
+                token_count=len(request.context.tokens),
+                token_start=0,
+                block_id=request.context.block_id,
+                page_id=request.context.page_id,
+            ),
+            byte_size_hint=self._byte_size_hint(request.context.descriptor.granularity, len(request.context.tokens)),
+        )
+
+    def _payload_location_from_source(self, tier: TierKind | None, locator: str | None) -> PayloadLocation:
+        return PayloadLocation(
+            tier=tier,
+            buffer_kind=self._buffer_kind_for_tier(tier),
+            device_class=DeviceClass.CPU if tier == TierKind.HOST_DRAM else DeviceClass.CUDA if tier == TierKind.DEVICE else None,
+            locator=locator,
+            handle_kind="source_payload",
+        )
+
+    def _payload_location_from_target(
+        self,
+        target: TargetTier,
+        locator: str | None = None,
+        *,
+        handle_kind: str = "target_payload",
+    ) -> PayloadLocation:
+        return PayloadLocation(
+            tier=target.tier,
+            buffer_kind=target.buffer_kind,
+            device_class=target.device_class,
+            locator=locator or (target.tier.value if target.tier is not None else None),
+            handle_kind=handle_kind,
+        )
+
+    def _buffer_kind_for_tier(self, tier: TierKind | None) -> BufferKind | None:
+        if tier == TierKind.DEVICE:
+            return BufferKind.DEVICE
+        if tier == TierKind.HOST_DRAM:
+            return BufferKind.HOST_PINNED
+        if tier == TierKind.LOCAL_SSD:
+            return BufferKind.FILE_BACKED
+        if tier == TierKind.REMOTE_SHARED:
+            return BufferKind.REMOTE
+        return None
+
+    def _byte_size_hint(self, granularity: Granularity, token_count: int) -> int:
+        unit = 4096 if granularity == Granularity.PAGE else 1024 if granularity == Granularity.BLOCK else 256
+        return token_count * unit
