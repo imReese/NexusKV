@@ -54,7 +54,7 @@ func TestWAL_ConcurrentAppend(t *testing.T) {
 
 	expectedCount := workerCount * entriesPerWorker
 	if len(entries) != expectedCount {
-		t.Fatalf("条目数量不符，预期 %d，实际 %d", 
+		t.Fatalf("条目数量不符，预期 %d，实际 %d",
 			expectedCount, len(entries))
 	}
 
