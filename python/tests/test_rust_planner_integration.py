@@ -29,7 +29,7 @@ class RustPlannerIntegrationTest(unittest.TestCase):
     def test_python_can_insert_and_lookup_exact_hit_via_rust(self) -> None:
         from nexuskv.planner.rust_backend import RustPlanner
 
-        backend = BaselineExecutionBackend()
+        backend = BaselineExecutionBackend(supported_backends=(TransferBackend.STAGED_COPY,))
         connector = VLLMConnector(execution_runner=BaselineExecutionRunner(backend=backend))
         planner = RustPlanner()
         context = VLLMLifecycleContext(
@@ -58,7 +58,7 @@ class RustPlannerIntegrationTest(unittest.TestCase):
     def test_python_can_plan_partial_hit_via_rust(self) -> None:
         from nexuskv.planner.rust_backend import RustPlanner
 
-        backend = BaselineExecutionBackend()
+        backend = BaselineExecutionBackend(supported_backends=(TransferBackend.STAGED_COPY,))
         connector = VLLMConnector(execution_runner=BaselineExecutionRunner(backend=backend))
         planner = RustPlanner()
         base = VLLMLifecycleContext(
@@ -181,6 +181,50 @@ class RustPlannerIntegrationTest(unittest.TestCase):
         self.assertEqual(decision.materialization.disposition, ExecutionDisposition.RECOMPUTE)
         self.assertEqual(decision.materialization.fallback_reason, FallbackReason.UNSUPPORTED_CAPABILITY)
         self.assertEqual(decision.materialization_result.executed_kind.value, "recompute")
+
+    def test_default_runner_uses_catalog_backends_with_real_planner(self) -> None:
+        from nexuskv.planner.rust_backend import RustPlanner
+
+        connector = VLLMConnector()
+        planner = RustPlanner()
+        base = VLLMLifecycleContext(
+            tenant="tenant-a",
+            namespace="chat",
+            model="llama-70b",
+            tokens=[70, 71, 72],
+            descriptor=connector.default_descriptor(),
+            page_id=10,
+        )
+        planner.insert(
+            connector.prepare_store(
+                base,
+                entry_id="entry-catalog",
+                locator="remote://entry-catalog",
+                tier=TierKind.REMOTE_SHARED,
+            ).reuse_key,
+            connector.prepare_store(
+                base,
+                entry_id="entry-catalog",
+                locator="remote://entry-catalog",
+                tier=TierKind.REMOTE_SHARED,
+            ).entry,
+        )
+
+        decision = connector.on_request_start(
+            VLLMLifecycleContext(
+                tenant="tenant-a",
+                namespace="chat",
+                model="llama-70b",
+                tokens=[70, 71, 72, 73],
+                descriptor=connector.default_descriptor(),
+                page_id=10,
+            ),
+            planner,
+        )
+
+        self.assertEqual(decision.materialization_result.backend_name, "staged-copy-backend")
+        self.assertEqual(decision.prefetch_result.backend_name, "staged-copy-backend")
+        self.assertEqual(decision.store_result.backend_name, "remote-shared-store-backend")
 
 
 if __name__ == "__main__":

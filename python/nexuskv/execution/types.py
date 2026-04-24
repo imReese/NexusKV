@@ -4,7 +4,14 @@ from dataclasses import dataclass
 from enum import StrEnum
 
 from nexuskv.connectors.base import EngineRequestContext, LookupOutcome
-from nexuskv.contracts.generated import BufferKind, DeviceClass, TierKind, TransferBackend
+from nexuskv.contracts.generated import (
+    BufferKind,
+    CacheEntry,
+    DeviceClass,
+    MaterializationCapability,
+    TierKind,
+    TransferBackend,
+)
 
 
 class ExecutionDisposition(StrEnum):
@@ -102,6 +109,7 @@ class BackendActionRequest:
     context: EngineRequestContext
     lookup: LookupOutcome
     decision: MaterializationDecision
+    store_entry: CacheEntry | None = None
 
 
 @dataclass(slots=True)
@@ -123,3 +131,12 @@ class BackendActionResult:
 class ExecutionStepOutcome:
     decision: MaterializationDecision
     result: BackendActionResult
+
+
+@dataclass(slots=True)
+class BackendSelection:
+    backend_name: str
+    transfer_backend: TransferBackend | None
+    degraded: bool
+    fallback_reason: FallbackReason | None
+    required_capability: MaterializationCapability | None

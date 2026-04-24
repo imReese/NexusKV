@@ -66,6 +66,8 @@ The baseline guarantees in PR 8 are:
 - the runner converts rejected transfer actions into deterministic fallback execution
 - connector code stays unaware of backend implementation details
 
+PR 9 adds deterministic backend selection in front of those calls through a transport backend catalog.
+
 ## Decision model
 
 The baseline runner decides:
@@ -128,6 +130,22 @@ Current behavior:
 
 This is not yet a real transport engine. It is a deterministic protocol implementation that proves the execution boundary is real.
 
+## Catalog and store model
+
+PR 9 adds:
+
+- a transport backend catalog with deterministic registration and selection rules
+- a minimal in-memory store model behind the baseline backend
+- backend stubs for staged-copy and remote shared-store execution paths
+
+The current store model is only large enough to prove:
+
+- store writes an entry
+- exact materialize can retrieve that stored entry
+- missing memory-backed materialize returns a structured miss and falls back safely
+- namespace, model, and key identity remain isolated
+- prefetch records intent without pretending a real transport runtime exists
+
 ## Implemented versus deferred
 
 Implemented in PR 7:
@@ -145,6 +163,14 @@ Implemented in PR 8:
 - runner dispatch from decisions into backend actions
 - deterministic fallback on backend rejection
 - end-to-end tests from Rust planner hit -> execution runner -> backend invocation -> connector-visible outcome
+
+Implemented in PR 9:
+
+- deterministic backend catalog and registration model
+- minimal baseline in-memory store semantics
+- staged-copy and remote-shared-store stub backends
+- runner-side backend selection and degraded backend routing
+- tests that cover exact selection, degraded selection, missing backend fallback, store/materialize statefulness, and connector stability
 
 Deferred:
 
@@ -169,6 +195,8 @@ The current backend protocol is the intended plug-in point for:
 - local SSD or file-backed backends
 
 Those implementations should not require connector changes. They should plug in behind the execution runner and consume the same structured action requests.
+
+See also: [transport-backend-catalog.md](transport-backend-catalog.md)
 
 ## Why this boundary exists now
 

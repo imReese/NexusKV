@@ -61,10 +61,11 @@ Completed:
 - Python planner protocol is now backed by a real Rust `nxradixtree` execution path through a thin extension bridge
 - Python connectors now route planner results through a tier-aware execution boundary instead of keeping materialization policy in connector-local branches
 - execution decisions now flow through a concrete backend protocol with observable materialize, prefetch, store, skip, and recompute calls
+- backend selection is now deterministic through a transport catalog, and the baseline backend has a minimal stateful store model for exact store/materialize testing
 
 ## Next Planned Step
 
-PR 9 should introduce a transport backend catalog and backend selection contract so the execution runner can choose among multiple backend implementations without connector changes.
+PR 10 should start formalizing tier-aware data movement contracts above the backend catalog: explicit materialization payload handles, transfer session semantics, and the first narrow host/device movement API without adding real RDMA or GPU-direct execution yet.
 
 ## PR 6: Rust-Backed Planner Bridge
 
@@ -95,3 +96,13 @@ Completed:
 - wired the execution runner to dispatch decisions into backend calls and handle deterministic fallback on backend rejection
 - added focused backend-aware execution tests and connector integration tests against the real Rust planner
 - documented how future RDMA, host-staged, remote shared-store, and file-backed backends will plug into the same boundary
+
+## PR 9: Backend Catalog And Minimal Store State
+
+Completed:
+
+- introduced a deterministic transport backend catalog and registration model
+- added minimal backend implementations for baseline in-memory, staged-copy stub, and remote-shared-store stub paths
+- added a small in-memory store model behind the baseline backend for exact store/materialize tests
+- updated the runner to select backends through the catalog and preserve degraded-path behavior
+- added tests for backend selection, missing backend fallback, minimal store semantics, and connector stability through the real Rust planner

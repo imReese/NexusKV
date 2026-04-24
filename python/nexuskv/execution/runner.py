@@ -1,15 +1,33 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 from nexuskv.connectors.base import LookupStatus
-from nexuskv.contracts.generated import BufferKind, MaterializationCapability, TierKind, TransferBackend
-from nexuskv.execution.backend import BaselineExecutionBackend, ExecutionBackend
+from nexuskv.contracts.generated import (
+    BufferKind,
+    CacheEntry,
+    EntryIdentity,
+    EntryLocation,
+    EntryVersion,
+    MaterializationCapability,
+    PolicyHint,
+    TierKind,
+    TransferBackend,
+)
+from nexuskv.execution.backend import (
+    BaselineExecutionBackend,
+    ExecutionBackend,
+    RemoteSharedStoreExecutionBackend,
+    StagedCopyExecutionBackend,
+)
+from nexuskv.execution.catalog import BackendCatalog, BackendRegistration
+from nexuskv.execution.store import InMemoryEntryStore
 from nexuskv.execution.types import (
     BackendActionKind,
     BackendActionRequest,
     BackendActionResult,
     BackendActionStatus,
+    BackendSelection,
     CapabilityCheckResult,
     ExecutionStepOutcome,
     ExecutionDisposition,
@@ -26,10 +44,11 @@ from nexuskv.execution.types import (
 @dataclass(slots=True)
 class BaselineExecutionRunner:
     backend: ExecutionBackend | None = None
+    catalog: BackendCatalog | None = None
 
     def execute(self, request: MaterializationRequest) -> MaterializationOutcome:
-        if self.backend is None:
-            self.backend = BaselineExecutionBackend()
+        if self.catalog is None:
+            self.catalog = self._build_default_catalog()
 
         primary = self._execute_step(request, self._decide_primary(request))
         prefetch_decision = self._decide_prefetch(request)
@@ -42,17 +61,19 @@ class BaselineExecutionRunner:
         request: MaterializationRequest,
         decision: MaterializationDecision,
     ) -> ExecutionStepOutcome:
-        action_request = BackendActionRequest(
+        initial_request = BackendActionRequest(
             kind=self._action_kind_for(decision.disposition),
             hook=request.hook,
             context=request.context,
             lookup=request.lookup,
             decision=decision,
+            store_entry=self._build_store_entry(request, decision),
         )
-        result = self._dispatch(action_request)
+        action_request, selection = self._prepare_action_request(initial_request)
+        result = self._dispatch(action_request, selection)
         if result.status == BackendActionStatus.REJECTED:
             result = self._fallback_after_rejection(action_request, result)
-        return ExecutionStepOutcome(decision=decision, result=result)
+        return ExecutionStepOutcome(decision=action_request.decision, result=result)
 
     def _decide_primary(self, request: MaterializationRequest) -> MaterializationDecision:
         descriptor = request.context.descriptor
@@ -144,11 +165,27 @@ class BaselineExecutionRunner:
     def _decide_store(self, request: MaterializationRequest) -> MaterializationDecision:
         descriptor = request.context.descriptor
         target = self._select_store_tier(descriptor)
+        backend, degraded, fallback_reason = self._select_backend(
+            descriptor,
+            preferred_backend=request.preferred_backend,
+        )
         if request.allow_store_after_stage:
-            return self._decision(
+            return MaterializationDecision(
                 ExecutionDisposition.STORE,
+                source=SourceTier(tier=None),
                 target=target,
-                fallback_reason=None,
+                transfer=TransferMode(
+                    selected_backend=backend,
+                    degraded_from=request.preferred_backend if degraded else None,
+                ),
+                capability_check=CapabilityCheckResult(
+                    supported=backend is not None,
+                    degraded=degraded,
+                    required_capability=None,
+                    fallback_reason=fallback_reason,
+                    selected_backend=backend,
+                ),
+                fallback_reason=fallback_reason,
             )
         return self._decision(
             ExecutionDisposition.SKIP,
@@ -282,17 +319,36 @@ class BaselineExecutionRunner:
     def _action_kind_for(self, disposition: ExecutionDisposition) -> BackendActionKind:
         return BackendActionKind(disposition.value)
 
-    def _dispatch(self, request: BackendActionRequest) -> BackendActionResult:
-        assert self.backend is not None
+    def _dispatch(
+        self,
+        request: BackendActionRequest,
+        selection: tuple[ExecutionBackend, BackendSelection] | None,
+    ) -> BackendActionResult:
+        if selection is None:
+            return BackendActionResult(
+                requested_kind=request.kind,
+                executed_kind=request.kind,
+                status=BackendActionStatus.REJECTED,
+                final_disposition=request.decision.disposition,
+                backend_name="no-backend-selected",
+                selected_backend=request.decision.transfer.selected_backend,
+                source=request.decision.source,
+                target=request.decision.target,
+                degraded=request.decision.capability_check.degraded,
+                fallback_reason=request.decision.fallback_reason or FallbackReason.NO_TRANSFER_PATH,
+                detail="backend catalog could not select a compatible execution backend",
+            )
+
+        backend, _ = selection
         if request.kind == BackendActionKind.MATERIALIZE:
-            return self.backend.materialize(request)
+            return backend.materialize(request)
         if request.kind == BackendActionKind.PREFETCH:
-            return self.backend.prefetch(request)
+            return backend.prefetch(request)
         if request.kind == BackendActionKind.STORE:
-            return self.backend.store(request)
+            return backend.store(request)
         if request.kind == BackendActionKind.RECOMPUTE:
-            return self.backend.recompute(request)
-        return self.backend.skip(request)
+            return backend.recompute(request)
+        return backend.skip(request)
 
     def _fallback_after_rejection(
         self,
@@ -322,8 +378,10 @@ class BaselineExecutionRunner:
             context=request.context,
             lookup=request.lookup,
             decision=fallback_decision,
+            store_entry=request.store_entry,
         )
-        fallback_result = self._dispatch(fallback_request)
+        fallback_prepared, fallback_selection = self._prepare_action_request(fallback_request)
+        fallback_result = self._dispatch(fallback_prepared, fallback_selection)
         return BackendActionResult(
             requested_kind=request.kind,
             executed_kind=fallback_result.executed_kind,
@@ -336,4 +394,154 @@ class BaselineExecutionRunner:
             degraded=request.decision.capability_check.degraded,
             fallback_reason=request.decision.fallback_reason or rejected.fallback_reason or FallbackReason.NO_TRANSFER_PATH,
             detail=rejected.detail,
+        )
+
+    def _prepare_action_request(
+        self,
+        request: BackendActionRequest,
+    ) -> tuple[BackendActionRequest, tuple[ExecutionBackend, BackendSelection] | None]:
+        assert self.catalog is not None
+        selection = self.catalog.select(request)
+        if selection is None:
+            return request, None
+
+        _, selected = selection
+        effective_decision = request.decision
+        if selected.transfer_backend != request.decision.transfer.selected_backend or selected.degraded:
+            effective_decision = replace(
+                request.decision,
+                transfer=TransferMode(
+                    selected_backend=selected.transfer_backend,
+                    degraded_from=(
+                        request.decision.transfer.selected_backend
+                        if selected.degraded and selected.transfer_backend != request.decision.transfer.selected_backend
+                        else request.decision.transfer.degraded_from
+                    ),
+                ),
+                capability_check=replace(
+                    request.decision.capability_check,
+                    degraded=request.decision.capability_check.degraded or selected.degraded,
+                    fallback_reason=selected.fallback_reason or request.decision.capability_check.fallback_reason,
+                    selected_backend=selected.transfer_backend,
+                ),
+                fallback_reason=selected.fallback_reason or request.decision.fallback_reason,
+            )
+        return replace(request, decision=effective_decision), selection
+
+    def _build_default_catalog(self) -> BackendCatalog:
+        if self.backend is not None:
+            catalog = BackendCatalog()
+            backend_name = getattr(self.backend, "backend_name", "custom-execution-backend")
+            for transfer_backend in TransferBackend:
+                catalog.register(
+                    BackendRegistration(
+                        name=backend_name,
+                        backend=self.backend,
+                        transfer_backend=transfer_backend,
+                        action_kinds=(
+                            BackendActionKind.MATERIALIZE,
+                            BackendActionKind.PREFETCH,
+                            BackendActionKind.STORE,
+                        ),
+                        priority=100,
+                    )
+                )
+            catalog.register(
+                BackendRegistration(
+                    name=backend_name,
+                    backend=self.backend,
+                    transfer_backend=None,
+                    action_kinds=(BackendActionKind.SKIP, BackendActionKind.RECOMPUTE),
+                    priority=90,
+                )
+            )
+            return catalog
+
+        store = InMemoryEntryStore()
+        baseline = BaselineExecutionBackend(store=store)
+        staged = StagedCopyExecutionBackend()
+        remote = RemoteSharedStoreExecutionBackend()
+
+        catalog = BackendCatalog()
+        catalog.register(
+            BackendRegistration(
+                name=baseline.backend_name,
+                backend=baseline,
+                transfer_backend=TransferBackend.BASELINE_TRANSPORT,
+                action_kinds=(BackendActionKind.MATERIALIZE, BackendActionKind.PREFETCH, BackendActionKind.STORE),
+                source_tiers=(TierKind.HOST_DRAM, TierKind.REMOTE_SHARED),
+                target_tiers=(TierKind.HOST_DRAM, TierKind.REMOTE_SHARED),
+                materialization_capabilities=(
+                    MaterializationCapability.FULL,
+                    MaterializationCapability.PREFETCH,
+                ),
+                priority=20,
+            )
+        )
+        catalog.register(
+            BackendRegistration(
+                name=remote.backend_name,
+                backend=remote,
+                transfer_backend=TransferBackend.STAGED_COPY,
+                action_kinds=(BackendActionKind.STORE,),
+                target_tiers=(TierKind.REMOTE_SHARED,),
+                priority=10,
+            )
+        )
+        catalog.register(
+            BackendRegistration(
+                name=staged.backend_name,
+                backend=staged,
+                transfer_backend=TransferBackend.STAGED_COPY,
+                action_kinds=(BackendActionKind.MATERIALIZE, BackendActionKind.PREFETCH),
+                source_tiers=(TierKind.HOST_DRAM, TierKind.REMOTE_SHARED),
+                target_tiers=(TierKind.DEVICE, TierKind.HOST_DRAM),
+                materialization_capabilities=(
+                    MaterializationCapability.FULL,
+                    MaterializationCapability.PARTIAL,
+                    MaterializationCapability.PREFETCH,
+                ),
+                priority=15,
+            )
+        )
+        catalog.register(
+            BackendRegistration(
+                name=baseline.backend_name,
+                backend=baseline,
+                transfer_backend=None,
+                action_kinds=(BackendActionKind.SKIP, BackendActionKind.RECOMPUTE),
+                priority=5,
+            )
+        )
+        return catalog
+
+    def _build_store_entry(
+        self,
+        request: MaterializationRequest,
+        decision: MaterializationDecision,
+    ) -> CacheEntry | None:
+        if decision.disposition != ExecutionDisposition.STORE:
+            return None
+
+        identity = request.lookup.query.identity
+        entry_id = (
+            f"runtime:{identity.tenant}:{identity.namespace}:{identity.model}:"
+            f"{','.join(str(token) for token in identity.tokens)}"
+        )
+        return CacheEntry(
+            identity=EntryIdentity(
+                key=identity,
+                entry_id=entry_id,
+                version=EntryVersion(generation=1, lineage=f"runtime:{request.hook}"),
+            ),
+            descriptor=request.context.descriptor,
+            location=EntryLocation(
+                tier=decision.target.tier or TierKind.HOST_DRAM,
+                locator=f"memory://{entry_id}",
+            ),
+            policy_hint=PolicyHint(
+                reusable=True,
+                admission_hint="execution_store",
+                eviction_hint="default",
+            ),
         )
