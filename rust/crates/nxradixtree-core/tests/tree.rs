@@ -1,34 +1,12 @@
-use nxradixtree_core::{
-    CacheEntry,
-    EntryIdentity,
-    EntryLocation,
-    EntryVersion,
-    KeyIdentity,
-    MatchClassification,
-    PolicyHint,
-    partial_hit_plan_from_match,
-    query_key,
-    reuse_key,
-    RadixTree,
-};
 use nexus_state::{
-    AttentionStateDescriptor,
-    CompatibilityFlag,
-    DeviceClass,
-    EngineFamily,
-    Granularity,
-    LayoutMetadata,
-    MaterializationCapability,
-    MaterializationProfile,
-    QuantizationMetadata,
-    SCHEMA_VERSION,
-    StateSemanticType,
-    TensorRole,
-    TensorSpec,
-    TierKind,
-    TransferBackend,
-    TransferCapability,
-    TransferPath,
+    AttentionStateDescriptor, CompatibilityFlag, DeviceClass, EngineFamily, Granularity,
+    LayoutMetadata, MaterializationCapability, MaterializationProfile, QuantizationMetadata,
+    SCHEMA_VERSION, StateSemanticType, TensorRole, TensorSpec, TierKind, TransferBackend,
+    TransferCapability, TransferPath,
+};
+use nxradixtree_core::{
+    CacheEntry, EntryIdentity, EntryLocation, EntryVersion, KeyIdentity, MatchClassification,
+    PolicyHint, RadixTree, partial_hit_plan_from_match, query_key, reuse_key,
 };
 
 fn base_key(namespace: &str, model: &str, tokens: &[u32]) -> KeyIdentity {
@@ -139,7 +117,11 @@ fn longest_prefix_returns_partial_plan_for_remaining_tokens() {
     );
 
     let hit = tree
-        .lookup(&query_key(base_key("chat", "llama-70b", &[10, 11, 12, 13, 14])))
+        .lookup(&query_key(base_key(
+            "chat",
+            "llama-70b",
+            &[10, 11, 12, 13, 14],
+        )))
         .expect("prefix hit");
 
     assert_eq!(hit.classification, MatchClassification::Partial);
@@ -163,7 +145,10 @@ fn planner_boundary_returns_partial_reuse_disposition() {
         .plan_partial_hit(&query_key(base_key("chat", "llama-70b", &[30, 31, 32])))
         .expect("plan");
 
-    assert_eq!(plan.disposition, nxradixtree_core::PlanDisposition::PartialReuse);
+    assert_eq!(
+        plan.disposition,
+        nxradixtree_core::PlanDisposition::PartialReuse
+    );
     assert_eq!(plan.reusable.source_tier, TierKind::RemoteShared);
     assert_eq!(plan.remaining.tokens, vec![32]);
 }

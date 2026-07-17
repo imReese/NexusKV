@@ -1,5 +1,3 @@
-#![allow(unsafe_op_in_unsafe_fn)]
-
 use std::sync::Mutex;
 
 use nexus_state::{CacheEntry, PartialHitPlan, QueryKey, ReuseKey};

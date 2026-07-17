@@ -1,0 +1,9 @@
+[package]
+name = "nexus-transfer"
+version = "0.1.0"
+edition = "2024"
+description = "Transferable KV cache memory contracts for NexusKV"
+license = "MIT"
+
+[lib]
+path = "src/lib.rs"

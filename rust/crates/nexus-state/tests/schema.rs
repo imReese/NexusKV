@@ -1,22 +1,8 @@
 use nexus_state::{
-    AttentionStateDescriptor,
-    BufferKind,
-    DeviceClass,
-    EngineFamily,
-    Granularity,
-    LayoutMetadata,
-    MaterializationCapability,
-    MaterializationProfile,
-    QuantizationMetadata,
-    SCHEMA_VERSION,
-    StateSemanticType,
-    CompatibilityFlag,
-    TensorRole,
-    TensorSpec,
-    TransferBackend,
-    TransferCapability,
-    TransferPath,
-    validate_descriptor,
+    AttentionStateDescriptor, BufferKind, CompatibilityFlag, DeviceClass, EngineFamily,
+    Granularity, LayoutMetadata, MaterializationCapability, MaterializationProfile,
+    QuantizationMetadata, SCHEMA_VERSION, StateSemanticType, TensorRole, TensorSpec,
+    TransferBackend, TransferCapability, TransferPath, validate_descriptor,
 };
 
 #[test]

@@ -6,7 +6,8 @@ NexusKV is being evolved from a small Go prototype into a production-grade KV ca
 
 - `cmd/` and `pkg/` contain the original Go prototype. It is useful as a baseline reference, but it is not the long-term architecture.
 - `go/` contains the new control-plane scaffold.
-- `rust/` contains the new data-plane and state/index scaffolds.
+- `rust/` contains the data-plane contracts, concrete Host DRAM payload store,
+  and state/index implementation.
 - `python/` contains engine-facing adapters and compatibility layers.
 - `docs/` contains the migration, architecture, benchmark, and reliability documents that define the next phases.
 
@@ -27,6 +28,23 @@ Go control-plane and legacy baseline tests currently use Go `1.25.9`:
 ```bash
 GOTOOLCHAIN=go1.25.9 go test ./...
 cd go && GOTOOLCHAIN=go1.25.9 go test ./...
+```
+
+The Rust workspace includes:
+
+- `nexus-transfer`: validated, device-neutral metadata for runtime-owned KV
+  memory that a transfer backend can register.
+- `nexus-store`: a bounded Host DRAM KV payload store with exact entry identity
+  isolation and LRU eviction.
+- `nxradixtree-core`: exact and prefix reuse lookup.
+
+Run its checks from `rust/`:
+
+```bash
+cargo fmt --all -- --check
+cargo check --workspace --all-targets --locked
+cargo clippy --workspace --all-targets --locked -- -D warnings
+cargo test --workspace --locked
 ```
 
 ## Near-Term Direction

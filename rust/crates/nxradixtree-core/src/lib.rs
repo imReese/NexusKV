@@ -3,21 +3,9 @@
 use std::collections::HashMap;
 
 pub use nexus_state::{
-    CacheEntry,
-    CompatibilitySignal,
-    EntryIdentity,
-    EntryLocation,
-    EntryVersion,
-    KeyIdentity,
-    MatchClassification,
-    MatchExtent,
-    PartialHitPlan,
-    PlanDisposition,
-    PolicyHint,
-    QueryKey,
-    RemainingWork,
-    ReusableSlice,
-    ReuseKey,
+    CacheEntry, CompatibilitySignal, EntryIdentity, EntryLocation, EntryVersion, KeyIdentity,
+    MatchClassification, MatchExtent, PartialHitPlan, PlanDisposition, PolicyHint, QueryKey,
+    RemainingWork, ReusableSlice, ReuseKey,
 };
 use nexus_state::{Granularity, TierKind};
 
@@ -55,7 +43,8 @@ pub fn query_key(identity: KeyIdentity) -> QueryKey {
 }
 
 pub fn partial_hit_plan_from_match(hit: &nexus_state::MatchResult) -> PartialHitPlan {
-    let reusable_tokens = hit.requested_key.identity.tokens[..hit.matched_extent.units as usize].to_vec();
+    let reusable_tokens =
+        hit.requested_key.identity.tokens[..hit.matched_extent.units as usize].to_vec();
     let disposition = if hit.remaining.tokens.is_empty() {
         PlanDisposition::FullReuse
     } else {
@@ -72,19 +61,10 @@ pub fn partial_hit_plan_from_match(hit: &nexus_state::MatchResult) -> PartialHit
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 struct Node {
     children: HashMap<u32, Node>,
     terminal_entry: Option<CacheEntry>,
-}
-
-impl Default for Node {
-    fn default() -> Self {
-        Self {
-            children: HashMap::new(),
-            terminal_entry: None,
-        }
-    }
 }
 
 #[derive(Debug, Default)]
@@ -143,7 +123,8 @@ impl RadixTree {
     }
 
     pub fn plan_partial_hit(&self, query: &QueryKey) -> Option<PartialHitPlan> {
-        self.lookup(query).map(|hit| partial_hit_plan_from_match(&hit))
+        self.lookup(query)
+            .map(|hit| partial_hit_plan_from_match(&hit))
     }
 }
 

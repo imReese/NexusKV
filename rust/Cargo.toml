@@ -1,6 +1,8 @@
 [workspace]
 members = [
     "crates/nexus-state",
+    "crates/nexus-store",
+    "crates/nexus-transfer",
     "crates/nxradixtree-core",
     "crates/bindings-py",
 ]

@@ -1,0 +1,12 @@
+[package]
+name = "nexus-store"
+version = "0.1.0"
+edition = "2024"
+description = "Concrete KV payload stores for NexusKV"
+license = "MIT"
+
+[dependencies]
+nexus-state = { path = "../nexus-state" }
+
+[lib]
+path = "src/lib.rs"
