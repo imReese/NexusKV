@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="650" viewBox="0 0 1000 650">
+<style>text{font-family:Arial,sans-serif;fill:#222}.box{fill:#f8f8f8;stroke:#333;stroke-width:2}.line{stroke:#333;stroke-width:2;marker-end:url(#a)}</style>
+<defs><marker id="a" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0 0L0 6L9 3z" fill="#333"/></marker></defs>
+<text x="280" y="50" font-size="30">NexusKV Zero-Overhead Architecture</text>
+<rect class="box" x="350" y="90" width="300" height="70"/><text x="420" y="132" font-size="22">LLM Runtime</text>
+<rect class="box" x="300" y="220" width="400" height="100"/><text x="350" y="260" font-size="22">KV Intelligence Layer</text><text x="350" y="295" font-size="18">Descriptor | Planner | Prefetch | Policy</text>
+<rect class="box" x="100" y="420" width="220" height="80"/><text x="145" y="465" font-size="20">GPU HBM</text>
+<rect class="box" x="390" y="420" width="220" height="80"/><text x="430" y="465" font-size="20">Host Memory</text>
+<rect class="box" x="680" y="420" width="220" height="80"/><text x="715" y="465" font-size="20">Remote Store</text>
+<line class="line" x1="500" y1="160" x2="500" y2="215"/>
+<line class="line" x1="400" y1="320" x2="210" y2="415"/>
+<line class="line" x1="500" y1="320" x2="500" y2="415"/>
+<line class="line" x1="600" y1="320" x2="790" y2="415"/>
+<text x="220" y="580" font-size="22">Cache movement is hidden behind computation</text>
+</svg>
