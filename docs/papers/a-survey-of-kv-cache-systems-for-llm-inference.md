@@ -1,83 +1,95 @@
 # A Survey of KV Cache Systems for LLM Inference
 
-## From KV Storage to Zero-Overhead KV Intelligence
+## From KV Storage to Zero-Overhead Model State Intelligence
 
 ## Abstract
 
-Large language model inference is increasingly limited by memory bandwidth, attention state management, and the cost of repeatedly computing long contexts. KV cache has become a first-class system resource. Recent systems including vLLM prefix caching, SGLang RadixAttention and HiCache, LMCache, and Mooncake Store explore different points in the design space.
+The rapid evolution of large language model inference has transformed KV cache from a local optimization technique into a distributed system resource. Modern inference engines such as vLLM and SGLang, cache middleware such as LMCache, and distributed KV systems such as Mooncake Store are exploring different parts of this emerging infrastructure.
 
-This survey argues that the next generation of KV cache infrastructure should not be viewed as a storage problem alone. The central challenge is achieving **zero-overhead cache reuse**: cache operations must not stall model execution, waste GPU compute capacity, or introduce latency larger than the computation they replace.
+However, existing approaches expose a fundamental limitation: **cache reuse itself introduces overhead**. A cache hit is not necessarily an acceleration. Metadata lookup, memory movement, synchronization, scheduling interference, and state restoration can consume more time than recomputing the missing computation.
 
-We analyze existing architectures, identify their design trade-offs, and motivate a new direction: a KV intelligence layer that combines semantic state description, reuse planning, prefetch scheduling, placement optimization, and heterogeneous storage backends.
+This paper argues that the next generation of LLM cache infrastructure should move beyond storage-centric design toward a **zero-overhead cache intelligence layer**. Such a system must understand model state semantics, estimate reuse value, schedule asynchronous movement, and coordinate heterogeneous memory tiers without interrupting GPU execution.
+
+We analyze current KV cache architectures, identify their strengths and limitations, and propose a future direction represented by NexusKV: a model-state-aware intelligence layer between inference engines and storage systems.
 
 ---
 
-# 1. Introduction
+# 1. Introduction: KV Cache Is Becoming a System Resource
 
-Early LLM serving systems treated KV cache as an internal optimization of a single inference engine. Modern workloads changed this assumption:
+Early LLM serving systems treated KV cache as an implementation detail inside a single inference engine.
 
-- context lengths increased from thousands to millions of tokens;
-- multi-turn conversations require repeated prefix reuse;
-- agent workloads generate highly repetitive state;
-- model architectures now include MLA, DSA, and other attention variants with non-traditional attention states.
+Modern workloads changed the problem:
 
-KV cache is no longer only a tensor buffer. It has become a distributed runtime resource.
+- context windows expanded from thousands to millions of tokens;
+- conversational workloads repeatedly reuse prefixes;
+- agent systems maintain long-lived execution state;
+- distributed inference separates prefill and decode workloads;
+- new architectures such as MLA, DSA, and KDA introduce non-traditional attention states.
 
-The key question has changed:
+The fundamental question changed:
 
-> How can we store more KV?
+> How can we store more KV cache?
 
 into:
 
-> How can we reuse model state without slowing down inference?
+> How can we reuse model execution state without slowing inference?
 
 ---
 
-# 2. The Hidden Cost of Cache
+# 2. The Cache Paradox: A Hit Can Become a Miss
 
-A cache hit does not automatically mean acceleration.
+A traditional view assumes:
 
-A naive pipeline:
+```
+cache hit = performance gain
+```
+
+But the real execution path is:
 
 ```
 Request
   |
-Lookup
+  v
+Cache lookup
   |
-Transfer KV
+  v
+Metadata resolution
   |
-Synchronize
+  v
+Memory/network transfer
   |
-Attention compute
+  v
+Synchronization
+  |
+  v
+Attention execution
 ```
 
-introduces additional costs:
-
-- metadata lookup;
-- network transfer;
-- CPU/GPU memory copy;
-- synchronization barriers;
-- scheduler interference.
-
-If recomputing the missing prefix costs 5ms but loading remote KV costs 8ms, the cache hit is a regression.
-
-Therefore cache efficiency must consider:
+The effective benefit is:
 
 ```
-benefit = recompute_cost - (lookup_cost + transfer_cost + synchronization_cost)
+useful_gain = recomputation_cost
+              - lookup_cost
+              - transfer_cost
+              - synchronization_cost
+              - scheduling_cost
 ```
 
-The objective is not maximum hit rate. The objective is maximum useful reuse.
+Therefore, maximizing cache hit rate is not the final objective.
+
+The objective is:
+
+> maximize useful reuse while keeping cache overhead invisible to inference.
 
 ---
 
-# 3. Existing System Taxonomy
+# 3. The Current Design Space
 
-## 3.1 vLLM Prefix Cache
+## 3.1 vLLM: GPU Resident KV Management
 
-vLLM introduced practical KV memory management through PagedAttention.
+vLLM introduced practical large-scale KV management through PagedAttention.
 
-Core idea:
+Core abstraction:
 
 ```
 Logical KV blocks
@@ -86,85 +98,89 @@ Logical KV blocks
 Physical GPU blocks
 ```
 
-Strengths:
+Advantages:
 
-- extremely low overhead;
-- GPU resident memory;
-- mature runtime integration.
+- extremely low runtime overhead;
+- excellent GPU locality;
+- mature production deployment.
 
 Limitations:
 
-- mostly single-engine scope;
-- limited cross-instance sharing;
-- limited semantic understanding of cache state.
+- mainly bounded inside one runtime instance;
+- limited cross-engine sharing;
+- weak semantic understanding of model state.
+
+vLLM optimizes the fastest cache: the cache that never leaves GPU memory.
 
 ---
 
-## 3.2 SGLang RadixAttention and HiCache
+## 3.2 SGLang RadixAttention and HiCache: Hierarchical Reuse
 
-SGLang treats KV reuse as a prefix tree problem.
+SGLang treats prefix reuse as a radix-tree problem.
 
 ```
-          root
-         /    \
-      userA   userB
-        |
-      prefix
+             root
+            /    \
+       user A    user B
+          |
+       shared prefix
 ```
 
-HiCache extends this idea into hierarchical memory:
+HiCache extends the idea into multiple memory tiers:
 
 ```
 GPU HBM
   |
 Host DRAM
   |
-Remote KV Store
+Remote KV Storage
 ```
 
-Strengths:
+Advantages:
 
 - strong prefix matching;
 - runtime-aware placement;
-- natural hierarchy model.
+- natural hierarchy management.
 
 Limitations:
 
-- tightly coupled with SGLang runtime;
-- limited model-state abstraction.
+- closely coupled with SGLang runtime;
+- limited abstraction for future attention states.
 
 ---
 
-## 3.3 LMCache
+## 3.3 LMCache: KV Cache Middleware
 
-LMCache introduces a middleware abstraction:
+LMCache introduces a middleware layer between engines and storage backends.
 
 ```
 Inference Engine
         |
      LMCache
         |
-+-------+--------+
-|                |
-CPU Backend   Remote Backend
+ +------+------+
+ |             |
+CPU Backend  Remote Backend
 ```
 
-Strengths:
+Advantages:
 
-- clean backend abstraction;
-- easy engine integration;
-- flexible storage choices.
+- clean storage abstraction;
+- easier integration with inference engines;
+- flexible backend ecosystem.
 
 Limitations:
 
-- cache identity is mainly token/chunk oriented;
-- deeper attention-state semantics remain limited.
+- cache identity is mainly chunk/token oriented;
+- semantic state modeling remains limited.
+
+LMCache solves how to manage cache, but not fully what the cache represents.
 
 ---
 
-## 3.4 Mooncake Store
+## 3.4 Mooncake Store: Distributed KV Data Plane
 
-Mooncake approaches KV cache from the storage and transport perspective.
+Mooncake approaches KV from a storage and transport perspective.
 
 Architecture:
 
@@ -180,116 +196,114 @@ Transfer Engine
 Storage Backend
 ```
 
-Its major innovation is high-performance KV movement:
+Major technologies:
 
-- RDMA;
-- GPU direct transfer;
+- RDMA-based transfer;
+- GPU-aware movement;
 - distributed memory pooling;
 - prefill/decode disaggregation.
 
-Strengths:
+Advantages:
 
-- excellent data plane;
-- large-scale distributed deployment;
-- hardware-aware transfer.
+- excellent data plane performance;
+- scalable distributed architecture;
+- hardware-aware transport.
 
 Limitations:
 
-A storage system sees objects, not model semantics.
+A storage engine understands objects, not model semantics.
 
-It does not inherently know:
+It does not naturally understand:
 
 - attention type;
 - tensor layout;
-- state dependency;
-- restore cost.
+- checkpoint dependency;
+- restoration cost.
 
 ---
 
-# 4. The Missing Layer: KV Intelligence
+# 4. Why Existing Systems Are Not Enough
 
-Existing systems optimize different layers:
+Current systems optimize different layers:
 
-|System|Primary Problem|
+|System|Primary Optimization|
 |-|-|
-|vLLM|GPU KV management|
-|HiCache|hierarchical placement|
-|LMCache|cache lifecycle|
-|Mooncake|distributed KV movement|
+|vLLM|GPU KV allocation|
+|HiCache|Memory hierarchy|
+|LMCache|Cache lifecycle|
+|Mooncake|KV movement|
 
-The missing abstraction is:
+The missing question is:
 
 ```
-What is this state?
+What state is this?
 
 Can it be reused?
 
 Where should it live?
 
-Should we load it or recompute it?
+Should we move it or recompute it?
+
+How can we hide the cost?
 ```
 
-This requires a semantic layer.
+This is the missing KV intelligence layer.
 
 ---
 
 # 5. Toward Zero-Overhead Cache
 
-A future KV system should provide:
+## 5.1 Asynchronous Prefetch
 
-## 5.1 Async Prefetch
-
-Cache movement should happen before computation requires it.
+The cache system should predict future needs and load state before computation requires it.
 
 ```
-Predict future KV need
+Predict future reuse
         |
         v
-Prefetch asynchronously
+Async prefetch
         |
         v
-GPU computation continues
+GPU continues computing
 ```
+
+Cache movement becomes background activity instead of a synchronization point.
 
 ---
 
 ## 5.2 Compute-Aware Scheduling
 
-The scheduler should understand both requests and cache locations.
+Traditional schedulers understand requests.
 
-Instead of:
-
-```
-FIFO request scheduling
-```
-
-use:
+Future schedulers must understand:
 
 ```
-request + KV locality aware scheduling
+request + cache locality + transfer latency
 ```
+
+A request with GPU-resident cache may be preferable to one requiring remote fetch, even if both arrive simultaneously.
 
 ---
 
 ## 5.3 Cost-Based Reuse Planning
 
-A cache system should decide:
+The system should decide among:
 
 ```
 reuse
- |
 transfer
- |
 recompute
 ```
 
-based on actual cost.
+based on actual execution cost.
+
+Cache should become an optimization decision, not a mandatory path.
 
 ---
 
-## 5.4 Attention-State Awareness
+## 5.4 Model-State-Aware Cache
 
-Future models require generalized state descriptors.
+Future models require a generalized state abstraction.
 
 Example:
 
@@ -300,52 +314,90 @@ StateDescriptor {
   layer,
   state_type,
   tensor_layout,
+  dependency,
   checkpoint,
   restore_cost
 }
 ```
 
-KV is becoming a broader concept: model execution state.
+The future abstraction may not be KV Cache anymore.
+
+It is a Model State Cache.
 
 ---
 
-# 6. NexusKV Design Direction
+# 6. NexusKV: The Missing Intelligence Layer
 
-NexusKV should not compete with Mooncake as a storage engine.
+NexusKV should not compete with Mooncake as another distributed object store.
 
 The proposed architecture:
 
 ```
-              LLM Runtime
+                 LLM Runtime
 
         vLLM / SGLang / Future Engines
 
-                    |
-                    |
-              NexusKV API
-                    |
-      +-------------+-------------+
-      |                           |
+                     |
+                     |
+               NexusKV API
+                     |
+       +-------------+-------------+
+       |                           |
 KV Intelligence              Data Plane
 
 Descriptor                  Mooncake
 Matcher                     RDMA/NIXL
-Planner                     CPU/GPU Memory
+Planner                     GPU/CPU Memory
 Prefetch                    SSD
 Policy
 ```
 
-The goal is:
+NexusKV focuses on:
 
-> Make KV reuse invisible to inference execution.
+- state identity;
+- semantic compatibility;
+- reuse planning;
+- prefetch scheduling;
+- placement decisions;
+- zero-overhead execution.
 
 ---
 
-# 7. Conclusion
+# 7. Future Research Questions
 
-The future of KV cache infrastructure is not another Redis-like storage layer.
+Important open problems:
 
-The important evolution is:
+## 7.1 Beyond KV
+
+How should cache systems represent:
+
+- MHA KV tensors;
+- MLA latent states;
+- DSA compressed attention state;
+- KDA recurrent state?
+
+## 7.2 Cache vs Recomputation
+
+When is loading state slower than recomputing it?
+
+## 7.3 Cross-Engine Compatibility
+
+Can one cache fabric support vLLM, SGLang, TensorRT-LLM, and future runtimes?
+
+## 7.4 Cache Intelligence
+
+Can systems automatically learn:
+
+- reuse probability;
+- transfer cost;
+- optimal placement;
+- eviction policy?
+
+---
+
+# 8. Conclusion
+
+The evolution of LLM cache infrastructure can be summarized as:
 
 ```
 KV Buffer
@@ -357,12 +409,14 @@ Hierarchical KV Cache
 KV Intelligence Fabric
 ```
 
-Mooncake solves movement.
+Mooncake solved KV movement.
 
-LMCache solves lifecycle.
+LMCache solved KV lifecycle management.
 
-HiCache solves hierarchy.
+HiCache solved KV hierarchy.
 
-The next challenge is solving intelligence: deciding what to cache, when to move it, and how to reuse it without slowing down the model.
+The next challenge is solving intelligence:
 
-NexusKV explores this missing layer.
+> How can model state be reused everywhere while inference behaves as if cache operations were free?
+
+NexusKV explores this missing layer: a zero-overhead, model-aware cache intelligence fabric for next-generation LLM inference.
