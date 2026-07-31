@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="500" viewBox="0 0 900 500">
+<style>text{font-family:Arial,sans-serif;fill:#222}.box{fill:#f5f5f5;stroke:#333;stroke-width:2}.arrow{stroke:#333;stroke-width:2;marker-end:url(#a)}</style>
+<defs><marker id="a" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#333"/></marker></defs>
+<text x="350" y="40" font-size="28">Evolution of LLM Cache Systems</text>
+<rect class="box" x="80" y="100" width="220" height="70"/><text x="135" y="140" font-size="20">KV Buffer</text>
+<rect class="box" x="340" y="100" width="220" height="70"/><text x="395" y="140" font-size="20">KV Cache</text>
+<rect class="box" x="600" y="100" width="220" height="70"/><text x="640" y="140" font-size="20">Paged KV</text>
+<line class="arrow" x1="300" y1="135" x2="335" y2="135"/><line class="arrow" x1="560" y1="135" x2="595" y2="135"/>
+<rect class="box" x="200" y="260" width="220" height="70"/><text x="235" y="300" font-size="20">Hierarchical KV</text>
+<rect class="box" x="480" y="260" width="220" height="70"/><text x="510" y="300" font-size="20">KV Intelligence</text>
+<line class="arrow" x1="450" y1="170" x2="310" y2="255"/><line class="arrow" x1="700" y1="170" x2="590" y2="255"/>
+<text x="250" y="420" font-size="22">Storage → Movement → Hierarchy → Intelligence</text>
+</svg>
