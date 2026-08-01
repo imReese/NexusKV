@@ -1,8 +1,8 @@
-# NexusKV Whitepaper v1.0
+# Beyond KV Cache
 
-## Beyond KV Cache: A Zero-Overhead Model State Intelligence Layer for LLM Inference
+## Toward a Zero-Overhead Model State Intelligence Layer for LLM Inference
 
-**Status:** Architecture whitepaper; August 2026
+**NexusKV Whitepaper v1.0** · Architecture whitepaper · August 2026
 
 **Scope:** Model State Infrastructure for large language model inference
 
@@ -38,25 +38,18 @@ condition has already been demonstrated by the current implementation.
 
 - [1. Introduction](#1-introduction)
 - [2. Problem Formulation](#2-problem-formulation)
-- [3. Current KV Cache Landscape](#3-current-kv-cache-landscape)
+- [3. Model State Infrastructure Landscape](#3-model-state-infrastructure-landscape)
 - [4. Existing Systems](#4-existing-systems)
 - [5. Why Existing Systems Are Not Enough](#5-why-existing-systems-are-not-enough)
-- [6. Zero-Overhead Cache Architecture](#6-zero-overhead-cache-architecture)
-- [7. Model State Cache](#7-model-state-cache)
-- [8. NexusKV Architecture](#8-nexuskv-architecture)
-- [9. Evaluation Methodology](#9-evaluation-methodology)
-- [10. Limitations](#10-limitations)
-- [11. Related Work](#11-related-work)
-- [12. Conclusion](#12-conclusion)
+- [6. Design Principles](#6-design-principles)
+- [7. Zero-Overhead Cache Architecture](#7-zero-overhead-cache-architecture)
+- [8. Beyond KV Cache: Model State Cache](#8-beyond-kv-cache-model-state-cache)
+- [9. NexusKV Architecture](#9-nexuskv-architecture)
+- [10. Evaluation Methodology](#10-evaluation-methodology)
+- [11. Limitations and Future Work](#11-limitations-and-future-work)
+- [12. Related Work](#12-related-work)
+- [13. Conclusion](#13-conclusion)
 - [References](#references)
-
-**Supporting appendices:** [A — Related Work](related-work.md) ·
-[B — System Coverage](kv-cache-system-coverage.md) ·
-[C — Design Principles](design-principles.md) ·
-[D — Limitations and Future Work](limitations-and-future-work.md) ·
-[E — Research and Evaluation Notes](research-appendix.md) ·
-[F — Figure Index](figure-integration-guide.md) ·
-[BibTeX](bibliography.bib)
 
 ## 1. Introduction
 
@@ -131,7 +124,7 @@ system replaces the preceding systems.*
 
 ## 2. Problem Formulation
 
-### 2.1 Definitions
+### 2.1 Cache State
 
 Let a reusable **Cache State** be
 
@@ -160,6 +153,8 @@ compatible(C_i, q) = identity_match(I_i, q)
                    and valid(V_i, q)
 ```
 
+### 2.2 Reuse Decision
+
 A **Reuse Decision** chooses whether and how much of a compatible state replaces
 computation:
 
@@ -167,12 +162,16 @@ computation:
 r_i in {full_reuse, partial_reuse, recompute}
 ```
 
+### 2.3 Placement Decision
+
 A **Placement Decision** chooses the tier that should hold the state during the
 relevant execution interval:
 
 ```text
 p_i in {GPU_HBM, HOST_DRAM, LOCAL_SSD, REMOTE_MEMORY, OBJECT_STORE}
 ```
+
+### 2.4 Transfer Decision
 
 A **Transfer Decision** chooses a source, destination, path, start time, and
 priority:
@@ -186,7 +185,7 @@ location is too slow; a remote state may be profitable if prefetched early; and
 a locally resident state may be less valuable than another state competing for
 the same capacity.
 
-### 2.2 Cost model
+### 2.5 Cost Model
 
 For request `q` and candidate state `C_i`, define the cache path:
 
@@ -232,7 +231,7 @@ E[G_prefetch] = P_use * G
               - (1 - P_use) * (T_transfer + C_pollution + C_interference)
 ```
 
-### 2.3 Optimization goal
+### 2.6 Optimization Objective
 
 For requests `Q` and reuse candidates `C`, the objective is to **maximize useful
 reuse**:
@@ -251,7 +250,7 @@ This objective deliberately differs from maximizing hit rate, transferred
 bytes, or occupancy. Those metrics are explanatory variables; useful reuse is
 the outcome.
 
-### 2.4 Zero-overhead operating condition
+### 2.7 Zero-Overhead Operating Target
 
 "Zero-overhead" does not mean that lookup, transfer, or metadata operations use
 no resources. It denotes the following observable condition relative to the
@@ -264,10 +263,13 @@ Delta(TPOT, throughput, fairness) stays within declared budgets.
 ```
 
 The stronger condition is positive end-to-end Effective Gain with no material
-regression for non-reusing requests. This is a measurable target, not an
-assumption embedded in the name.
+regression for non-reusing requests. This remains a measurable target, not an
+assumption embedded in the name or a property already demonstrated by the
+current implementation.
 
-## 3. Current KV Cache Landscape
+## 3. Model State Infrastructure Landscape
+
+### 3.1 Layer Taxonomy
 
 Modern systems occupy different layers and frequently integrate with one
 another. Treating every project as a competing KV Store obscures the actual
@@ -288,6 +290,8 @@ example, SGLang is an Inference Runtime, while HiCache is integrated with that
 Inference Runtime; Mooncake is both a serving architecture described in its
 research paper and a repository containing a reusable Transfer Engine and Store.
 
+### 3.2 System Capability Matrix
+
 The following matrix maps current primary responsibilities and substantial
 integrations. It is a scope map, not a performance ranking.
 
@@ -303,14 +307,43 @@ integrations. It is a scope map, not a performance ranking.
 | Dynamo / KVBM | ○ | ● | ● | ○ | ● | ● | ● |
 | InfiniStore | — | ○ | ● | ● | ● | — | — |
 | FlexKV | ○ | ● | ● | ● | ● | ◐ | ◐ |
-| NexusKV | ○ | ● | △ | — | — | △ | △ |
+| AIBrix offload | ○ | ● | ● | ○ | ● | ◐ | ◐ |
+| llm-d KV management | ○ | ● | ◐ | ○ | ○ | ● | ● |
+| NexusKV | ○ | ◐ | △ | — | — | △ | ◐ |
 
-**Legend:** `●` primary responsibility; `◐` substantial built-in capability;
-`○` adapter or ecosystem integration; `—` outside the primary scope; `△`
-proposed NexusKV direction. "Intelligence" here means an explicit decision
-function over cache state or cost, not a claim of generalized Model State
-semantics. Version-sensitive evidence and caveats are recorded in
-[`kv-cache-system-coverage.md`](kv-cache-system-coverage.md).
+The symbols use evidence-based scope criteria:
+
+- `●`: the capability is a core responsibility in the public architecture and
+  has a dedicated component or formal API;
+- `◐`: the project has a substantial built-in capability, but it is not the
+  primary abstraction boundary;
+- `○`: the capability is supplied through a connector, adapter, or ecosystem
+  integration;
+- `—`: the capability is explicitly outside the project's primary scope;
+- `△`: a NexusKV proposal direction that is not yet implemented or validated
+  end to end.
+
+"Intelligence" means an explicit compatibility, locality, placement, or cost
+decision. It does not imply generalized Model State semantics. Capability marks
+were reviewed against the official sources cited in Sections 4 and References
+on 1 August 2026.
+
+### 3.3 Coverage Boundaries
+
+The matrix separates architectural responsibility from implementation maturity.
+For NexusKV specifically:
+
+| Evidence level | Current boundary |
+| --- | --- |
+| Implemented | Versioned state contracts, Rust exact/prefix planning and Host DRAM storage, and Python execution-policy boundaries. |
+| Scaffold | Go Control Plane services and file-based policy distribution. |
+| Proposed | Production hierarchy, native asynchronous GPU transfer, cluster scheduling, and end-to-end zero-overhead validation. |
+
+The `○` Inference Runtime mark denotes adapter surfaces, not production
+certification against current vLLM or SGLang releases. The `◐` Intelligence mark
+denotes an implemented descriptor and planning boundary, not a complete
+cross-cluster decision system. Storage and transfer remain external Data Plane
+responsibilities by design.
 
 Three trends are visible:
 
@@ -330,9 +363,6 @@ middleware, storage, and transfer components from different projects.
 *Figure 2. Layered system landscape. A box marks a project's primary role in
 this paper; it does not exclude secondary capabilities or integrations.*
 
-The detailed, source-oriented coverage ledger is maintained in
-[`kv-cache-system-coverage.md`](kv-cache-system-coverage.md).
-
 ## 4. Existing Systems
 
 This section examines systems that expose distinct architectural choices. The
@@ -340,7 +370,7 @@ question is not which system is universally preferable, but which problem each
 design makes tractable and which decisions remain above or below its abstraction
 boundary.
 
-### 4.1 vLLM: paged device-memory management
+### 4.1 vLLM
 
 [PagedAttention](https://arxiv.org/abs/2309.06180) introduced an indirection
 between logical sequence blocks and non-contiguous physical KV Cache blocks. The
@@ -380,7 +410,7 @@ allocator operations. vLLM is therefore a strong Inference Runtime substrate,
 but a cluster-wide placement policy and semantic contract across Inference
 Runtimes remain outside the core paged allocator.
 
-### 4.2 SGLang HiCache: hierarchy integrated with the Inference Runtime
+### 4.2 SGLang and HiCache
 
 SGLang's [RadixAttention](https://arxiv.org/abs/2312.07104) represents token
 prefixes in a radix tree. This choice matches structured generation workloads:
@@ -416,7 +446,7 @@ also creates new failure modes: an index match may refer to an evicted or
 in-flight payload, so metadata truth and physical availability must be
 reconciled before claiming a usable hit.
 
-### 4.3 LMCache: cache middleware and lifecycle
+### 4.3 LMCache
 
 [LMCache](https://arxiv.org/abs/2510.09665) externalizes reusable KV Cache from
 an Inference Runtime through engine connectors and pluggable storage. The
@@ -448,7 +478,7 @@ object lookup. LMCache supplies substantial lifecycle intelligence, but the
 Inference Runtime and deployment still determine whether a specific retrieval
 improves the critical path.
 
-### 4.4 Mooncake: disaggregated serving, storage, and transfer
+### 4.4 Mooncake
 
 "Mooncake" refers to related but distinct scopes. The
 [Mooncake serving paper](https://arxiv.org/abs/2407.00079) describes a KV
@@ -480,7 +510,7 @@ attention layout, restoration rules, and the recompute alternative. Mooncake is
 therefore a plausible Data Plane beneath NexusKV, not a component that NexusKV
 needs to duplicate.
 
-### 4.5 TensorRT-LLM: integrated block reuse and retention
+### 4.5 TensorRT-LLM
 
 TensorRT-LLM implements a [block-based KV Cache system](https://nvidia.github.io/TensorRT-LLM/features/kvcache.html)
 inside the Inference Runtime. Blocks from completed requests enter a radix
@@ -498,7 +528,7 @@ attention windows or KV-head counts, and current documentation notes that some
 pool partitioning is static. External connectors still need to preserve those
 layout and lifecycle rules.
 
-### 4.6 NIXL: heterogeneous transfer abstraction
+### 4.6 NIXL
 
 [NIXL](https://github.com/ai-dynamo/nixl/blob/main/docs/nixl.md) defines a
 Transfer Agent around memory sections, pluggable transfer backends, and metadata
@@ -513,7 +543,7 @@ tier should retain them, or whether transfer is preferable to recomputation.
 Those are caller responsibilities. NIXL is consequently a Data Plane component
 that a cost-based planner can select, rather than a competing cache policy.
 
-### 4.7 Dynamo and KVBM: distributed routing plus tiering
+### 4.7 Dynamo and KVBM
 
 Dynamo composes Inference Runtimes with event-driven KV Cache routing. Its
 [router](https://docs.nvidia.com/dynamo/latest/design-docs/component-design/router-design)
@@ -534,7 +564,7 @@ unit is principally a KV Cache block and worker-load model. Generalized State
 Descriptors, conversion cost, and attention-specific checkpoint validity remain
 an extension beyond that block-routing contract.
 
-### 4.8 InfiniStore: RDMA-oriented shared capacity
+### 4.8 InfiniStore
 
 [InfiniStore](https://bytedance.github.io/InfiniStore/design.html) is a
 distributed KV Store for shared KV Cache capacity. It pre-registers memory for
@@ -550,7 +580,7 @@ leaves model identity, token hashing, layer layout, reuse admission, and request
 routing to the integrating middleware and Inference Runtime. It is another
 possible Data Plane beneath an Intelligence Layer.
 
-### 4.9 Converging cache and serving frameworks
+### 4.9 FlexKV, AIBrix, and llm-d
 
 [FlexKV](https://github.com/taco-project/FlexKV) combines a distributed radix
 index, multi-level storage, transfer orchestration, leases, and asynchronous
@@ -623,9 +653,57 @@ The missing component is not another byte store, but an Intelligence Layer that
 turns these observations into a compatible reuse, placement, transfer, and
 fallback plan.
 
-## 6. Zero-Overhead Cache Architecture
+## 6. Design Principles
 
-### 6.1 Architectural principle
+The following principles constrain the architecture. They are reviewable
+invariants rather than independent features, and they apply even when NexusKV
+uses storage or transport implemented by another project.
+
+### 6.1 Semantic State Identity
+
+A cache entry identifies reusable Model State, not only bytes or a token
+prefix. Equal tokens do not establish compatibility across model revisions,
+attention mechanisms, parallel layouts, position conventions, or recurrent
+checkpoints. Every reuse path therefore carries a versioned State Descriptor
+and fails closed when a required identity or dependency is unknown. Hashing is
+an indexing mechanism; compatibility is a semantic rule.
+
+### 6.2 Cost-Based Reuse
+
+Reuse, placement, transfer, admission, and eviction use the same end-to-end cost
+model. Independent policies can improve hit rate, occupancy, or link utilization
+while reducing throughput. A decision record should expose the recompute
+alternative, visible cache cost, uncertainty, resource budget, selected action,
+and fallback. Effective Gain from Section 2 is the canonical comparison.
+
+### 6.3 Asynchronous Prefetch
+
+An asynchronous API does not by itself hide work. Queueing, memory reservation,
+synchronization, and interference can remain visible. Prefetch therefore needs
+a consumption deadline, completion signal, resource budget, and abandonment
+rule. Late or uncertain state falls back to recomputation without corrupting
+allocator or scheduler state.
+
+### 6.4 Compute-Centric Scheduling
+
+Scheduling balances state locality against ready compute, queue delay, decode
+load, fairness, and SLO budgets. The Inference Runtime retains final authority
+over allocation, request admission, kernel execution, and state consumption;
+NexusKV supplies an explainable plan rather than authorization to overwrite or
+consume device memory.
+
+### 6.5 Attention-Aware Extensibility
+
+MHA, MLA, DSA, and KDA share a lifecycle framework but not one payload or
+restoration rule. Each semantic state type registers identity, compatibility,
+materialization, conversion, and fallback requirements. Storage and transfer
+backends advertise capabilities and measured cost through explicit Data Plane
+contracts; the Intelligence Layer does not infer durability, zero-copy, or
+remote availability from a backend name.
+
+## 7. Zero-Overhead Cache Architecture
+
+### 7.1 Architectural Principle
 
 The critical path should contain model execution and only the synchronization
 strictly required to consume ready state. Discovery, validation, placement, and
@@ -665,7 +743,7 @@ Four properties are required:
    unverified state falls back to recomputation; it is never consumed merely to
    preserve hit rate.
 
-### 6.2 Cost-based reuse and placement
+### 7.2 Cost-Based Reuse and Placement
 
 The planner evaluates candidate combinations, not state in isolation:
 
@@ -687,7 +765,7 @@ The result is an explainable plan with its estimated gain and fallback reason.
 Plans with non-positive expected gain are rejected even when the state is
 available.
 
-### 6.3 Asynchronous prefetch
+### 7.3 Asynchronous Prefetch
 
 Prefetch is successful only if state is ready before its consumer and the work
 does not cause a larger regression elsewhere. The scheduler should therefore
@@ -705,7 +783,7 @@ else:
     recompute
 ```
 
-### 6.4 Cache-aware scheduling
+### 7.4 Cache-Aware Scheduling
 
 Scheduling must balance locality against queue and decode load. Always routing
 to the worker with the largest prefix match can overload that worker; always
@@ -714,7 +792,7 @@ scheduler compares the net prefill work after reuse with active decode work and
 transfer readiness. Fairness and SLO constraints remain explicit rather than
 being encoded indirectly as cache priority.
 
-### 6.5 Admission, eviction, and backpressure
+### 7.5 Admission, Eviction, and Backpressure
 
 Admission and eviction use the same utility estimate. A large state with a high
 hit probability may still be less valuable per byte than several small states.
@@ -722,12 +800,7 @@ Prefetch is throttled when transfer queues, pinned memory, device reservations,
 or metadata lag exceed configured limits. This prevents the Intelligence Layer
 from converting a cache optimization into a source of head-of-line blocking.
 
-Further design rationale is recorded in
-[`design-principles.md`](design-principles.md).
-
-## 7. Model State Cache
-
-### 7.1 From tensor buffers to semantic state
+## 8. Beyond KV Cache: Model State Cache
 
 "KV Cache" names a representation used by conventional attention, not a
 universal execution-state contract. A **Model State Cache** stores a state that
@@ -743,27 +816,60 @@ The descriptor must answer:
 - which dependencies must accompany it;
 - how to restore it and how much restoration costs.
 
-### 7.2 Attention-aware state taxonomy
-
 The taxonomy follows the state transitions introduced by conventional
 [multi-head attention](https://arxiv.org/abs/1706.03762), DeepSeek
 [Multi-head Latent Attention](https://arxiv.org/abs/2405.04434),
 [DeepSeek Sparse Attention](https://arxiv.org/abs/2512.02556), and Moonshot AI
 [Kimi Delta Attention](https://arxiv.org/abs/2510.26692). The serving contract,
-not the paper name alone, determines the exact payload for a given implementation.
+not the paper name alone, determines the exact payload.
 
-| Attention family | Reusable state | Identity and restoration consequence |
+### 8.1 MHA / GQA / MQA
+
+Conventional multi-head attention usually materializes per-layer key and value
+tensors for preceding tokens. GQA and MQA reduce the number of KV heads, but the
+cache contract still depends on head grouping, block or page granularity,
+position encoding, dtype, sharding, and the Inference Runtime's physical layout.
+
+### 8.2 MLA
+
+Multi-head Latent Attention reduces the per-token state by retaining a
+compressed latent representation and position-related components needed by the
+implementation. The exact split between stored latent state, projected keys and
+values, and positional materialization depends on the model and attention
+kernel. A smaller payload therefore does not imply cross-runtime compatibility.
+
+### 8.3 DSA
+
+DeepSeek Sparse Attention introduces query-dependent token selection. A serving
+implementation may retain underlying KV or latent regions and may also cache or
+recompute selector/indexer auxiliary state. The reusable subset, lookup unit,
+and restoration work depend on layer composition and the selector contract; a
+prefix match alone does not prove that every required region is available.
+
+### 8.4 KDA
+
+Kimi Delta Attention uses recurrent finite state within a hybrid attention
+architecture. Reuse requires a valid terminal checkpoint at the requested
+boundary, not merely pages matching an earlier token prefix. Checkpoint
+intervals and full-attention layers determine which recurrent and conventional
+states must be restored together.
+
+| Attention family | Likely reusable serving state | Identity and restoration consequence |
 | --- | --- | --- |
 | MHA / GQA / MQA | Per-layer key and value tensors | Size scales with cached tokens; head count, layout, position, and sharding must match. |
 | MLA | Compressed latent state plus position-related components required by the implementation | Smaller state does not imply universal layout compatibility; latent projection and positional conventions matter. |
-| DSA | Sparse-attention KV/latent state plus selection or indexer-dependent metadata | Restoration may require only selected regions, but the selected set is query- and layer-dependent. |
-| KDA | Fixed-size recurrent attention state, potentially mixed with periodic full-attention state | Prefix reuse requires a valid terminal recurrent checkpoint; page-prefix presence alone cannot reconstruct a missing recurrence. |
+| DSA | Required KV or latent regions, with optional selector/indexer auxiliary state | Restoration may use selected regions, but the selection and dependencies are query-, layer-, and kernel-dependent. |
+| KDA | Terminal recurrent checkpoint and any required hybrid full-attention state | Page-prefix presence alone cannot reconstruct a missing recurrence or checkpoint boundary. |
 
-The table does not assert one storage representation for every implementation.
-It states why the Intelligence Layer must preserve attention-specific semantics
+These entries are intentionally conditional. The reusable payload and terminal
+checkpoint must be validated against the Inference Runtime materialization
+contract. Kernel implementation, block or page granularity, checkpoint
+interval, layer composition, selector/indexer auxiliary state, mixed
+full-attention layers, and tensor- or context-parallel layout can all change the
+actual cache contract. The Intelligence Layer must preserve those semantics
 rather than treating all payloads as interchangeable K/V pages.
 
-### 7.3 State Descriptor
+### 8.5 State Descriptor
 
 A generalized descriptor can be expressed as:
 
@@ -793,7 +899,7 @@ specific cache entry. A production protocol may normalize them into descriptor,
 identity, version, location, and policy records. The invariant is that a planner
 can reject an unsafe reuse without interpreting an opaque tensor payload.
 
-### 7.4 Compatibility and conversion
+### 8.6 Compatibility and Conversion
 
 Exact descriptor equality is the conservative first policy. Future systems may
 support verified conversions such as layout repacking or quantized
@@ -801,9 +907,9 @@ materialization. A conversion is itself a costed operation with a versioned
 correctness contract; it must not be silently treated as transfer. When no
 compatible path is registered, recomputation is the default.
 
-## 8. NexusKV Architecture
+## 9. NexusKV Architecture
 
-### 8.1 Position in the stack
+### 9.1 Position in the Stack
 
 NexusKV is not intended to replace an Inference Runtime, a transfer library, or
 a distributed KV Store. It coordinates them:
@@ -824,7 +930,7 @@ near the Data Plane. Inference Runtime adapters translate engine lifecycle event
 shared contract and retain final authority over whether materialization is safe
 to consume.
 
-### 8.2 Request lifecycle
+### 9.2 Request Lifecycle
 
 For each request, NexusKV follows an explicit lifecycle:
 
@@ -843,7 +949,7 @@ For each request, NexusKV follows an explicit lifecycle:
 7. **Observe.** Actual timing, interference, and reuse update cost estimates and
    admission policy.
 
-### 8.3 Component responsibilities
+### 9.3 Component Responsibilities
 
 | Component | Responsibility | Explicit non-responsibility |
 | --- | --- | --- |
@@ -855,7 +961,7 @@ For each request, NexusKV follows an explicit lifecycle:
 | Inference Runtime adapter | Translate lifecycle and enforce final consumption safety | Become the global policy source of truth |
 | Observability loop | Attribute lookup, transfer, restoration, and interference cost | Treat hit rate as the primary success metric |
 
-### 8.4 Current implementation boundary
+### 9.4 Current Implementation Boundary
 
 The repository currently contains a versioned state contract, Rust state and
 prefix-matching foundations, a bounded host-memory payload store, Python
@@ -865,14 +971,14 @@ storage, and end-to-end zero-overhead validation remain future implementation
 work. This distinction prevents an architectural target from being read as a
 measured system result.
 
-## 9. Evaluation Methodology
+## 10. Evaluation Methodology
 
 Evaluation must determine both when reuse helps and when the system correctly
 declines it. Results should be reported against the same Inference Runtime, model,
 parallelism, scheduler settings, and request trace with the external cache path
 disabled or enabled.
 
-### 9.1 Hypotheses
+### 10.1 Hypotheses
 
 - **H1:** Cost-based reuse produces greater aggregate Effective Gain than
   hit-driven reuse under mixed context lengths and storage tiers.
@@ -883,7 +989,7 @@ disabled or enabled.
 - **H4:** Attention-aware checkpointing enables correct reuse for MLA, DSA, and
   KDA workloads that cannot be represented safely as uniform MHA pages.
 
-### 9.2 Workload matrix
+### 10.2 Workload Matrix
 
 | Dimension | Required points |
 | --- | --- |
@@ -900,22 +1006,27 @@ All token counts must be derived after applying the tested tokenizer and chat
 template. Reuse traces must record both logical prefix overlap and physically
 materialized state; these are not interchangeable.
 
-### 9.3 Baselines and ablations
+### 10.3 Baselines
 
 At minimum, compare:
 
-1. cache local to the Inference Runtime with external reuse disabled;
-2. hit-driven retrieval from each tested tier;
-3. cost-based reuse without prefetch;
-4. cost-based reuse with prefetch;
-5. full NexusKV policy with placement and cache-aware scheduling.
+1. recomputation with external reuse disabled;
+2. Inference Runtime-native prefix reuse;
+3. the selected external middleware or hierarchy with its native policy;
+4. NexusKV compatibility and cost decisions over the same Data Plane;
+5. an oracle using measured future costs, reported only as an upper bound.
 
-Ablate descriptor validation, transfer overlap, interference cost, reuse
-probability, and backpressure independently. Compare systems only on supported,
-equivalent configurations; do not infer a project-wide ranking from one backend
-or connector.
+Compare systems only on supported, equivalent configurations; do not infer a
+project-wide ranking from one backend or connector.
 
-### 9.4 Metrics
+### 10.4 Ablations
+
+Ablate semantic validation, cost-based reuse, transfer overlap, asynchronous
+prefetch, cache-aware routing, interference cost, reuse probability, admission
+budgets, and fallback independently. This separates the contribution of the
+Intelligence Layer from the underlying storage or transfer backend.
+
+### 10.5 Metrics
 
 Report distributions, not only means:
 
@@ -940,54 +1051,119 @@ Effective Gain = T_compute - T_cache
 It must be paired with throughput and tail latency, because a request-local gain
 can coincide with a system-wide regression.
 
-### 9.5 Reproducibility requirements
+### 10.6 Reproducibility
 
-Every result should publish model and revision, Inference Runtime and connector commits,
-hardware topology, tensor/data types, page or chunk size, cache capacity,
-transfer backend, request trace or generator seed, warm-up procedure, cache
-initial state, and raw per-request observations. Unsupported combinations,
-fallbacks, and failed requests remain in the report. The extended experiment
-template is maintained in
-[`research-appendix.md`](research-appendix.md).
+Correctness checks precede performance measurement. Incompatible model, layout,
+dtype, position, layer, shard, and state-type descriptors must be rejected;
+exact and partial matches must restore the expected token or checkpoint
+boundary; and late, missing, corrupt, cancelled, recurrent, or sparse state must
+exercise deterministic fallback and dependency checks.
 
-## 10. Limitations
+Every result should publish the following record:
 
-First, the zero-overhead condition is workload- and topology-dependent. A state
+```text
+revision; hardware_topology; software_versions
+model_and_attention_state; dataset_or_trace; request_arrival_process
+context_and_output_lengths; reuse_distribution
+cache_tiers_and_capacities; transfer_backends; policy_and_cost_model
+warmup_and_trial_count; baseline; raw_artifact_location; known_limitations
+```
+
+Unsupported combinations, fallbacks, and failed requests remain in the report.
+The record must distinguish a warm cache from a cold start and a simulated
+backend from native transfer.
+
+Claims use explicit evidence states:
+
+| State | Required evidence | Permitted wording |
+| --- | --- | --- |
+| Implemented | Present in the current NexusKV tree and covered by an executable check | "implements" with the checked scope |
+| Integrated | Exercised against named external versions in the target environment | "integrates" with versions and conditions |
+| Measured | Produced by a reproducible experiment with retained artifacts | numerical claim with confidence and limitations |
+| Proposed | Architecture or research direction not validated end to end | "proposes", "targets", or "may" |
+
+The v1.0 zero-overhead architecture is proposed. The current descriptor,
+planning, Host DRAM store, adapter, and policy components are implemented only
+within the boundaries stated in Section 9.4.
+
+## 11. Limitations and Future Work
+
+### 11.1 Zero-Overhead Target and Evaluation Gap
+
+The zero-overhead condition is workload- and topology-dependent. State movement
 that can be hidden behind a long prefill may remain visible during low-latency
 decode. No policy can guarantee positive gain when reuse is unpredictable,
 bandwidth is saturated, or recomputation is cheaper.
 
-Second, a shared descriptor does not remove Inference Runtime integration work. vLLM,
-SGLang, TensorRT-LLM, and future engines use different allocation, attention,
-parallelism, and lifecycle contracts. A portable adapter may expose only the
-intersection of their capabilities unless conversion and version negotiation
-are implemented explicitly.
+The implementation boundary in Section 9.4 does not include production native
+GPU transfer or cluster-wide scheduling. Consequently, the hypotheses in
+Section 10 remain unverified by end-to-end native-hardware evidence. An intent
+record, registered transfer session, stub backend, or unit test must not be
+reported as completed device movement.
 
-Third, cost estimation can be wrong. Transfer time changes with topology and
-contention; recomputation changes with batch composition; and prefetch changes
-the future state it attempts to predict. The planner needs calibrated uncertainty,
-safe fallback, and online validation rather than a static latency table.
+### 11.2 Inference Runtime Integration and Version Coupling
 
-Fourth, distributed state introduces consistency and isolation concerns:
-ownership, incomplete writes, invalidation, tenant boundaries, hash collision,
-model revision, replica failure, and metadata lag. Correctness requires a
-fail-closed compatibility path even when performance falls back open to
-recomputation.
+A shared descriptor does not remove adapter maintenance. vLLM, SGLang,
+TensorRT-LLM, and future engines use different allocation, attention,
+parallelism, stream, and lifecycle contracts, and internal interfaces may
+change faster than a shared protocol. Compatibility must be versioned per
+Inference Runtime and tested against concrete releases. When layout, lifecycle,
+or synchronization compatibility cannot be proven, recomputation is the safe
+decision.
 
-Fifth, the proposed Model State taxonomy is not complete. DSA and KDA serving
-interfaces are evolving, and future recurrent, sparse, multimodal, or
-cross-layer states may require dependencies that the initial descriptor does not
-encode.
+### 11.3 State Generalization
 
-Finally, NexusKV is an evolving implementation. The current repository proves
-contract and planning boundaries, not production-scale transport or the
-performance hypotheses in Section 9. Detailed limitations and future work are
-maintained in
-[`limitations-and-future-work.md`](limitations-and-future-work.md).
+The proposed Model State taxonomy is incomplete. Sparse selection may be
+query-dependent; recurrent state requires a valid terminal checkpoint; and
+hybrid or cross-layer models may combine state families in one request. Future
+semantic types should enter through conformance suites with reference
+materialization, negative compatibility cases, and numerical-equivalence
+thresholds rather than through weaker matching rules.
 
-## 11. Related Work
+### 11.4 Cost Calibration and Resource Interference
 
-### 11.1 Inference Runtime memory and prefix reuse
+Transfer and recomputation costs depend on topology, concurrency, queue depth,
+registration state, payload shape, and kernel mix. Measurements drift as load or
+hardware changes, and prefetch consumes links, pinned host memory, device
+reservations, CPU cycles, and storage IOPS that can delay non-reusing requests.
+Future calibration may use bounded online exploration, confidence intervals,
+and change-point detection, but it needs deterministic budgets and an auditable
+fallback when uncertainty is high.
+
+### 11.5 Distributed Metadata and Isolation
+
+A metadata match can outlive its payload, location, lease, or producer. NexusKV
+therefore needs explicit ownership, epochs, leases, invalidation, replication,
+garbage collection, and recovery semantics. The metadata system should prefer
+false misses over unsafe hits: storage durability does not imply semantic
+freshness, and semantic compatibility does not imply physical availability.
+
+Prefix hashes and timing can reveal workload similarity even when payloads are
+not readable. Production deployments also need tenant namespaces,
+authorization, optional keyed hashes or salts, quotas, secure deletion, and
+telemetry redaction. Cross-tenant reuse should remain disabled unless deployment
+policy explicitly authorizes it.
+
+### 11.6 Future Research Directions
+
+The following directions are consistent with the architecture but remain
+proposals:
+
+1. topology-aware selection among direct, staged, storage-backed, and
+   route-to-state paths;
+2. verified conversion between compatible layouts or quantized representations;
+3. joint cache/request scheduling with explicit fairness and SLO constraints;
+4. cross-engine descriptor conformance and trace replay;
+5. attention-aware partial materialization for sparse or hybrid state;
+6. a shared Model State fabric built from replaceable storage and transfer
+   components.
+
+Each direction must preserve safe recomputation when evidence, compatibility,
+or timing is insufficient.
+
+## 12. Related Work
+
+### 12.1 Inference Runtime Memory and Prefix Reuse
 
 PagedAttention established block-based device-memory management for continuous
 LLM serving, while RadixAttention connected prefix structure to scheduling and
@@ -997,7 +1173,7 @@ cache work show that one Inference Runtime may already need multiple physical
 state specifications. These systems minimize local hot-path overhead; portable
 cross-engine identity is not their primary objective.
 
-### 11.2 Hierarchy, middleware, and distributed storage
+### 12.2 Hierarchy, Middleware, and Distributed Storage
 
 HiCache places hierarchy inside SGLang, where scheduling and radix lifecycle are
 available. LMCache moves lifecycle into a standalone middleware service. FlexKV
@@ -1007,7 +1183,7 @@ block hierarchy through NIXL. Mooncake Store and InfiniStore instead expose
 distributed capacity and transfer to upper layers. These approaches differ in
 ownership, but all must reconcile logical matches with physical availability.
 
-### 11.3 Disaggregation and cache-aware routing
+### 12.3 Disaggregation and Cache-Aware Routing
 
 [Mooncake](https://arxiv.org/abs/2407.00079),
 [DistServe](https://arxiv.org/abs/2401.09670), and
@@ -1019,7 +1195,7 @@ prefix can create queueing and fairness costs. NexusKV treats routing and
 transfer as alternative Placement and Transfer Decisions under the same cost
 model.
 
-### 11.4 Representation reduction and selective materialization
+### 12.4 Representation Reduction and Selective Materialization
 
 KV Cache quantization, token eviction, compression, and sparse attention reduce
 the bytes retained or moved. Examples include
@@ -1031,16 +1207,15 @@ substitutes. A State Descriptor can record the representation and supported
 materialization path so that the planner costs conversion and rejects
 incompatible reuse.
 
-### 11.5 Position of NexusKV
+### 12.5 Position of NexusKV
 
 NexusKV's proposed contribution is the decision boundary across these areas:
 semantic Model State identity plus cost-based reuse, placement, transfer, and
 fallback. It can use existing Inference Runtime, storage, and transfer
-components rather than reproducing them. A longer topical map is maintained in
-[`related-work.md`](related-work.md), with machine-readable entries in
-[`bibliography.bib`](bibliography.bib).
+components rather than reproducing them. Its distinction is the proposed
+cross-layer decision contract, not ownership of every underlying mechanism.
 
-## 12. Conclusion
+## 13. Conclusion
 
 KV Cache infrastructure has progressed from local buffers to paged allocation,
 prefix reuse, hierarchy, distributed storage, transfer libraries, and
@@ -1055,11 +1230,11 @@ recomputation, prefetches under explicit budgets, and falls back safely when the
 state is late or uncertain. Extending the contract from KV tensors to Model
 State makes the same decision framework applicable to MHA, MLA, DSA, and KDA.
 
-NexusKV is therefore positioned not as another KV Store, but as a
-**Zero-Overhead Model State Intelligence Layer**. The claim is architectural and
-testable: cache management should be admitted only when it improves useful work
-without becoming visible on the critical path. The evaluation methodology in
-this paper defines how that claim must be validated.
+NexusKV is therefore positioned not as another KV Store, but as work **toward a
+Zero-Overhead Model State Intelligence Layer**. This is an architectural and
+testable target: cache management should be admitted only when it improves
+useful work without becoming visible on the critical path. The evaluation
+methodology in this paper defines the evidence required to validate that target.
 
 ## References
 
