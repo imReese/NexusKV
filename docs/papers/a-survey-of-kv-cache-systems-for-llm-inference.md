@@ -50,6 +50,14 @@ condition has already been demonstrated by the current implementation.
 - [12. Conclusion](#12-conclusion)
 - [References](#references)
 
+**Supporting appendices:** [A — Related Work](related-work.md) ·
+[B — System Coverage](kv-cache-system-coverage.md) ·
+[C — Design Principles](design-principles.md) ·
+[D — Limitations and Future Work](limitations-and-future-work.md) ·
+[E — Research and Evaluation Notes](research-appendix.md) ·
+[F — Figure Index](figure-integration-guide.md) ·
+[BibTeX](bibliography.bib)
+
 ## 1. Introduction
 
 Autoregressive inference avoids repeatedly computing attention keys and values
@@ -940,7 +948,7 @@ transfer backend, request trace or generator seed, warm-up procedure, cache
 initial state, and raw per-request observations. Unsupported combinations,
 fallbacks, and failed requests remain in the report. The extended experiment
 template is maintained in
-[`kv-cache-systems-research-appendix.md`](kv-cache-systems-research-appendix.md).
+[`research-appendix.md`](research-appendix.md).
 
 ## 10. Limitations
 
@@ -1061,50 +1069,51 @@ this paper defines how that claim must be validated.
    Model Programs](https://arxiv.org/abs/2312.07104). NeurIPS, 2024.
 3. vLLM Project. [Automatic Prefix
    Caching](https://docs.vllm.ai/en/stable/design/prefix_caching/).
-4. NVIDIA. [TensorRT-LLM KV Cache
+4. vLLM Project. [KV Cache Interface](https://docs.vllm.ai/en/latest/api/vllm/v1/kv_cache_interface/).
+5. NVIDIA. [TensorRT-LLM KV Cache
    System](https://nvidia.github.io/TensorRT-LLM/features/kvcache.html).
-5. SGLang Project. [HiCache: Hierarchical KV Caching for
+6. SGLang Project. [HiCache: Hierarchical KV Caching for
    SGLang](https://lmsys.org/blog/2025-09-10-sglang-hicache/).
-6. Yihua Cheng et al. [LMCache: An Efficient KV Cache Layer for
+7. Yihua Cheng et al. [LMCache: An Efficient KV Cache Layer for
    Enterprise-Scale LLM Inference](https://arxiv.org/abs/2510.09665). 2025.
-7. LMCache Project. [Multiprocess Architecture](https://docs.lmcache.ai/mp/).
-8. Ruoyu Qin et al. [Mooncake: A KV Cache-centric Disaggregated Architecture for
+8. LMCache Project. [Multiprocess Architecture](https://docs.lmcache.ai/mp/).
+9. Ruoyu Qin et al. [Mooncake: A KV Cache-centric Disaggregated Architecture for
    LLM Serving](https://arxiv.org/abs/2407.00079). FAST, 2025.
-9. Mooncake Project. [Mooncake Store
+10. Mooncake Project. [Mooncake Store
    Design](https://github.com/kvcache-ai/Mooncake/blob/main/docs/source/design/mooncake-store.md).
-10. NVIDIA. [NVIDIA Inference Xfer Library
+11. NVIDIA. [NVIDIA Inference Xfer Library
     Design](https://github.com/ai-dynamo/nixl/blob/main/docs/nixl.md).
-11. NVIDIA Dynamo. [KV Router
+12. NVIDIA Dynamo. [KV Router
     Design](https://docs.nvidia.com/dynamo/latest/design-docs/component-design/router-design).
-12. NVIDIA Dynamo. [KV Block
+13. NVIDIA Dynamo. [KV Block
     Manager](https://docs.nvidia.com/dynamo/dev/knowledge-base/modular-components/kvbm/overview).
-13. ByteDance. [InfiniStore Design and
+14. ByteDance. [InfiniStore Design and
     Architecture](https://bytedance.github.io/InfiniStore/design.html).
-14. TACO Project. [FlexKV](https://github.com/taco-project/FlexKV).
-15. AIBrix Project. [KV Cache Offloading
+15. TACO Project. [FlexKV](https://github.com/taco-project/FlexKV).
+16. AIBrix Project. [KV Cache Offloading
     Framework](https://aibrix.readthedocs.io/latest/designs/aibrix-kvcache-offloading-framework.html).
-16. llm-d Project. [KV Cache
+17. llm-d Project. [KV Cache
     Management](https://llm-d.ai/docs/0.7/architecture/advanced/kv-management).
-17. Yinmin Zhong et al. [DistServe: Disaggregating Prefill and Decoding for
+18. Yinmin Zhong et al. [DistServe: Disaggregating Prefill and Decoding for
     Goodput-Optimized Large Language Model Serving](https://arxiv.org/abs/2401.09670).
     OSDI, 2024.
-18. Cunchen Hu et al. [MemServe: Context Caching for Disaggregated LLM Serving
+19. Cunchen Hu et al. [MemServe: Context Caching for Disaggregated LLM Serving
     with Elastic Memory Pool](https://arxiv.org/abs/2406.17565). 2024.
-19. Vikranth Srivatsa et al. [Preble: Efficient Distributed Prompt Scheduling
+20. Vikranth Srivatsa et al. [Preble: Efficient Distributed Prompt Scheduling
     for LLM Serving](https://arxiv.org/abs/2407.00023). 2024.
-20. Yuhan Liu et al. [CacheGen: KV Cache Compression and Streaming for Fast
+21. Yuhan Liu et al. [CacheGen: KV Cache Compression and Streaming for Fast
     Large Language Model Serving](https://arxiv.org/abs/2310.07240). SIGCOMM,
     2024.
-21. Zirui Liu et al. [KIVI: A Tuning-Free Asymmetric 2bit Quantization for KV
+22. Zirui Liu et al. [KIVI: A Tuning-Free Asymmetric 2bit Quantization for KV
     Cache](https://arxiv.org/abs/2402.02750). 2024.
-22. Zhenyu Zhang et al. [H2O: Heavy-Hitter Oracle for Efficient Generative
+23. Zhenyu Zhang et al. [H2O: Heavy-Hitter Oracle for Efficient Generative
     Inference of Large Language Models](https://arxiv.org/abs/2306.14048).
     NeurIPS, 2023.
-23. Ashish Vaswani et al. [Attention Is All You
+24. Ashish Vaswani et al. [Attention Is All You
     Need](https://arxiv.org/abs/1706.03762). NeurIPS, 2017.
-24. DeepSeek-AI. [DeepSeek-V2: A Strong, Economical, and Efficient
+25. DeepSeek-AI. [DeepSeek-V2: A Strong, Economical, and Efficient
     Mixture-of-Experts Language Model](https://arxiv.org/abs/2405.04434). 2024.
-25. DeepSeek-AI. [DeepSeek-V3.2: Pushing the Frontier of Open Large Language
+26. DeepSeek-AI. [DeepSeek-V3.2: Pushing the Frontier of Open Large Language
     Models](https://arxiv.org/abs/2512.02556). 2025.
-26. Kimi Team. [Kimi Linear: An Expressive, Efficient Attention
+27. Kimi Team. [Kimi Linear: An Expressive, Efficient Attention
     Architecture](https://arxiv.org/abs/2510.26692). 2025.

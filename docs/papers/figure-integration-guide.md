@@ -1,98 +1,33 @@
-# Figure Integration Guide
+# Appendix F: Figure Index and Rendering Notes
 
-The whitepaper figures should be embedded as part of the main narrative rather than treated as standalone assets.
+This appendix indexes the figures embedded in the
+[NexusKV Whitepaper v1.0](a-survey-of-kv-cache-systems-for-llm-inference.md).
+The main paper is the canonical location for captions and interpretation.
 
-## Figure 1: KV Cache Evolution
+## F.1 Figure index
 
-Place after the introduction.
+| Figure | Asset | First body reference | Purpose |
+| --- | --- | --- | --- |
+| 1 | [`kv-cache-evolution.svg`](figures/kv-cache-evolution.svg) | Section 1 | Show the expansion from request-local KV buffers to coordinated Model State. |
+| 2 | [`kv-cache-research-landscape.svg`](figures/kv-cache-research-landscape.svg) | Section 3 | Place representative systems by primary architectural responsibility. |
+| 3 | [`zero-overhead-pipeline.svg`](figures/zero-overhead-pipeline.svg) | Section 6 | Distinguish fully hidden, partially visible, and abandoned transfer work. |
+| 4 | [`nexuskv-zero-overhead-architecture.svg`](figures/nexuskv-zero-overhead-architecture.svg) | Section 8 | Show the Intelligence Layer between Inference Runtimes and Data Plane components. |
 
-Purpose:
+## F.2 Rendering requirements
 
-Show the evolution:
+- Use repository-relative paths so figures render on GitHub and in repository
+  clones.
+- Keep the figure number and explanatory caption in Markdown; do not rely on
+  text embedded in the SVG as the only explanation.
+- Give every SVG a `<title>`, `<desc>`, and `role="img"`.
+- Preserve readable contrast in light and dark GitHub themes.
+- Treat project placement as an architectural scope map, not a performance
+  ranking.
+- Update the body reference, caption, and this index together when figure order
+  changes.
 
-```
-KV Buffer
-   |
-Paged KV Cache
-   |
-Hierarchical Cache
-   |
-Distributed KV Fabric
-   |
-Model State Intelligence
-```
+## F.3 Release check
 
-Message:
-
-The industry evolution is moving from memory optimization toward intelligent state management.
-
----
-
-## Figure 2: System Landscape
-
-Place after the current system comparison section.
-
-Recommended axes:
-
-```
-                Intelligence
-                    ^
-                    |
-                    |
-Mooncake            NexusKV
-                    |
-                    |
-Storage ------------ Inference Runtime
-                    |
-                    |
-                 vLLM
-```
-
-Message:
-
-Existing systems optimize different layers rather than competing directly.
-
----
-
-## Figure 3: NexusKV Architecture
-
-Place in the architecture proposal section.
-
-Structure:
-
-```
-Inference Engines
-       |
-       v
-NexusKV Intelligence Layer
-       |
-+------+------+
-|             |
-Planner    Prefetch
-       |
-       v
-Storage Fabric
-GPU / Host / Remote
-```
-
-Message:
-
-Cache operations should disappear behind computation.
-
----
-
-## Figure 4: Zero-Overhead Pipeline
-
-Recommended addition for future versions:
-
-```
-GPU Compute
-====================
-
-       Async KV Transfer
-       ====================
-```
-
-Message:
-
-The critical path should contain computation, not cache movement.
+Before release, parse every SVG as XML, render it to a raster preview, inspect
+labels at GitHub content width, and verify that each figure is referenced in
+the body before it appears.

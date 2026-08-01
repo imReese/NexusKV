@@ -1,74 +1,97 @@
-# NexusKV Design Principles
+# Appendix C: NexusKV Design Principles
 
-## 1. Semantic State Identity
+This appendix records the design invariants behind the
+[NexusKV Whitepaper v1.0](a-survey-of-kv-cache-systems-for-llm-inference.md).
+The whitepaper is the canonical architecture narrative; this document is a
+review checklist for future implementations.
 
-A cache entry should represent reusable model execution state, not only a tensor buffer.
+## C.1 Semantic state identity
 
-The identity model must capture:
+**Principle.** A cache entry identifies reusable Model State, not only a tensor
+buffer or token prefix.
 
-- model architecture;
-- attention mechanism;
-- tensor layout;
-- layer scope;
-- state dependency;
-- checkpoint version.
+**Rationale.** Equal bytes or tokens do not establish compatibility across
+model revisions, attention mechanisms, parallel layouts, position conventions,
+or recurrent checkpoints.
 
-The goal is to make reuse correctness explicit.
+**Implementation consequence.** Every reuse path must carry a versioned State
+Descriptor and fail closed when required identity or dependency fields are
+unknown. Hashing is an indexing mechanism; compatibility is a semantic rule.
 
----
+## C.2 One cost model for all decisions
 
-## 2. Cost-Based Reuse
+**Principle.** Reuse, placement, transfer, prefetch, admission, and eviction
+must be evaluated against the same end-to-end cost model.
 
-Cache reuse is an optimization decision.
+**Rationale.** Independent policies can optimize hit rate, storage occupancy,
+or link utilization while reducing throughput or increasing tail latency.
 
-The system should compare:
+**Implementation consequence.** Decision records must expose the estimated
+recompute cost, visible cache cost, uncertainty, resource budget, and chosen
+fallback. The Effective Gain definition in Section 2 of the whitepaper is the
+canonical comparison.
 
-```
-reuse cost = lookup + transfer + restore + synchronization
+## C.3 Cache work stays off the critical path
 
-compute cost = recomputation
-```
+**Principle.** Cache management is admitted only when it can complete before
+consumption or when its remaining visible cost is lower than recomputation.
 
-A cache hit is valuable only when it reduces end-to-end latency.
+**Rationale.** Asynchronous APIs alone do not hide work. Queueing, device-memory
+reservation, synchronization, and interference can remain visible even when
+the transfer call is non-blocking.
 
----
+**Implementation consequence.** Prefetch requires a deadline, completion
+signal, cancellation or abandonment rule, and resource budget. A late or
+uncertain operation falls back to recomputation without corrupting scheduler or
+allocator state.
 
-## 3. Asynchronous Prefetch
+## C.4 The Inference Runtime retains execution authority
 
-Cache movement should not block inference.
+**Principle.** NexusKV advises and coordinates; the Inference Runtime owns
+allocation, request admission, kernel execution, and final safety checks.
 
-The Inference Runtime should predict future state requirements and move data in parallel with GPU execution.
+**Rationale.** Only the Inference Runtime has authoritative knowledge of active
+requests, block tables, stream ordering, attention backend constraints, and the
+exact consumption point.
 
-```
-Predict
-  |
-Prefetch
-  |
-Compute continues
-```
+**Implementation consequence.** Adapters translate a portable decision into a
+runtime-native action. A planner result is not authorization to overwrite or
+consume device memory.
 
----
+## C.5 Data Plane components remain replaceable
 
-## 4. Compute-Centric Scheduling
+**Principle.** Storage and transfer capabilities are selected through explicit
+contracts instead of embedded in the Intelligence Layer.
 
-Scheduling decisions should consider both requests and state locality.
+**Rationale.** Mooncake, NIXL, InfiniStore, local Host DRAM, and future backends
+have different transport, registration, durability, and failure properties.
+No single backend is appropriate for every topology.
 
-The scheduler should understand:
+**Implementation consequence.** A backend advertises capabilities and measured
+cost. The planner selects among supported paths; it does not infer zero-copy,
+durability, or remote availability from a backend name.
 
-- GPU residency;
-- host residency;
-- remote transfer latency;
-- expected reuse value.
+## C.6 Attention semantics are extensible, not implicit
 
----
+**Principle.** MHA, MLA, DSA, and KDA share a lifecycle framework but do not
+share one payload or restoration rule.
 
-## 5. Attention-Aware Extensibility
+**Rationale.** Latent, sparse-selection, and recurrent states introduce
+dependencies that a conventional K/V-page identity cannot represent safely.
 
-Future models will expose diverse execution states:
+**Implementation consequence.** Each semantic state type registers its
+identity, compatibility, materialization, conversion, and fallback rules.
+Unsupported state types recompute by default.
 
-- MHA KV tensors;
-- MLA latent states;
-- DSA compressed states;
-- KDA recurrent states.
+## C.7 Decisions are observable and reproducible
 
-NexusKV should provide a generalized Model State abstraction rather than being limited to traditional KV tensors.
+**Principle.** Every cache decision must be explainable after execution.
+
+**Rationale.** Aggregate hit rate cannot distinguish a compatible useful reuse
+from a late transfer, a forced fallback, or an incorrect match rejected by the
+runtime.
+
+**Implementation consequence.** Traces should connect state identity, lookup,
+cost estimate, placement, transfer, completion, fallback, and observed outcome
+without exposing tenant data. Evaluation reports follow Section 9 and
+[Appendix E](research-appendix.md).
