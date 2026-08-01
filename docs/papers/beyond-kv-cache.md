@@ -325,8 +325,8 @@ The symbols use evidence-based scope criteria:
 
 "Intelligence" means an explicit compatibility, locality, placement, or cost
 decision. It does not imply generalized Model State semantics. Capability marks
-were reviewed against the official sources cited in Sections 4 and References
-on 1 August 2026.
+were reviewed against the official sources cited in Section 4 and the
+References on 1 August 2026.
 
 ### 3.3 Coverage Boundaries
 
@@ -409,9 +409,9 @@ are generally shareable without special handling; smaller blocks increase
 metadata and scheduling work, while larger blocks reduce match granularity.
 Hash identity must encode every value that changes the resulting state. External
 reuse and offload add connector synchronization and are no longer purely local
-allocator operations. vLLM is therefore a strong Inference Runtime substrate,
-but a cluster-wide placement policy and semantic contract across Inference
-Runtimes remain outside the core paged allocator.
+allocator operations. vLLM therefore addresses Inference Runtime-local
+allocation and reuse, while cluster-wide placement and a semantic contract
+across Inference Runtimes remain outside the core paged allocator.
 
 ### 4.2 SGLang and HiCache
 
@@ -540,11 +540,11 @@ files, block storage, or object storage and receives an asynchronous completion
 handle. This design isolates Inference Runtimes from transport-specific APIs and
 permits a deployment to select among RDMA, GPU peer paths, or storage plugins.
 
-NIXL solves transport portability and efficient point-to-point movement. It
-deliberately does not decide whether bytes are compatible Model State, which
-tier should retain them, or whether transfer is preferable to recomputation.
-Those are caller responsibilities. NIXL is consequently a Data Plane component
-that a cost-based planner can select, rather than a competing cache policy.
+NIXL abstracts transport selection and point-to-point movement. It deliberately
+does not decide whether bytes are compatible Model State, which tier should
+retain them, or whether transfer is preferable to recomputation. Those are
+caller responsibilities. NIXL is consequently a Data Plane component that a
+cost-based planner can select, rather than a competing cache policy.
 
 ### 4.7 Dynamo and KVBM
 
@@ -967,12 +967,12 @@ For each request, NexusKV follows an explicit lifecycle:
 ### 9.4 Current Implementation Boundary
 
 The repository currently contains a versioned state contract, Rust state and
-prefix-matching foundations, a bounded host-memory payload store, Python
-adapters and deterministic execution-policy boundaries, and a Go Control Plane
-scaffold. Real GPU allocation, asynchronous transfer execution, RDMA, remote
-storage, and end-to-end zero-overhead validation remain future implementation
-work. This distinction prevents an architectural target from being read as a
-measured system result.
+prefix-matching foundations, a bounded Host DRAM payload store, Python adapters
+and deterministic execution-policy boundaries, and a Go Control Plane scaffold.
+Native GPU-memory materialization, asynchronous transfer execution, RDMA,
+remote storage, and end-to-end zero-overhead validation remain future
+implementation work. This distinction prevents an architectural target from
+being read as a measured system result.
 
 ## 10. Evaluation Methodology
 
@@ -1166,27 +1166,16 @@ or timing is insufficient.
 
 ## 12. Related Work
 
-### 12.1 Inference Runtime Memory and Prefix Reuse
+### 12.1 Memory Virtualization and Structured Reuse
 
 PagedAttention established block-based device-memory management for continuous
-LLM serving, while RadixAttention connected prefix structure to scheduling and
-reuse. TensorRT-LLM independently combines block pools, radix lookup, retention
-priority, and host offload. vLLM's hybrid KV Cache manager and SGLang's unified
-cache work show that one Inference Runtime may already need multiple physical
-state specifications. These systems minimize local hot-path overhead; portable
-cross-engine identity is not their primary objective.
+LLM serving, while RadixAttention connected shared prefix structure to runtime
+scheduling and reuse. This lineage makes reusable state visible to the
+allocator and scheduler, but its primary contract remains within one Inference
+Runtime. NexusKV starts from the later question of how identity and utility can
+remain explicit when state crosses runtime and storage boundaries.
 
-### 12.2 Hierarchy, Middleware, and Distributed Storage
-
-HiCache places hierarchy inside SGLang, where scheduling and radix lifecycle are
-available. LMCache moves lifecycle into a standalone middleware service. FlexKV
-combines a distributed prefix index with tier and transfer management. AIBrix
-offers cloud-native offload integration, while Dynamo KVBM supplies a unified
-block hierarchy through NIXL. Mooncake Store and InfiniStore instead expose
-distributed capacity and transfer to upper layers. These approaches differ in
-ownership, but all must reconcile logical matches with physical availability.
-
-### 12.3 Disaggregation and Cache-Aware Routing
+### 12.2 Disaggregation and Locality-Aware Scheduling
 
 [Mooncake](https://arxiv.org/abs/2407.00079),
 [DistServe](https://arxiv.org/abs/2401.09670), and
@@ -1198,7 +1187,7 @@ prefix can create queueing and fairness costs. NexusKV treats routing and
 transfer as alternative Placement and Transfer Decisions under the same cost
 model.
 
-### 12.4 Representation Reduction and Selective Materialization
+### 12.3 Representation Reduction and Attention Evolution
 
 KV Cache quantization, token eviction, compression, and sparse attention reduce
 the bytes retained or moved. Examples include
@@ -1210,7 +1199,11 @@ substitutes. A State Descriptor can record the representation and supported
 materialization path so that the planner costs conversion and rejects
 incompatible reuse.
 
-### 12.5 Position of NexusKV
+MLA, DSA, and KDA alter the state transition that a serving cache may resume.
+They motivate a semantic contract beyond uniform K/V tensors, but they do not
+by themselves define distributed lifecycle, placement, or transfer policy.
+
+### 12.4 Position of NexusKV
 
 NexusKV's proposed contribution is the decision boundary across these areas:
 semantic Model State identity plus cost-based reuse, placement, transfer, and
