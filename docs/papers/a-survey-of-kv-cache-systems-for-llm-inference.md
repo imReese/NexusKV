@@ -277,8 +277,32 @@ boundaries.
 
 These rows are capabilities rather than mutually exclusive categories. For
 example, SGLang is an Inference Runtime, while HiCache is integrated with that
-Inference Runtime; Mooncake is both a serving architecture described in its research
-paper and a repository containing a reusable Transfer Engine and Store.
+Inference Runtime; Mooncake is both a serving architecture described in its
+research paper and a repository containing a reusable Transfer Engine and Store.
+
+The following matrix maps current primary responsibilities and substantial
+integrations. It is a scope map, not a performance ranking.
+
+| System | Inference Runtime | Middleware | Hierarchy | Storage | Transfer | Scheduling | Intelligence |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| vLLM | ● | ○ | ◐ | — | ◐ | ● | ◐ |
+| TensorRT-LLM | ● | ○ | ◐ | — | ◐ | ● | ◐ |
+| SGLang | ● | ○ | ○ | — | ◐ | ● | ◐ |
+| SGLang HiCache | ○ | ◐ | ● | ○ | ● | ◐ | ◐ |
+| LMCache | ○ | ● | ● | ◐ | ● | ◐ | ◐ |
+| Mooncake Store | — | ○ | ◐ | ● | ● | ◐ | — |
+| NIXL | — | ○ | — | ○ | ● | — | — |
+| Dynamo / KVBM | ○ | ● | ● | ○ | ● | ● | ● |
+| InfiniStore | — | ○ | ● | ● | ● | — | — |
+| FlexKV | ○ | ● | ● | ● | ● | ◐ | ◐ |
+| NexusKV | ○ | ● | △ | — | — | △ | △ |
+
+**Legend:** `●` primary responsibility; `◐` substantial built-in capability;
+`○` adapter or ecosystem integration; `—` outside the primary scope; `△`
+proposed NexusKV direction. "Intelligence" here means an explicit decision
+function over cache state or cost, not a claim of generalized Model State
+semantics. Version-sensitive evidence and caveats are recorded in
+[`kv-cache-system-coverage.md`](kv-cache-system-coverage.md).
 
 Three trends are visible:
 
@@ -303,25 +327,34 @@ The detailed, source-oriented coverage ledger is maintained in
 
 ## 4. Existing Systems
 
-This section focuses on four systems that expose distinct architectural choices.
-The question is not which system is universally preferable, but which problem
-each design makes tractable and which decisions remain above or below its
-abstraction boundary.
+This section examines systems that expose distinct architectural choices. The
+question is not which system is universally preferable, but which problem each
+design makes tractable and which decisions remain above or below its abstraction
+boundary.
 
 ### 4.1 vLLM: paged device-memory management
 
-PagedAttention introduced an indirection between logical sequence blocks and
-non-contiguous physical KV Cache blocks. The design follows from an Inference Runtime
-constraint: request lengths and lifetimes are unpredictable, while attention
-kernels need stable, efficiently addressable device memory. Fixed-size blocks
-reduce external fragmentation and permit block sharing without requiring
-contiguous allocation for each sequence.
+[PagedAttention](https://arxiv.org/abs/2309.06180) introduced an indirection
+between logical sequence blocks and non-contiguous physical KV Cache blocks. The
+design follows from an Inference Runtime constraint: request lengths and
+lifetimes are unpredictable, while attention kernels need stable, efficiently
+addressable device memory. Fixed-size blocks reduce external fragmentation and
+permit block sharing without requiring contiguous allocation for each sequence.
 
-Current vLLM prefix caching identifies full blocks with a chain of content
-hashes that includes the parent hash, block tokens, and optional identity data
-such as multimodal hashes, LoRA identifiers, and cache salts. The KV Cache
-manager preallocates block metadata and maintains a free queue, making
-allocation, release, and LRU eviction inexpensive in the scheduler path.
+The current [vLLM prefix-cache design](https://docs.vllm.ai/en/stable/design/prefix_caching/)
+identifies full blocks with a chain of content hashes that includes the parent
+hash, block tokens, and optional identity data such as multimodal hashes, LoRA
+identifiers, and cache salts. The KV Cache manager preallocates block metadata
+and maintains a free queue, making allocation, release, and LRU eviction
+inexpensive in the scheduler path.
+
+vLLM's newer [KV Cache interfaces](https://docs.vllm.ai/en/latest/api/vllm/v1/kv_cache_interface/)
+also group different state specifications for hybrid models, including full
+attention, sliding-window attention, and recurrent state. This is an important
+qualification: the Inference Runtime is no longer limited to one physical
+tensor shape. The grouping and coordination remain internal Inference Runtime
+contracts, however, rather than a portable semantic identity across engines and
+storage systems.
 
 This design solves:
 
@@ -335,29 +368,30 @@ are generally shareable without special handling; smaller blocks increase
 metadata and scheduling work, while larger blocks reduce match granularity.
 Hash identity must encode every value that changes the resulting state. External
 reuse and offload add connector synchronization and are no longer purely local
-allocator operations. vLLM is therefore a strong Inference Runtime substrate, but a
-cluster-wide placement policy and semantic contract across Inference Runtimes remain outside
-the core paged allocator.
+allocator operations. vLLM is therefore a strong Inference Runtime substrate,
+but a cluster-wide placement policy and semantic contract across Inference
+Runtimes remain outside the core paged allocator.
 
 ### 4.2 SGLang HiCache: hierarchy integrated with the Inference Runtime
 
-SGLang's RadixAttention represents token prefixes in a radix tree. This choice
-matches structured generation workloads: system prompts, multi-turn histories,
-and program branches share prefixes of different lengths, so a prefix tree can
-combine matching, reference counting, and eviction at the same logical
-granularity used by the scheduler.
+SGLang's [RadixAttention](https://arxiv.org/abs/2312.07104) represents token
+prefixes in a radix tree. This choice matches structured generation workloads:
+system prompts, multi-turn histories, and program branches share prefixes of
+different lengths, so a prefix tree can combine matching, reference counting,
+and eviction at the same logical granularity used by the scheduler.
 
-HiCache extends this reuse structure local to the Inference Runtime into a hierarchy:
+[HiCache](https://lmsys.org/blog/2025-09-10-sglang-hicache/) extends this reuse
+structure local to the Inference Runtime into a hierarchy:
 
 ```text
 L1: GPU HBM -> L2: host DRAM -> L3: external storage
 ```
 
 The implementation can attach storage backends and issue asynchronous backup or
-prefetch operations while the Inference Runtime retains control of radix-tree lifecycle.
-Keeping the hierarchy inside SGLang exposes information that external storage
-cannot infer reliably: active requests, matched prefix length, eviction state,
-and the exact point at which a page is needed.
+prefetch operations while the Inference Runtime retains control of radix-tree
+lifecycle. Keeping the hierarchy inside SGLang exposes information that
+external storage cannot infer reliably: active requests, matched prefix length,
+eviction state, and the exact point at which a page is needed.
 
 This design solves:
 
@@ -376,16 +410,19 @@ reconciled before claiming a usable hit.
 
 ### 4.3 LMCache: cache middleware and lifecycle
 
-LMCache externalizes reusable KV Cache from an Inference Runtime through engine
-connectors and pluggable storage. The middleware boundary is motivated by a
-different constraint: a cache tied to one worker cannot survive process churn,
-share capacity across engines, or adopt storage backends without repeated
-Inference Runtime-specific implementations.
+[LMCache](https://arxiv.org/abs/2510.09665) externalizes reusable KV Cache from
+an Inference Runtime through engine connectors and pluggable storage. The
+middleware boundary is motivated by a different constraint: a cache tied to one
+worker cannot survive process churn, share capacity across engines, or adopt
+storage backends without repeated Inference Runtime-specific implementations.
 
-The architecture manages lookup, store, retrieve, eviction, and transfer across
-GPU, CPU, local storage, and remote backends. Asynchronous and layer-wise paths
-can pipeline movement with model execution. This separation makes cache
-lifecycle and backend choice independently deployable from the core Inference Runtime.
+The current recommended [multiprocess architecture](https://docs.lmcache.ai/mp/)
+runs a standalone cache service that one or more vLLM processes reach through a
+connector. Its StorageManager coordinates an L1 manager, asynchronous store and
+prefetch controllers, eviction, and L2 adapters. Moving cache work out of the
+engine process isolates failures and CPU/GIL work, permits node-local sharing,
+and scales cache capacity independently. Layer-wise paths can pipeline movement
+with model execution.
 
 This design solves:
 
@@ -394,28 +431,30 @@ This design solves:
 - connector-based integration with more than one Inference Runtime;
 - transfer pipelines that can overlap layer execution.
 
-The trade-off is an additional coordination boundary. Chunk or block hashes must
-remain consistent with Inference Runtime layout and model configuration; connector API
-changes can affect compatibility; and a middleware hit still requires Inference Runtime
-slots, transfer completion, and safe synchronization. Non-prefix reuse further
-requires positional and recomputation rules that are richer than object lookup.
-LMCache supplies substantial lifecycle intelligence, but the Inference Runtime and
-deployment still determine whether a specific retrieval improves the critical
-path.
+The trade-off is an additional process and coordination boundary. Chunk size,
+hash algorithm, layout, and connector protocol must remain consistent with the
+Inference Runtime and across cache servers. A middleware hit still requires
+Inference Runtime slots, transfer completion, and safe synchronization.
+Non-prefix reuse further requires positional and recomputation rules richer than
+object lookup. LMCache supplies substantial lifecycle intelligence, but the
+Inference Runtime and deployment still determine whether a specific retrieval
+improves the critical path.
 
 ### 4.4 Mooncake: disaggregated serving, storage, and transfer
 
-"Mooncake" refers to related but distinct scopes. The Mooncake serving paper
-describes a KV Cache-centric disaggregated architecture with a scheduler that
-balances prefill/decode capacity and service-level objectives. Mooncake Store is
-a distributed object store, while the Mooncake Transfer Engine provides
+"Mooncake" refers to related but distinct scopes. The
+[Mooncake serving paper](https://arxiv.org/abs/2407.00079) describes a KV
+Cache-centric disaggregated architecture with a scheduler that balances
+prefill/decode capacity and service-level objectives. Mooncake Store is a
+distributed object store, while the Mooncake Transfer Engine provides
 high-bandwidth movement across registered memory using transports such as RDMA.
 
-Mooncake Store separates metadata decisions from the data path. A master
-manages object metadata and placement; clients contribute memory, issue object
-operations, and transfer data directly between one another. This design follows
-from large-object movement requirements: the metadata service should not proxy
-bulk Model State, and registered memory plus direct transfer can avoid redundant
+[Mooncake Store](https://github.com/kvcache-ai/Mooncake/blob/main/docs/source/design/mooncake-store.md)
+separates metadata decisions from the data path. A master manages object
+metadata and placement; clients contribute memory, issue object operations, and
+transfer data directly between one another. This design follows from
+large-object movement requirements: the metadata service should not proxy bulk
+Model State, and registered memory plus direct transfer can avoid redundant
 copies and CPU bottlenecks.
 
 This design solves:
@@ -432,6 +471,93 @@ or Transfer Engine as a backend must still supply token/state identity,
 attention layout, restoration rules, and the recompute alternative. Mooncake is
 therefore a plausible Data Plane beneath NexusKV, not a component that NexusKV
 needs to duplicate.
+
+### 4.5 TensorRT-LLM: integrated block reuse and retention
+
+TensorRT-LLM implements a [block-based KV Cache system](https://nvidia.github.io/TensorRT-LLM/features/kvcache.html)
+inside the Inference Runtime. Blocks from completed requests enter a radix
+search structure for prefix reuse. Priority ranges and duration hints influence
+eviction, and reusable blocks may be offloaded from primary device memory to a
+secondary host pool. KV Cache events and an external connector expose lifecycle
+changes and custom persistence paths.
+
+The design is integrated because allocation, attention-window constraints,
+retention priority, and active-request pressure are known at the scheduler. It
+solves low-overhead local reuse and provides explicit operator hints. Its main
+trade-off is that pool geometry and reuse semantics are closely tied to the
+compiled model and Inference Runtime. Multiple pools are needed for differing
+attention windows or KV-head counts, and current documentation notes that some
+pool partitioning is static. External connectors still need to preserve those
+layout and lifecycle rules.
+
+### 4.6 NIXL: heterogeneous transfer abstraction
+
+[NIXL](https://github.com/ai-dynamo/nixl/blob/main/docs/nixl.md) defines a
+Transfer Agent around memory sections, pluggable transfer backends, and metadata
+handlers. The caller submits buffer lists spanning device memory, host memory,
+files, block storage, or object storage and receives an asynchronous completion
+handle. This design isolates Inference Runtimes from transport-specific APIs and
+permits a deployment to select among RDMA, GPU peer paths, or storage plugins.
+
+NIXL solves transport portability and efficient point-to-point movement. It
+deliberately does not decide whether bytes are compatible Model State, which
+tier should retain them, or whether transfer is preferable to recomputation.
+Those are caller responsibilities. NIXL is consequently a Data Plane component
+that a cost-based planner can select, rather than a competing cache policy.
+
+### 4.7 Dynamo and KVBM: distributed routing plus tiering
+
+Dynamo composes Inference Runtimes with event-driven KV Cache routing. Its
+[router](https://docs.nvidia.com/dynamo/latest/design-docs/component-design/router-design)
+tracks active decode load and cached prefix blocks per worker, then computes a
+cost that trades prefill work after cache overlap against decode load. Worker
+KV Cache events feed a global index; approximate prediction is available when
+events are not published.
+
+The [Dynamo KV Block Manager](https://docs.nvidia.com/dynamo/dev/knowledge-base/modular-components/kvbm/overview)
+adds a write-through hierarchy spanning GPU, host, SSD, and remote storage, with
+NIXL as the movement layer and connectors for supported Inference Runtimes.
+Together these components solve a coordination problem that local caches cannot:
+routing work toward state while accounting for current worker load.
+
+The trade-off is dependency on timely and correctly ordered lifecycle events,
+consistent block hashing, and calibrated routing weights. The current decision
+unit is principally a KV Cache block and worker-load model. Generalized State
+Descriptors, conversion cost, and attention-specific checkpoint validity remain
+an extension beyond that block-routing contract.
+
+### 4.8 InfiniStore: RDMA-oriented shared capacity
+
+[InfiniStore](https://bytedance.github.io/InfiniStore/design.html) is a
+distributed KV Store for shared KV Cache capacity. It pre-registers memory for
+RDMA, uses a variable-length key space, prefers local GPU copy when the payload
+is co-located, and supports DRAM/SSD capacity and cross-host reuse. Its documented
+integration writes state layer by layer so that communication can overlap
+prefill computation; LMCache and other middleware can supply an engine-facing
+connector.
+
+This design solves registered-memory allocation, remote transfer, and cache
+capacity outside GPU HBM. Its traditional key/value interface intentionally
+leaves model identity, token hashing, layer layout, reuse admission, and request
+routing to the integrating middleware and Inference Runtime. It is another
+possible Data Plane beneath an Intelligence Layer.
+
+### 4.9 Converging cache and serving frameworks
+
+[FlexKV](https://github.com/taco-project/FlexKV) combines a distributed radix
+index, multi-level storage, transfer orchestration, leases, and asynchronous
+engine connectors. [AIBrix](https://aibrix.readthedocs.io/latest/designs/aibrix-kvcache-offloading-framework.html)
+adds cloud-native offload and placement around vLLM/SGLang connectors and an
+optional remote tier. [llm-d](https://llm-d.ai/docs/0.7/architecture/advanced/kv-management)
+composes precise or approximate prefix-aware routing, KV Cache event indexing,
+and native or external offloaders.
+
+These projects show convergence toward cross-layer coordination. Their
+trade-offs also reinforce the paper's thesis: engine/block identity, storage
+placement, transfer, and routing increasingly interact, but the decision
+contracts remain implementation-specific and primarily KV Cache-oriented. They
+are relevant integration targets and comparison points, not evidence that a
+portable Model State contract is unnecessary.
 
 ## 5. Why Existing Systems Are Not Enough
 
@@ -610,6 +736,13 @@ The descriptor must answer:
 - how to restore it and how much restoration costs.
 
 ### 7.2 Attention-aware state taxonomy
+
+The taxonomy follows the state transitions introduced by conventional
+[multi-head attention](https://arxiv.org/abs/1706.03762), DeepSeek
+[Multi-head Latent Attention](https://arxiv.org/abs/2405.04434),
+[DeepSeek Sparse Attention](https://arxiv.org/abs/2512.02556), and Moonshot AI
+[Kimi Delta Attention](https://arxiv.org/abs/2510.26692). The serving contract,
+not the paper name alone, determines the exact payload for a given implementation.
 
 | Attention family | Reusable state | Identity and restoration consequence |
 | --- | --- | --- |
@@ -846,29 +979,56 @@ maintained in
 
 ## 11. Related Work
 
+### 11.1 Inference Runtime memory and prefix reuse
+
 PagedAttention established block-based device-memory management for continuous
-LLM serving. RadixAttention connected prefix structure to Inference Runtime scheduling and
-reuse. TensorRT-LLM independently provides block reuse, retention priority, and
-host offload inside its Inference Runtime. These works make Model State a first-class
-Inference Runtime resource.
+LLM serving, while RadixAttention connected prefix structure to scheduling and
+reuse. TensorRT-LLM independently combines block pools, radix lookup, retention
+priority, and host offload. vLLM's hybrid KV Cache manager and SGLang's unified
+cache work show that one Inference Runtime may already need multiple physical
+state specifications. These systems minimize local hot-path overhead; portable
+cross-engine identity is not their primary objective.
 
-HiCache, LMCache, Mooncake Store, and InfiniStore extend state beyond device
-memory through different ownership models: hierarchy integrated with the Inference Runtime,
-middleware-managed lifecycle, distributed object storage, and RDMA-oriented
-memory pooling. NIXL abstracts heterogeneous transfer paths rather than cache
-semantics. Dynamo combines KV-aware routing, Inference Runtime events, and tiering
-components at the distributed serving layer.
+### 11.2 Hierarchy, middleware, and distributed storage
 
-Orthogonal work reduces the bytes that must be retained or moved through
-quantization, eviction, sparse attention, or recurrent state. Disaggregated
-serving systems separate compute phases and make state transfer a scheduling
-dependency. Cache-aware routers use prefix location to avoid recomputation, but
-must still balance locality against queue and decode load.
+HiCache places hierarchy inside SGLang, where scheduling and radix lifecycle are
+available. LMCache moves lifecycle into a standalone middleware service. FlexKV
+combines a distributed prefix index with tier and transfer management. AIBrix
+offers cloud-native offload integration, while Dynamo KVBM supplies a unified
+block hierarchy through NIXL. Mooncake Store and InfiniStore instead expose
+distributed capacity and transfer to upper layers. These approaches differ in
+ownership, but all must reconcile logical matches with physical availability.
+
+### 11.3 Disaggregation and cache-aware routing
+
+[Mooncake](https://arxiv.org/abs/2407.00079),
+[DistServe](https://arxiv.org/abs/2401.09670), and
+[MemServe](https://arxiv.org/abs/2406.17565) make KV Cache transfer a dependency
+between separated compute stages. [Preble](https://arxiv.org/abs/2407.00023),
+Dynamo, and llm-d route requests using prefix locality and worker load. Routing
+can avoid recomputation without moving state, but concentration on a popular
+prefix can create queueing and fairness costs. NexusKV treats routing and
+transfer as alternative Placement and Transfer Decisions under the same cost
+model.
+
+### 11.4 Representation reduction and selective materialization
+
+KV Cache quantization, token eviction, compression, and sparse attention reduce
+the bytes retained or moved. Examples include
+[KIVI](https://arxiv.org/abs/2402.02750),
+[H2O](https://arxiv.org/abs/2306.14048), and
+[CacheGen](https://arxiv.org/abs/2310.07240). These methods introduce accuracy,
+conversion, and query-dependent selection trade-offs rather than lifecycle
+substitutes. A State Descriptor can record the representation and supported
+materialization path so that the planner costs conversion and rejects
+incompatible reuse.
+
+### 11.5 Position of NexusKV
 
 NexusKV's proposed contribution is the decision boundary across these areas:
 semantic Model State identity plus cost-based reuse, placement, transfer, and
-fallback. It can use existing Inference Runtime, storage, and transfer components rather
-than reproducing them. A longer topical map is maintained in
+fallback. It can use existing Inference Runtime, storage, and transfer
+components rather than reproducing them. A longer topical map is maintained in
 [`related-work.md`](related-work.md), with machine-readable entries in
 [`bibliography.bib`](bibliography.bib).
 
@@ -899,10 +1059,52 @@ this paper defines how that claim must be validated.
    Serving with PagedAttention](https://arxiv.org/abs/2309.06180). SOSP, 2023.
 2. Lianmin Zheng et al. [SGLang: Efficient Execution of Structured Language
    Model Programs](https://arxiv.org/abs/2312.07104). NeurIPS, 2024.
-3. Ruoyu Qin et al. [Mooncake: A KV Cache-centric Disaggregated Architecture for
-   LLM Serving](https://arxiv.org/abs/2407.00079). FAST, 2025.
-4. Yihua Cheng et al. [LMCache: An Efficient KV Cache Layer for
+3. vLLM Project. [Automatic Prefix
+   Caching](https://docs.vllm.ai/en/stable/design/prefix_caching/).
+4. NVIDIA. [TensorRT-LLM KV Cache
+   System](https://nvidia.github.io/TensorRT-LLM/features/kvcache.html).
+5. SGLang Project. [HiCache: Hierarchical KV Caching for
+   SGLang](https://lmsys.org/blog/2025-09-10-sglang-hicache/).
+6. Yihua Cheng et al. [LMCache: An Efficient KV Cache Layer for
    Enterprise-Scale LLM Inference](https://arxiv.org/abs/2510.09665). 2025.
-5. vLLM Project. [Automatic Prefix Caching](https://docs.vllm.ai/en/stable/design/prefix_caching/).
-6. SGLang Project. [HiCache: Hierarchical KV Caching for SGLang](https://lmsys.org/blog/2025-09-10-sglang-hicache/).
-7. Mooncake Project. [Mooncake Store Design](https://github.com/kvcache-ai/Mooncake/blob/main/docs/source/design/mooncake-store.md).
+7. LMCache Project. [Multiprocess Architecture](https://docs.lmcache.ai/mp/).
+8. Ruoyu Qin et al. [Mooncake: A KV Cache-centric Disaggregated Architecture for
+   LLM Serving](https://arxiv.org/abs/2407.00079). FAST, 2025.
+9. Mooncake Project. [Mooncake Store
+   Design](https://github.com/kvcache-ai/Mooncake/blob/main/docs/source/design/mooncake-store.md).
+10. NVIDIA. [NVIDIA Inference Xfer Library
+    Design](https://github.com/ai-dynamo/nixl/blob/main/docs/nixl.md).
+11. NVIDIA Dynamo. [KV Router
+    Design](https://docs.nvidia.com/dynamo/latest/design-docs/component-design/router-design).
+12. NVIDIA Dynamo. [KV Block
+    Manager](https://docs.nvidia.com/dynamo/dev/knowledge-base/modular-components/kvbm/overview).
+13. ByteDance. [InfiniStore Design and
+    Architecture](https://bytedance.github.io/InfiniStore/design.html).
+14. TACO Project. [FlexKV](https://github.com/taco-project/FlexKV).
+15. AIBrix Project. [KV Cache Offloading
+    Framework](https://aibrix.readthedocs.io/latest/designs/aibrix-kvcache-offloading-framework.html).
+16. llm-d Project. [KV Cache
+    Management](https://llm-d.ai/docs/0.7/architecture/advanced/kv-management).
+17. Yinmin Zhong et al. [DistServe: Disaggregating Prefill and Decoding for
+    Goodput-Optimized Large Language Model Serving](https://arxiv.org/abs/2401.09670).
+    OSDI, 2024.
+18. Cunchen Hu et al. [MemServe: Context Caching for Disaggregated LLM Serving
+    with Elastic Memory Pool](https://arxiv.org/abs/2406.17565). 2024.
+19. Vikranth Srivatsa et al. [Preble: Efficient Distributed Prompt Scheduling
+    for LLM Serving](https://arxiv.org/abs/2407.00023). 2024.
+20. Yuhan Liu et al. [CacheGen: KV Cache Compression and Streaming for Fast
+    Large Language Model Serving](https://arxiv.org/abs/2310.07240). SIGCOMM,
+    2024.
+21. Zirui Liu et al. [KIVI: A Tuning-Free Asymmetric 2bit Quantization for KV
+    Cache](https://arxiv.org/abs/2402.02750). 2024.
+22. Zhenyu Zhang et al. [H2O: Heavy-Hitter Oracle for Efficient Generative
+    Inference of Large Language Models](https://arxiv.org/abs/2306.14048).
+    NeurIPS, 2023.
+23. Ashish Vaswani et al. [Attention Is All You
+    Need](https://arxiv.org/abs/1706.03762). NeurIPS, 2017.
+24. DeepSeek-AI. [DeepSeek-V2: A Strong, Economical, and Efficient
+    Mixture-of-Experts Language Model](https://arxiv.org/abs/2405.04434). 2024.
+25. DeepSeek-AI. [DeepSeek-V3.2: Pushing the Frontier of Open Large Language
+    Models](https://arxiv.org/abs/2512.02556). 2025.
+26. Kimi Team. [Kimi Linear: An Expressive, Efficient Attention
+    Architecture](https://arxiv.org/abs/2510.26692). 2025.
