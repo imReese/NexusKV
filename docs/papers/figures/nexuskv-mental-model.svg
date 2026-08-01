@@ -1,0 +1,66 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="720" viewBox="0 0 1200 720" role="img" aria-labelledby="title desc">
+  <title id="title">NexusKV architecture mental model</title>
+  <desc id="desc">An analogy between policy around a CPU cache and the State Descriptor, planner, prefetcher, and policy around a Model State Cache.</desc>
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L9,3 z" fill="#475569"/>
+    </marker>
+    <style>
+      .title { font: 700 30px Arial, sans-serif; fill: #0f172a; }
+      .section { font: 700 22px Arial, sans-serif; fill: #0f172a; }
+      .label { font: 700 18px Arial, sans-serif; fill: #0f172a; }
+      .detail { font: 15px Arial, sans-serif; fill: #475569; }
+      .panel { fill: #f8fafc; stroke: #cbd5e1; stroke-width: 2; rx: 18; }
+      .cpu { fill: #ffffff; stroke: #64748b; stroke-width: 2; rx: 12; }
+      .state { fill: #eef2ff; stroke: #4f46e5; stroke-width: 2.5; rx: 14; }
+      .support { fill: #ffffff; stroke: #64748b; stroke-width: 2; rx: 12; }
+      .arrow { stroke: #475569; stroke-width: 2.5; marker-end: url(#arrow); }
+      .link { stroke: #94a3b8; stroke-width: 2; }
+    </style>
+  </defs>
+
+  <rect width="1200" height="720" fill="#ffffff"/>
+  <text class="title" x="600" y="48" text-anchor="middle">NexusKV Architecture Mental Model</text>
+
+  <rect class="panel" x="100" y="80" width="1000" height="205"/>
+  <text class="section" x="600" y="116" text-anchor="middle">CPU Cache World</text>
+
+  <rect class="cpu" x="155" y="155" width="190" height="80"/>
+  <text class="label" x="250" y="202" text-anchor="middle">Cache</text>
+  <rect class="cpu" x="385" y="155" width="190" height="80"/>
+  <text class="label" x="480" y="202" text-anchor="middle">Prefetcher</text>
+  <rect class="cpu" x="625" y="155" width="190" height="80"/>
+  <text class="label" x="720" y="202" text-anchor="middle">Predictor</text>
+  <rect class="cpu" x="855" y="155" width="190" height="80"/>
+  <text class="label" x="950" y="202" text-anchor="middle">Coherence</text>
+
+  <line class="link" x1="345" y1="195" x2="385" y2="195"/>
+  <line class="link" x1="575" y1="195" x2="625" y2="195"/>
+  <line class="link" x1="815" y1="195" x2="855" y2="195"/>
+
+  <line class="arrow" x1="600" y1="300" x2="600" y2="360"/>
+  <text class="detail" x="625" y="336">analogy, not equivalence</text>
+
+  <rect class="panel" x="100" y="385" width="1000" height="275"/>
+  <text class="section" x="600" y="423" text-anchor="middle">LLM State World</text>
+
+  <rect class="state" x="390" y="450" width="420" height="75"/>
+  <text class="label" x="600" y="483" text-anchor="middle">Model State Cache</text>
+  <text class="detail" x="600" y="507" text-anchor="middle">reusable state, not only K/V tensors</text>
+
+  <rect class="support" x="135" y="570" width="210" height="58"/>
+  <text class="label" x="240" y="605" text-anchor="middle">State Descriptor</text>
+  <rect class="support" x="375" y="570" width="190" height="58"/>
+  <text class="label" x="470" y="605" text-anchor="middle">Planner</text>
+  <rect class="support" x="595" y="570" width="190" height="58"/>
+  <text class="label" x="690" y="605" text-anchor="middle">Prefetcher</text>
+  <rect class="support" x="815" y="570" width="250" height="58"/>
+  <text class="label" x="940" y="605" text-anchor="middle">Policy + Feedback</text>
+
+  <line class="link" x1="240" y1="570" x2="445" y2="525"/>
+  <line class="link" x1="470" y1="570" x2="550" y2="525"/>
+  <line class="link" x1="690" y1="570" x2="650" y2="525"/>
+  <line class="link" x1="940" y1="570" x2="755" y2="525"/>
+
+  <text class="detail" x="600" y="690" text-anchor="middle">The analogy motivates explicit state semantics and decisions; NexusKV does not implement CPU-style hardware coherence.</text>
+</svg>

@@ -813,6 +813,18 @@ The following principles constrain the architecture. They are reviewable
 invariants rather than independent features, and they apply even when NexusKV
 uses storage or transport implemented by another project.
 
+Figure 3 provides a mental model for this separation. CPU caches are surrounded
+by prediction, prefetch, and coherence mechanisms; similarly, reusable LLM
+state needs explicit description, planning, prefetch, policy, and feedback. The
+comparison is architectural, not behavioral: NexusKV does not implement
+CPU-style hardware coherence.
+
+![Figure 3: NexusKV architecture mental model](figures/nexuskv-mental-model.svg)
+
+*Figure 3. Mental model for explicit decisions around reusable Model State. The
+CPU-cache analogy motivates separation of concerns; it does not imply identical
+consistency, timing, or hardware semantics.*
+
 ### 6.1 Semantic State Identity
 
 A cache entry identifies reusable Model State, not only bytes or a token
@@ -875,14 +887,14 @@ request admission
 Inference Runtime schedules ready work ---------------------------> consume or recompute
 ```
 
-Figure 3 makes the timing target explicit. Lookup and planning begin before the
+Figure 4 makes the timing target explicit. Lookup and planning begin before the
 state is required, and transfer overlaps useful Inference Runtime computation.
 If the state is not safe and ready by its deadline, the request follows the
 recompute path.
 
-![Figure 3: Zero-overhead cache pipeline](figures/zero-overhead-pipeline.svg)
+![Figure 4: Zero-overhead cache pipeline](figures/zero-overhead-pipeline.svg)
 
-*Figure 3. Target zero-overhead pipeline. Transfer still consumes resources;
+*Figure 4. Target zero-overhead pipeline. Transfer still consumes resources;
 its latency is absent from the critical path only when it completes within the
 overlap and interference budgets.*
 
@@ -1068,13 +1080,13 @@ compatible path is registered, recomputation is the default.
 NexusKV is not intended to replace an Inference Runtime, a transfer library, or
 a distributed KV Store. It coordinates them:
 
-As shown in Figure 4, Inference Runtime adapters terminate the engine-specific
+As shown in Figure 5, Inference Runtime adapters terminate the engine-specific
 lifecycle, while the Intelligence Layer coordinates a versioned Control Plane
 and external Data Plane capabilities.
 
-![Figure 4: NexusKV architecture](figures/nexuskv-zero-overhead-architecture.svg)
+![Figure 5: NexusKV architecture](figures/nexuskv-zero-overhead-architecture.svg)
 
-*Figure 4. Proposed NexusKV architecture. The Intelligence Layer owns semantic
+*Figure 5. Proposed NexusKV architecture. The Intelligence Layer owns semantic
 and cost decisions in the target design while model execution, storage
 capacity, and buffer movement remain delegated to composed systems.*
 
@@ -1121,7 +1133,7 @@ The front-matter Implementation Status is the canonical repository snapshot.
 Architecturally, the current code establishes state, match, connector,
 execution-policy, payload, and fallback contracts. It does not establish native
 GPU materialization, production transport, distributed lifecycle, or the
-end-to-end zero-overhead target shown in Figure 3.
+end-to-end zero-overhead target shown in Figure 4.
 
 ## 10. Evaluation Methodology
 
