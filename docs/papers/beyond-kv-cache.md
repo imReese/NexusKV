@@ -114,6 +114,52 @@ movement. NexusKV focuses on **decision intelligence**: State Identity, reuse
 admission, cost-based placement and transfer planning, bounded asynchronous
 prefetch, and deterministic fallback to recomputation.
 
+## Implementation Status
+
+This status describes the repository as of August 2026. It distinguishes
+executable software boundaries from stubs and architecture proposals; it is not
+a production-readiness claim. Detailed evidence is maintained in
+[`docs/architecture/migration-status.md`](../architecture/migration-status.md).
+
+### Implemented
+
+- A versioned shared contract and generated Rust/Python types for State
+  Descriptors, planner identities, tier metadata, payload handles, and transfer
+  session metadata.
+- Rust state validation, exact and longest-prefix matching, partial-hit planning,
+  and a bounded Host DRAM payload store.
+- A Python-to-Rust planner bridge, lifecycle-aware SGLang and vLLM connector
+  surfaces, and a deterministic execution boundary for materialize, prefetch,
+  store, skip, and recompute actions.
+- A capability-aware backend catalog, baseline in-memory execution, structured
+  fallback, and staged-copy or remote-store **stubs**. The stubs expose metadata
+  and intent; they do not perform production data movement.
+- A Go Control Plane scaffold plus a versioned execution-policy contract,
+  validated file handoff, last-known-good reload behavior, and backend
+  capability overlays.
+
+### In Progress
+
+- A richer cost-based reuse planner with admission, quota, interference, and
+  uncertainty inputs beyond the current deterministic match/execution boundary.
+- A benchmark framework that records end-to-end Effective Gain, fallbacks,
+  competing traffic, and raw artifacts rather than isolated hit rate.
+- Runtime integration and conformance work against pinned SGLang and vLLM
+  versions; the current connector surfaces are not production certification.
+- Non-stub backend execution and topology calibration behind the existing
+  payload and transfer-session contracts.
+
+### Future
+
+- Native GPU-memory materialization and reservation integration while the
+  Inference Runtime retains allocator ownership.
+- RDMA, GPUDirect, and validated lower-copy transfer backends.
+- Distributed metadata, leases, recovery, multi-tenant isolation, and
+  production deployment controls.
+- Verified MLA, DSA, and KDA materialization contracts and conversions.
+- A distributed Model State fabric composed from replaceable Data Plane
+  systems.
+
 ## Abstract
 
 Key-value (KV) state has evolved from a private buffer inside an Inference
@@ -147,6 +193,7 @@ condition has already been demonstrated by the current implementation.
 - [Executive Summary](#executive-summary)
 - [Why Now](#why-now)
 - [Non-goals](#non-goals)
+- [Implementation Status](#implementation-status)
 - [1. Introduction](#1-introduction)
 - [2. Problem Formulation](#2-problem-formulation)
 - [3. Model State Infrastructure Landscape](#3-model-state-infrastructure-landscape)
@@ -442,19 +489,12 @@ References on 1 August 2026.
 ### 3.3 Coverage Boundaries
 
 The matrix separates architectural responsibility from implementation maturity.
-For NexusKV specifically:
-
-| Evidence level | Current boundary |
-| --- | --- |
-| Implemented | Versioned state contracts, Rust exact/prefix planning and Host DRAM storage, and Python execution-policy boundaries. |
-| Scaffold | Go Control Plane services and file-based policy distribution. |
-| Proposed | Production hierarchy, native asynchronous GPU transfer, cluster scheduling, and end-to-end zero-overhead validation. |
-
-The `○` Inference Runtime mark denotes adapter surfaces, not production
-certification against current vLLM or SGLang releases. The `◐` Intelligence mark
-denotes an implemented descriptor and planning boundary, not a complete
-cross-cluster decision system. Storage and transfer remain external Data Plane
-responsibilities by design.
+For NexusKV, the symbols are interpreted together with the front-matter
+Implementation Status. The `○` Inference Runtime mark denotes connector
+surfaces, not production certification. The `◐` Intelligence mark denotes the
+implemented descriptor, matching, and execution-policy boundary, not a complete
+cross-cluster planner. The `△` marks identify proposal work. Storage and
+transfer remain external Data Plane responsibilities by design.
 
 Three trends are visible:
 
@@ -1077,13 +1117,11 @@ For each request, NexusKV follows an explicit lifecycle:
 
 ### 9.4 Current Implementation Boundary
 
-The repository currently contains a versioned state contract, Rust state and
-prefix-matching foundations, a bounded Host DRAM payload store, Python adapters
-and deterministic execution-policy boundaries, and a Go Control Plane scaffold.
-Native GPU-memory materialization, asynchronous transfer execution, RDMA,
-remote storage, and end-to-end zero-overhead validation remain future
-implementation work. This distinction prevents an architectural target from
-being read as a measured system result.
+The front-matter Implementation Status is the canonical repository snapshot.
+Architecturally, the current code establishes state, match, connector,
+execution-policy, payload, and fallback contracts. It does not establish native
+GPU materialization, production transport, distributed lifecycle, or the
+end-to-end zero-overhead target shown in Figure 3.
 
 ## 10. Evaluation Methodology
 
