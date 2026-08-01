@@ -356,12 +356,15 @@ Three trends are visible:
 
 Figure 2 places representative projects at their primary architectural locus.
 The vertical flow emphasizes composition: an Inference Runtime may use
-middleware, storage, and transfer components from different projects.
+middleware, storage, and transfer components from different projects. These
+projects occupy different layers and should not be interpreted as mutually
+exclusive competitors.
 
 ![Figure 2: Model State Infrastructure system landscape](figures/kv-cache-research-landscape.svg)
 
-*Figure 2. Layered system landscape. A box marks a project's primary role in
-this paper; it does not exclude secondary capabilities or integrations.*
+*Figure 2. Representative systems grouped by primary architectural role.
+Secondary capabilities and integrations are omitted for clarity; placement is
+not a performance ranking.*
 
 ## 4. Existing Systems
 
@@ -721,15 +724,15 @@ request admission
 Inference Runtime schedules ready work ---------------------------> consume or recompute
 ```
 
-Figure 3 makes the timing condition explicit. Lookup and planning begin before
-the state is required, and transfer overlaps useful Inference Runtime computation. If the
-state is not safe and ready by its deadline, the request follows the recompute
-path.
+Figure 3 makes the timing target explicit. Lookup and planning begin before the
+state is required, and transfer overlaps useful Inference Runtime computation.
+If the state is not safe and ready by its deadline, the request follows the
+recompute path.
 
 ![Figure 3: Zero-overhead cache pipeline](figures/zero-overhead-pipeline.svg)
 
-*Figure 3. Zero-overhead pipeline. The transfer still consumes resources; its
-latency is absent from the critical path only when it completes within the
+*Figure 3. Target zero-overhead pipeline. Transfer still consumes resources;
+its latency is absent from the critical path only when it completes within the
 overlap and interference budgets.*
 
 Four properties are required:
@@ -914,15 +917,15 @@ compatible path is registered, recomputation is the default.
 NexusKV is not intended to replace an Inference Runtime, a transfer library, or
 a distributed KV Store. It coordinates them:
 
-As shown in Figure 4, Inference Runtime adapters terminate the engine-specific lifecycle,
-while the Intelligence Layer coordinates a versioned Control Plane and external
-Data Plane capabilities.
+As shown in Figure 4, Inference Runtime adapters terminate the engine-specific
+lifecycle, while the Intelligence Layer coordinates a versioned Control Plane
+and external Data Plane capabilities.
 
 ![Figure 4: NexusKV architecture](figures/nexuskv-zero-overhead-architecture.svg)
 
-*Figure 4. NexusKV architecture. NexusKV owns semantic and cost decisions; it
-delegates model execution, storage capacity, and buffer movement to composed
-systems.*
+*Figure 4. Proposed NexusKV architecture. The Intelligence Layer owns semantic
+and cost decisions in the target design while model execution, storage
+capacity, and buffer movement remain delegated to composed systems.*
 
 The Control Plane distributes versioned policy, topology, tenant constraints,
 and capability metadata. The latency-sensitive planner and state index belong
@@ -1238,57 +1241,64 @@ methodology in this paper defines the evidence required to validate that target.
 
 ## References
 
+### Academic Publications
+
 1. Woosuk Kwon et al. [Efficient Memory Management for Large Language Model
    Serving with PagedAttention](https://arxiv.org/abs/2309.06180). SOSP, 2023.
 2. Lianmin Zheng et al. [SGLang: Efficient Execution of Structured Language
    Model Programs](https://arxiv.org/abs/2312.07104). NeurIPS, 2024.
-3. vLLM Project. [Automatic Prefix
-   Caching](https://docs.vllm.ai/en/stable/design/prefix_caching/).
-4. vLLM Project. [KV Cache Interface](https://docs.vllm.ai/en/latest/api/vllm/v1/kv_cache_interface/).
-5. NVIDIA. [TensorRT-LLM KV Cache
-   System](https://nvidia.github.io/TensorRT-LLM/features/kvcache.html).
-6. SGLang Project. [HiCache: Hierarchical KV Caching for
-   SGLang](https://lmsys.org/blog/2025-09-10-sglang-hicache/).
-7. Yihua Cheng et al. [LMCache: An Efficient KV Cache Layer for
-   Enterprise-Scale LLM Inference](https://arxiv.org/abs/2510.09665). 2025.
-8. LMCache Project. [Multiprocess Architecture](https://docs.lmcache.ai/mp/).
-9. Ruoyu Qin et al. [Mooncake: A KV Cache-centric Disaggregated Architecture for
+3. Yuhan Liu et al. [LMCache: An Efficient KV Cache Layer for Enterprise-Scale
+   LLM Inference](https://arxiv.org/abs/2510.09665). arXiv, 2025.
+4. Ruoyu Qin et al. [Mooncake: A KV Cache-Centric Disaggregated Architecture for
    LLM Serving](https://arxiv.org/abs/2407.00079). FAST, 2025.
-10. Mooncake Project. [Mooncake Store
-   Design](https://github.com/kvcache-ai/Mooncake/blob/main/docs/source/design/mooncake-store.md).
-11. NVIDIA. [NVIDIA Inference Xfer Library
-    Design](https://github.com/ai-dynamo/nixl/blob/main/docs/nixl.md).
-12. NVIDIA Dynamo. [KV Router
-    Design](https://docs.nvidia.com/dynamo/latest/design-docs/component-design/router-design).
-13. NVIDIA Dynamo. [KV Block
-    Manager](https://docs.nvidia.com/dynamo/dev/knowledge-base/modular-components/kvbm/overview).
-14. ByteDance. [InfiniStore Design and
-    Architecture](https://bytedance.github.io/InfiniStore/design.html).
-15. TACO Project. [FlexKV](https://github.com/taco-project/FlexKV).
-16. AIBrix Project. [KV Cache Offloading
-    Framework](https://aibrix.readthedocs.io/latest/designs/aibrix-kvcache-offloading-framework.html).
-17. llm-d Project. [KV Cache
-    Management](https://llm-d.ai/docs/0.7/architecture/advanced/kv-management).
-18. Yinmin Zhong et al. [DistServe: Disaggregating Prefill and Decoding for
+5. Yinmin Zhong et al. [DistServe: Disaggregating Prefill and Decoding for
     Goodput-Optimized Large Language Model Serving](https://arxiv.org/abs/2401.09670).
     OSDI, 2024.
-19. Cunchen Hu et al. [MemServe: Context Caching for Disaggregated LLM Serving
-    with Elastic Memory Pool](https://arxiv.org/abs/2406.17565). 2024.
-20. Vikranth Srivatsa et al. [Preble: Efficient Distributed Prompt Scheduling
-    for LLM Serving](https://arxiv.org/abs/2407.00023). 2024.
-21. Yuhan Liu et al. [CacheGen: KV Cache Compression and Streaming for Fast
+6. Cunchen Hu et al. [MemServe: Context Caching for Disaggregated LLM Serving
+   with Elastic Memory Pool](https://arxiv.org/abs/2406.17565). arXiv, 2024.
+7. Vikranth Srivatsa et al. [Preble: Efficient Distributed Prompt Scheduling
+   for LLM Serving](https://arxiv.org/abs/2407.00023). arXiv, 2024.
+8. Yuhan Liu et al. [CacheGen: KV Cache Compression and Streaming for Fast
     Large Language Model Serving](https://arxiv.org/abs/2310.07240). SIGCOMM,
     2024.
-22. Zirui Liu et al. [KIVI: A Tuning-Free Asymmetric 2bit Quantization for KV
-    Cache](https://arxiv.org/abs/2402.02750). 2024.
-23. Zhenyu Zhang et al. [H2O: Heavy-Hitter Oracle for Efficient Generative
+9. Zirui Liu et al. [KIVI: A Tuning-Free Asymmetric 2bit Quantization for KV
+   Cache](https://arxiv.org/abs/2402.02750). ICML, 2024.
+10. Zhenyu Zhang et al. [H2O: Heavy-Hitter Oracle for Efficient Generative
     Inference of Large Language Models](https://arxiv.org/abs/2306.14048).
     NeurIPS, 2023.
-24. Ashish Vaswani et al. [Attention Is All You
+11. Ashish Vaswani et al. [Attention Is All You
     Need](https://arxiv.org/abs/1706.03762). NeurIPS, 2017.
-25. DeepSeek-AI. [DeepSeek-V2: A Strong, Economical, and Efficient
-    Mixture-of-Experts Language Model](https://arxiv.org/abs/2405.04434). 2024.
-26. DeepSeek-AI. [DeepSeek-V3.2: Pushing the Frontier of Open Large Language
-    Models](https://arxiv.org/abs/2512.02556). 2025.
-27. Kimi Team. [Kimi Linear: An Expressive, Efficient Attention
-    Architecture](https://arxiv.org/abs/2510.26692). 2025.
+12. DeepSeek-AI. [DeepSeek-V2: A Strong, Economical, and Efficient
+    Mixture-of-Experts Language Model](https://arxiv.org/abs/2405.04434).
+    arXiv, 2024.
+13. DeepSeek-AI. [DeepSeek-V3.2: Pushing the Frontier of Open Large Language
+    Models](https://arxiv.org/abs/2512.02556). arXiv, 2025.
+14. Kimi Team. [Kimi Linear: An Expressive, Efficient Attention
+    Architecture](https://arxiv.org/abs/2510.26692). Technical report, 2025.
+
+### System Documentation and Source Repositories
+
+1. vLLM Project. [Automatic Prefix
+   Caching](https://docs.vllm.ai/en/stable/design/prefix_caching/).
+2. vLLM Project. [KV Cache
+   Interface](https://docs.vllm.ai/en/latest/api/vllm/v1/kv_cache_interface/).
+3. NVIDIA. [TensorRT-LLM KV Cache
+   System](https://nvidia.github.io/TensorRT-LLM/features/kvcache.html).
+4. SGLang Project. [HiCache: Hierarchical KV Caching for
+   SGLang](https://lmsys.org/blog/2025-09-10-sglang-hicache/).
+5. LMCache Project. [Multiprocess Architecture](https://docs.lmcache.ai/mp/).
+6. Mooncake Project. [Mooncake Store
+   Design](https://github.com/kvcache-ai/Mooncake/blob/main/docs/source/design/mooncake-store.md).
+7. NVIDIA. [NVIDIA Inference Xfer Library
+   Design](https://github.com/ai-dynamo/nixl/blob/main/docs/nixl.md).
+8. NVIDIA Dynamo. [KV Router
+   Design](https://docs.nvidia.com/dynamo/latest/design-docs/component-design/router-design).
+9. NVIDIA Dynamo. [KV Block
+   Manager](https://docs.nvidia.com/dynamo/dev/knowledge-base/modular-components/kvbm/overview).
+10. ByteDance. [InfiniStore Design and
+    Architecture](https://bytedance.github.io/InfiniStore/design.html).
+11. TACO Project. [FlexKV](https://github.com/taco-project/FlexKV).
+12. AIBrix Project. [KV Cache Offloading
+    Framework](https://aibrix.readthedocs.io/latest/designs/aibrix-kvcache-offloading-framework.html).
+13. llm-d Project. [KV Cache
+    Management](https://llm-d.ai/docs/0.7/architecture/advanced/kv-management).
