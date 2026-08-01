@@ -6,6 +6,38 @@
 
 **Scope:** Model State Infrastructure for large language model inference
 
+## Executive Summary
+
+Modern LLM inference is turning the KV Cache from a request-local buffer into a
+shared systems resource. Longer contexts, repeated agent histories,
+prefill/decode disaggregation, and multi-tier memory create reuse opportunities
+that span requests, workers, and storage domains.
+
+Existing projects address distinct parts of this transition:
+
+| System | Primary contribution in this paper's scope |
+| --- | --- |
+| vLLM | Inference Runtime-local paged allocation and prefix reuse |
+| SGLang and HiCache | Prefix-aware scheduling and hierarchical retention |
+| LMCache | External cache lifecycle and middleware integration |
+| Mooncake | Distributed storage and high-bandwidth Model State movement |
+
+These mechanisms provide allocation, hierarchy, lifecycle, capacity, and
+transfer. They do not by themselves answer four cross-layer questions:
+
+1. What state is semantically safe to cache and restore?
+2. When is reuse more useful than recomputation?
+3. Where should the state reside under capacity and workload pressure?
+4. Should the system move the state, route work toward it, or recompute it?
+
+NexusKV is proposed as a **Model State Intelligence Layer** for those decisions.
+Its scope is State Identity, Reuse Intelligence, cost-based planning,
+asynchronous prefetch, and attention-aware Model State contracts. It composes
+with Inference Runtimes, storage systems, and transfer libraries; it does not
+replace them. The zero-overhead objective is a measurable target in which useful
+cache work remains outside the request's critical path, not a performance claim
+already established by the current implementation.
+
 ## Abstract
 
 Key-value (KV) state has evolved from a private buffer inside an Inference
@@ -36,6 +68,7 @@ condition has already been demonstrated by the current implementation.
 
 ## Contents
 
+- [Executive Summary](#executive-summary)
 - [1. Introduction](#1-introduction)
 - [2. Problem Formulation](#2-problem-formulation)
 - [3. Model State Infrastructure Landscape](#3-model-state-infrastructure-landscape)
