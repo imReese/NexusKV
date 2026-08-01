@@ -26,7 +26,7 @@
   <text class="detail" x="600" y="142" text-anchor="middle">vLLM  |  SGLang  |  future adapters</text>
 
   <rect class="box" x="320" y="205" width="560" height="60"/>
-  <text class="label" x="600" y="241" text-anchor="middle">Runtime adapters and versioned State Descriptor contract</text>
+  <text class="label" x="600" y="241" text-anchor="middle">Inference Runtime adapters and versioned State Descriptor contract</text>
 
   <rect class="layer" x="120" y="305" width="960" height="150"/>
   <text class="label" x="600" y="340" text-anchor="middle">NexusKV Intelligence Layer</text>
@@ -50,7 +50,7 @@
   <rect class="data" x="650" y="515" width="430" height="155"/>
   <text class="label" x="865" y="550" text-anchor="middle">Data Plane capabilities</text>
   <text class="detail" x="865" y="585" text-anchor="middle">GPU HBM | host DRAM | SSD</text>
-  <text class="detail" x="865" y="613" text-anchor="middle">NIXL | Mooncake | Runtime transfers</text>
+  <text class="detail" x="865" y="613" text-anchor="middle">NIXL | Mooncake | Inference Runtime transfers</text>
   <text class="detail" x="865" y="641" text-anchor="middle">remote memory and object stores</text>
 
   <line class="arrow" x1="600" y1="170" x2="600" y2="197"/>

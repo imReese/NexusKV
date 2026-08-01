@@ -41,7 +41,7 @@
   <text class="detail" x="642" y="283" text-anchor="middle">bounded by bandwidth, memory, and interference budgets</text>
 
   <rect class="compute" x="175" y="355" width="690" height="70"/>
-  <text class="label" x="520" y="385" text-anchor="middle">Useful Runtime computation continues</text>
+  <text class="label" x="520" y="385" text-anchor="middle">Useful Inference Runtime computation continues</text>
   <text class="detail" x="520" y="408" text-anchor="middle">transfer latency is overlapped rather than assumed away</text>
 
   <line class="deadline" x1="900" y1="85" x2="900" y2="455"/>

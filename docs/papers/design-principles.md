@@ -37,7 +37,7 @@ A cache hit is valuable only when it reduces end-to-end latency.
 
 Cache movement should not block inference.
 
-The runtime should predict future state requirements and move data in parallel with GPU execution.
+The Inference Runtime should predict future state requirements and move data in parallel with GPU execution.
 
 ```
 Predict
@@ -71,4 +71,4 @@ Future models will expose diverse execution states:
 - DSA compressed states;
 - KDA recurrent states.
 
-NexusKV should provide a generalized model-state abstraction rather than being limited to traditional KV tensors.
+NexusKV should provide a generalized Model State abstraction rather than being limited to traditional KV tensors.

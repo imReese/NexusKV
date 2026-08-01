@@ -104,9 +104,9 @@ This work makes four contributions:
 
 1. It separates cache reuse into four explicit decisions and defines their
    correctness and profitability conditions.
-2. It analyzes representative Runtime, middleware, hierarchy, storage,
-   transfer, and scheduling systems by design motivation and trade-off.
-3. It proposes a zero-overhead cache pipeline and a Model State descriptor that
+2. It analyzes representative Inference Runtime, middleware, hierarchy, storage,
+   transfer, and scheduling capabilities by design motivation and trade-off.
+3. It proposes a zero-overhead cache pipeline and a State Descriptor that
    can represent MHA, MLA, DSA, and KDA state.
 4. It specifies a reproducible evaluation methodology centered on visible
    overhead and Effective Gain instead of hit rate alone.
@@ -247,7 +247,7 @@ the outcome.
 
 "Zero-overhead" does not mean that lookup, transfer, or metadata operations use
 no resources. It denotes the following observable condition relative to the
-same Runtime and workload without external reuse:
+same Inference Runtime and workload without external reuse:
 
 ```text
 T_cache_critical_path <= T_compute_replaced
@@ -267,17 +267,17 @@ boundaries.
 
 | Layer | Primary question | Representative systems or components |
 | --- | --- | --- |
-| Runtime | How is Model State allocated and consumed during execution? | vLLM, TensorRT-LLM, SGLang |
-| Cache middleware | How is state exposed outside one Runtime process? | LMCache, Runtime KV connectors |
-| Hierarchy | Which tier should retain a reusable state? | SGLang HiCache, LMCache, Runtime offload managers |
+| Inference Runtime | How is Model State allocated and consumed during execution? | vLLM, TensorRT-LLM, SGLang |
+| Cache middleware | How is state exposed outside one Inference Runtime process? | LMCache, Inference Runtime KV connectors |
+| Hierarchy | Which tier should retain a reusable state? | SGLang HiCache, LMCache, Inference Runtime offload managers |
 | Storage | How are capacity, metadata, and object lifecycles provided? | Mooncake Store, InfiniStore |
 | Transfer | How are buffers moved across heterogeneous devices and stores? | NIXL, Mooncake Transfer Engine |
-| Scheduling | Which worker or request should execute next? | Runtime schedulers, Dynamo KV-aware routing |
+| Scheduling | Which worker or request should execute next? | Inference Runtime schedulers, Dynamo KV-aware routing |
 | Intelligence | Is reuse compatible, timely, and more valuable than recomputation? | Fragmented across current systems; NexusKV research direction |
 
 These rows are capabilities rather than mutually exclusive categories. For
-example, SGLang is an Inference Runtime, while HiCache is a Runtime-integrated
-hierarchy; Mooncake is both a serving architecture described in its research
+example, SGLang is an Inference Runtime, while HiCache is integrated with that
+Inference Runtime; Mooncake is both a serving architecture described in its research
 paper and a repository containing a reusable Transfer Engine and Store.
 
 Three trends are visible:
@@ -311,7 +311,7 @@ abstraction boundary.
 ### 4.1 vLLM: paged device-memory management
 
 PagedAttention introduced an indirection between logical sequence blocks and
-non-contiguous physical KV Cache blocks. The design follows from a Runtime
+non-contiguous physical KV Cache blocks. The design follows from an Inference Runtime
 constraint: request lengths and lifetimes are unpredictable, while attention
 kernels need stable, efficiently addressable device memory. Fixed-size blocks
 reduce external fragmentation and permit block sharing without requiring
@@ -328,18 +328,18 @@ This design solves:
 - high-utilization GPU block allocation;
 - local prefix reuse at block granularity;
 - reference-counted sharing across concurrent requests;
-- a stable boundary for Runtime-level offload and external KV connectors.
+- a stable boundary for Inference Runtime offload and external KV connectors.
 
 Its trade-offs follow from the same block abstraction. Only complete hash units
 are generally shareable without special handling; smaller blocks increase
 metadata and scheduling work, while larger blocks reduce match granularity.
 Hash identity must encode every value that changes the resulting state. External
 reuse and offload add connector synchronization and are no longer purely local
-allocator operations. vLLM is therefore a strong Runtime substrate, but a
-cluster-wide placement policy and cross-Runtime semantic contract remain outside
+allocator operations. vLLM is therefore a strong Inference Runtime substrate, but a
+cluster-wide placement policy and semantic contract across Inference Runtimes remain outside
 the core paged allocator.
 
-### 4.2 SGLang HiCache: Runtime-integrated hierarchy
+### 4.2 SGLang HiCache: hierarchy integrated with the Inference Runtime
 
 SGLang's RadixAttention represents token prefixes in a radix tree. This choice
 matches structured generation workloads: system prompts, multi-turn histories,
@@ -347,14 +347,14 @@ and program branches share prefixes of different lengths, so a prefix tree can
 combine matching, reference counting, and eviction at the same logical
 granularity used by the scheduler.
 
-HiCache extends this Runtime-local reuse structure into a hierarchy:
+HiCache extends this reuse structure local to the Inference Runtime into a hierarchy:
 
 ```text
 L1: GPU HBM -> L2: host DRAM -> L3: external storage
 ```
 
 The implementation can attach storage backends and issue asynchronous backup or
-prefetch operations while the Runtime retains control of radix-tree lifecycle.
+prefetch operations while the Inference Runtime retains control of radix-tree lifecycle.
 Keeping the hierarchy inside SGLang exposes information that external storage
 cannot infer reliably: active requests, matched prefix length, eviction state,
 and the exact point at which a page is needed.
@@ -363,8 +363,8 @@ This design solves:
 
 - prefix-aware reuse integrated with scheduling;
 - demotion from scarce device memory to larger tiers;
-- restoration through a Runtime-owned page and memory-pool lifecycle;
-- backend integration without replacing the Runtime's match semantics.
+- restoration through an Inference Runtime-owned page and memory-pool lifecycle;
+- backend integration without replacing the Inference Runtime's match semantics.
 
 The trade-off is coupling. Host layout, page size, write policy, prefetch policy,
 and storage behavior must remain consistent with SGLang's internal memory
@@ -380,26 +380,26 @@ LMCache externalizes reusable KV Cache from an Inference Runtime through engine
 connectors and pluggable storage. The middleware boundary is motivated by a
 different constraint: a cache tied to one worker cannot survive process churn,
 share capacity across engines, or adopt storage backends without repeated
-Runtime-specific implementations.
+Inference Runtime-specific implementations.
 
 The architecture manages lookup, store, retrieve, eviction, and transfer across
 GPU, CPU, local storage, and remote backends. Asynchronous and layer-wise paths
 can pipeline movement with model execution. This separation makes cache
-lifecycle and backend choice independently deployable from the core Runtime.
+lifecycle and backend choice independently deployable from the core Inference Runtime.
 
 This design solves:
 
 - cross-request and cross-instance persistence;
 - backend portability behind a common lifecycle;
-- connector-based integration with more than one Runtime;
+- connector-based integration with more than one Inference Runtime;
 - transfer pipelines that can overlap layer execution.
 
 The trade-off is an additional coordination boundary. Chunk or block hashes must
-remain consistent with Runtime layout and model configuration; connector API
-changes can affect compatibility; and a middleware hit still requires Runtime
+remain consistent with Inference Runtime layout and model configuration; connector API
+changes can affect compatibility; and a middleware hit still requires Inference Runtime
 slots, transfer completion, and safe synchronization. Non-prefix reuse further
 requires positional and recomputation rules that are richer than object lookup.
-LMCache supplies substantial lifecycle intelligence, but the Runtime and
+LMCache supplies substantial lifecycle intelligence, but the Inference Runtime and
 deployment still determine whether a specific retrieval improves the critical
 path.
 
@@ -482,7 +482,7 @@ valid terminal state.
 
 ### 5.6 Cross-layer feedback is fragmented
 
-The Runtime observes demand and stalls; middleware observes lifecycle; storage
+The Inference Runtime observes demand and stalls; middleware observes lifecycle; storage
 observes occupancy; transport observes bandwidth; and a router observes worker
 load. Without a shared decision record, each layer optimizes a partial metric.
 The missing component is not another byte store, but an Intelligence Layer that
@@ -506,11 +506,11 @@ request admission
       |                     |
       |                     +--> reserve destination and prefetch asynchronously
       |
-Runtime schedules ready work ---------------------------> consume or recompute
+Inference Runtime schedules ready work ---------------------------> consume or recompute
 ```
 
 Figure 3 makes the timing condition explicit. Lookup and planning begin before
-the state is required, and transfer overlaps useful Runtime computation. If the
+the state is required, and transfer overlaps useful Inference Runtime computation. If the
 state is not safe and ready by its deadline, the request follows the recompute
 path.
 
@@ -525,7 +525,7 @@ Four properties are required:
 1. **Non-blocking discovery.** Metadata lookup must not serialize the scheduler.
 2. **Speculative but bounded movement.** Prefetch may begin before admission is
    final, but bandwidth, memory, and pollution budgets cap speculation.
-3. **Late binding.** The Runtime may choose reuse or recompute at the last safe
+3. **Late binding.** The Inference Runtime may choose reuse or recompute at the last safe
    point using current completion and load information.
 4. **Fail-open performance, fail-closed correctness.** Missing, late, or
    unverified state falls back to recomputation; it is never consumed merely to
@@ -647,7 +647,7 @@ StateDescriptor {
 }
 ```
 
-Some fields are known statically from the model and Runtime; others belong to a
+Some fields are known statically from the model and Inference Runtime; others belong to a
 specific cache entry. A production protocol may normalize them into descriptor,
 identity, version, location, and policy records. The invariant is that a planner
 can reject an unsafe reuse without interpreting an opaque tensor payload.
@@ -667,7 +667,7 @@ compatible path is registered, recomputation is the default.
 NexusKV is not intended to replace an Inference Runtime, a transfer library, or
 a distributed KV Store. It coordinates them:
 
-As shown in Figure 4, Runtime adapters terminate the engine-specific lifecycle,
+As shown in Figure 4, Inference Runtime adapters terminate the engine-specific lifecycle,
 while the Intelligence Layer coordinates a versioned Control Plane and external
 Data Plane capabilities.
 
@@ -679,7 +679,7 @@ systems.*
 
 The Control Plane distributes versioned policy, topology, tenant constraints,
 and capability metadata. The latency-sensitive planner and state index belong
-near the Data Plane. Runtime adapters translate engine lifecycle events into the
+near the Data Plane. Inference Runtime adapters translate engine lifecycle events into the
 shared contract and retain final authority over whether materialization is safe
 to consume.
 
@@ -687,7 +687,7 @@ to consume.
 
 For each request, NexusKV follows an explicit lifecycle:
 
-1. **Describe.** The Runtime adapter constructs a query identity and required
+1. **Describe.** The Inference Runtime adapter constructs a query identity and required
    State Descriptor.
 2. **Match.** The state index returns exact or prefix candidates and their
    physical availability.
@@ -696,8 +696,8 @@ For each request, NexusKV follows an explicit lifecycle:
 4. **Plan.** The cost model compares reuse paths with recomputation and selects
    placement, transfer, and deadlines.
 5. **Execute asynchronously.** A registered backend reserves and moves state;
-   the Runtime continues ready work.
-6. **Commit or fall back.** The Runtime consumes completed state or recomputes
+   the Inference Runtime continues ready work.
+6. **Commit or fall back.** The Inference Runtime consumes completed state or recomputes
    deterministically.
 7. **Observe.** Actual timing, interference, and reuse update cost estimates and
    admission policy.
@@ -711,7 +711,7 @@ For each request, NexusKV follows an explicit lifecycle:
 | Reuse planner | Estimate Effective Gain and select reuse or recompute | Execute model kernels |
 | Placement policy | Allocate tier budgets and eviction priority | Implement a storage backend |
 | Prefetch scheduler | Reserve paths, enforce deadlines, and apply backpressure | Guarantee transfer completion |
-| Runtime adapter | Translate lifecycle and enforce final consumption safety | Become the global policy source of truth |
+| Inference Runtime adapter | Translate lifecycle and enforce final consumption safety | Become the global policy source of truth |
 | Observability loop | Attribute lookup, transfer, restoration, and interference cost | Treat hit rate as the primary success metric |
 
 ### 8.4 Current implementation boundary
@@ -727,7 +727,7 @@ measured system result.
 ## 9. Evaluation Methodology
 
 Evaluation must determine both when reuse helps and when the system correctly
-declines it. Results should be reported against the same Runtime, model,
+declines it. Results should be reported against the same Inference Runtime, model,
 parallelism, scheduler settings, and request trace with the external cache path
 disabled or enabled.
 
@@ -763,7 +763,7 @@ materialized state; these are not interchangeable.
 
 At minimum, compare:
 
-1. Runtime-local cache with external reuse disabled;
+1. cache local to the Inference Runtime with external reuse disabled;
 2. hit-driven retrieval from each tested tier;
 3. cost-based reuse without prefetch;
 4. cost-based reuse with prefetch;
@@ -801,7 +801,7 @@ can coincide with a system-wide regression.
 
 ### 9.5 Reproducibility requirements
 
-Every result should publish model and revision, Runtime and connector commits,
+Every result should publish model and revision, Inference Runtime and connector commits,
 hardware topology, tensor/data types, page or chunk size, cache capacity,
 transfer backend, request trace or generator seed, warm-up procedure, cache
 initial state, and raw per-request observations. Unsupported combinations,
@@ -816,7 +816,7 @@ that can be hidden behind a long prefill may remain visible during low-latency
 decode. No policy can guarantee positive gain when reuse is unpredictable,
 bandwidth is saturated, or recomputation is cheaper.
 
-Second, a shared descriptor does not remove Runtime integration work. vLLM,
+Second, a shared descriptor does not remove Inference Runtime integration work. vLLM,
 SGLang, TensorRT-LLM, and future engines use different allocation, attention,
 parallelism, and lifecycle contracts. A portable adapter may expose only the
 intersection of their capabilities unless conversion and version negotiation
@@ -847,16 +847,16 @@ maintained in
 ## 11. Related Work
 
 PagedAttention established block-based device-memory management for continuous
-LLM serving. RadixAttention connected prefix structure to Runtime scheduling and
+LLM serving. RadixAttention connected prefix structure to Inference Runtime scheduling and
 reuse. TensorRT-LLM independently provides block reuse, retention priority, and
-host offload inside its Runtime. These works make Model State a first-class
-Runtime resource.
+host offload inside its Inference Runtime. These works make Model State a first-class
+Inference Runtime resource.
 
 HiCache, LMCache, Mooncake Store, and InfiniStore extend state beyond device
-memory through different ownership models: Runtime-integrated hierarchy,
+memory through different ownership models: hierarchy integrated with the Inference Runtime,
 middleware-managed lifecycle, distributed object storage, and RDMA-oriented
 memory pooling. NIXL abstracts heterogeneous transfer paths rather than cache
-semantics. Dynamo combines KV-aware routing, Runtime events, and tiering
+semantics. Dynamo combines KV-aware routing, Inference Runtime events, and tiering
 components at the distributed serving layer.
 
 Orthogonal work reduces the bytes that must be retained or moved through
@@ -867,7 +867,7 @@ must still balance locality against queue and decode load.
 
 NexusKV's proposed contribution is the decision boundary across these areas:
 semantic Model State identity plus cost-based reuse, placement, transfer, and
-fallback. It can use existing Runtime, storage, and transfer components rather
+fallback. It can use existing Inference Runtime, storage, and transfer components rather
 than reproducing them. A longer topical map is maintained in
 [`related-work.md`](related-work.md), with machine-readable entries in
 [`bibliography.bib`](bibliography.bib).
@@ -899,7 +899,7 @@ this paper defines how that claim must be validated.
    Serving with PagedAttention](https://arxiv.org/abs/2309.06180). SOSP, 2023.
 2. Lianmin Zheng et al. [SGLang: Efficient Execution of Structured Language
    Model Programs](https://arxiv.org/abs/2312.07104). NeurIPS, 2024.
-3. Ruoyu Qin et al. [Mooncake: A KVCache-centric Disaggregated Architecture for
+3. Ruoyu Qin et al. [Mooncake: A KV Cache-centric Disaggregated Architecture for
    LLM Serving](https://arxiv.org/abs/2407.00079). FAST, 2025.
 4. Yihua Cheng et al. [LMCache: An Efficient KV Cache Layer for
    Enterprise-Scale LLM Inference](https://arxiv.org/abs/2510.09665). 2025.

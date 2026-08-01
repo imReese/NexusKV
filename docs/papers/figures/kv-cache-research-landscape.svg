@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="720" viewBox="0 0 1200 720" role="img" aria-labelledby="title desc">
   <title id="title">Model State Infrastructure system landscape</title>
-  <desc id="desc">A layered view of representative runtimes, scheduling, intelligence, middleware, storage, and transfer systems.</desc>
+  <desc id="desc">A layered view of representative Inference Runtimes, scheduling, intelligence, middleware, storage, and transfer systems.</desc>
   <defs>
     <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
       <path d="M0,0 L0,6 L9,3 z" fill="#64748b"/>
@@ -21,7 +21,7 @@
   <text class="title" x="600" y="46" text-anchor="middle">Model State Infrastructure Landscape</text>
 
   <rect class="band" x="155" y="75" width="990" height="100"/>
-  <text class="layer" x="30" y="130">Runtime</text>
+  <text class="layer" x="30" y="130">Inference Runtime</text>
   <rect class="box" x="205" y="98" width="240" height="55"/>
   <text class="system" x="325" y="132" text-anchor="middle">vLLM</text>
   <rect class="box" x="505" y="98" width="240" height="55"/>
@@ -32,7 +32,7 @@
   <rect class="band" x="155" y="190" width="990" height="85"/>
   <text class="layer" x="30" y="238">Scheduling</text>
   <rect class="box" x="330" y="208" width="540" height="50"/>
-  <text class="system" x="600" y="239" text-anchor="middle">Dynamo KV-aware routing and Runtime schedulers</text>
+  <text class="system" x="600" y="239" text-anchor="middle">Dynamo KV-aware routing and Inference Runtime schedulers</text>
 
   <rect class="band" x="155" y="290" width="990" height="95"/>
   <text class="layer" x="30" y="330">Intelligence</text>

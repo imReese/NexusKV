@@ -6,9 +6,9 @@ This document tracks the major categories of modern LLM inference cache infrastr
 
 | Category | Representative Systems |
 |---|---|
-| GPU resident KV management | vLLM PagedAttention, TensorRT-LLM KV cache |
-| Prefix matching and runtime reuse | SGLang RadixAttention |
-| Hierarchical KV cache | SGLang HiCache |
+| GPU resident KV management | vLLM PagedAttention, TensorRT-LLM KV Cache |
+| Prefix matching and Inference Runtime reuse | SGLang RadixAttention |
+| Hierarchical KV Cache | SGLang HiCache |
 | Cache middleware | LMCache |
 | Distributed KV storage | Mooncake Store |
 | Transfer layer | NIXL |
@@ -31,7 +31,7 @@ Most existing systems optimize one layer:
 - hierarchy;
 - lifecycle.
 
-The missing abstraction is a model-state intelligence layer that combines:
+The missing abstraction is a Model State Intelligence Layer that combines:
 
 - semantic identity;
 - reuse prediction;

@@ -13,7 +13,7 @@ Mooncake approaches KV infrastructure as a distributed storage and transport pro
 Conceptually:
 
 ```
-Application / Runtime
+Application / Inference Runtime
         |
         v
       Client
@@ -33,7 +33,7 @@ Application / Runtime
 
 The key design philosophy:
 
-> Move model state as efficiently as possible.
+> Move Model State as efficiently as possible.
 
 Important technology choices:
 
@@ -51,7 +51,7 @@ object_id -> bytes
 but an inference system needs:
 
 ```
-model state -> semantic meaning -> reuse decision
+Model State -> semantic meaning -> reuse decision
 ```
 
 Mooncake optimizes movement, but does not decide whether movement is worthwhile.
@@ -85,7 +85,7 @@ A chunk abstraction is useful today, but future models require richer state desc
 
 ---
 
-## 1.3 HiCache: Runtime Hierarchy
+## 1.3 HiCache: Inference Runtime Hierarchy
 
 HiCache treats cache as a memory hierarchy problem.
 
@@ -105,7 +105,7 @@ Its major contribution is not storage, but deciding:
 - when to promote state;
 - where state should reside.
 
-The trade-off is runtime coupling.
+The trade-off is Inference Runtime coupling.
 
 ---
 
@@ -121,7 +121,7 @@ A future architecture should look like:
                  Request Scheduler
                          |
                          v
-                 KV Intelligence
+                 Cache Intelligence
                          |
         +----------------+----------------+
         |                                 |
@@ -179,7 +179,7 @@ so transfer latency becomes hidden.
 
 # 3. Evaluation Methodology
 
-A serious KV cache system should not be evaluated by cache hit rate alone.
+A serious KV Cache system should not be evaluated by cache hit rate alone.
 
 ## Workload Matrix
 
@@ -264,6 +264,6 @@ The missing layer is:
 NexusKV -> intelligence
 ```
 
-The goal is not another KV store.
+The goal is not another KV Store.
 
-The goal is a model-state intelligence fabric that makes cache reuse invisible to inference execution.
+The goal is a Model State Intelligence Layer that makes cache reuse invisible to inference execution.

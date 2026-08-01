@@ -9,29 +9,29 @@ The proposed architecture intentionally separates responsibilities:
 - vLLM/SGLang/TensorRT-LLM remain responsible for model execution;
 - Mooncake-like systems remain responsible for high-performance data movement;
 - storage backends remain responsible for persistence and capacity;
-- NexusKV focuses on cache intelligence.
+- NexusKV focuses on Cache Intelligence.
 
-The goal is not another KV store. The goal is making state reuse an invisible optimization.
+The goal is not another KV Store. The goal is making state reuse an invisible optimization.
 
 ---
 
 ## Current Limitations
 
-### 1. Runtime Integration Complexity
+### 1. Inference Runtime Integration Complexity
 
 Different inference engines expose different cache abstractions:
 
 - vLLM uses paged KV blocks;
 - SGLang uses radix-based prefix structures;
-- TensorRT-LLM integrates KV management deeply into runtime execution.
+- TensorRT-LLM integrates KV management deeply into Inference Runtime execution.
 
-A universal cache intelligence layer requires stable interfaces without sacrificing performance.
+A universal Intelligence Layer requires stable interfaces without sacrificing performance.
 
 ---
 
 ### 2. Attention State Generalization
 
-Traditional KV cache assumes:
+Traditional KV Cache assumes:
 
 ```
 Token -> K,V tensors
@@ -64,7 +64,7 @@ The optimal decision depends on hardware topology, workload pattern, and model a
 
 ### 4. Distributed Consistency
 
-A shared model-state cache introduces challenges:
+A shared Model State cache introduces challenges:
 
 - ownership;
 - invalidation;
@@ -113,4 +113,4 @@ State Intelligence
 Distributed Fabric
 ```
 
-KV cache is the first instance of this broader concept.
+KV Cache is the first instance of this broader concept.

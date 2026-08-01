@@ -42,7 +42,7 @@ Recommended axes:
 Mooncake            NexusKV
                     |
                     |
-Storage ------------ Runtime
+Storage ------------ Inference Runtime
                     |
                     |
                  vLLM
