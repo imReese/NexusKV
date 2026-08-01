@@ -2,7 +2,7 @@
 
 ## Toward a Zero-Overhead Model State Intelligence Layer for LLM Inference
 
-**NexusKV Whitepaper v1.0** · Architecture whitepaper · August 2026
+**NexusKV Whitepaper v1.1** · Architecture whitepaper · August 2026
 
 **Scope:** Model State Infrastructure for large language model inference
 
@@ -32,11 +32,11 @@ transfer. They do not by themselves answer four cross-layer questions:
 
 NexusKV is proposed as a **Model State Intelligence Layer** for those decisions.
 Its scope is State Identity, Reuse Intelligence, cost-based planning,
-asynchronous prefetch, and attention-aware Model State contracts. It composes
-with Inference Runtimes, storage systems, and transfer libraries; it does not
-replace them. The zero-overhead objective is a measurable target in which useful
-cache work remains outside the request's critical path, not a performance claim
-already established by the current implementation.
+asynchronous prefetch, and Model State Awareness across attention architectures.
+It composes with Inference Runtimes, storage systems, and transfer libraries; it
+does not replace them. The zero-overhead objective is a measurable target in
+which useful cache work remains outside the request's critical path, not a
+performance claim already established by the current implementation.
 
 ## Why Now
 
@@ -120,6 +120,8 @@ This status describes the repository as of August 2026. It distinguishes
 executable software boundaries from stubs and architecture proposals; it is not
 a production-readiness claim. Detailed evidence is maintained in
 [`docs/architecture/migration-status.md`](../architecture/migration-status.md).
+Component ownership and API boundaries are maintained in
+[`docs/design/nexuskv-architecture.md`](../design/nexuskv-architecture.md).
 
 ### Implemented
 
@@ -548,7 +550,7 @@ tensor shape. The grouping and coordination remain internal Inference Runtime
 contracts, however, rather than a portable semantic identity across engines and
 storage systems.
 
-This design solves:
+This design addresses:
 
 - high-utilization GPU block allocation;
 - local prefix reuse at block granularity;
@@ -585,7 +587,7 @@ lifecycle. Keeping the hierarchy inside SGLang exposes information that
 external storage cannot infer reliably: active requests, matched prefix length,
 eviction state, and the exact point at which a page is needed.
 
-This design solves:
+This design addresses:
 
 - prefix-aware reuse integrated with scheduling;
 - demotion from scarce device memory to larger tiers;
@@ -616,7 +618,7 @@ engine process isolates failures and CPU/GIL work, permits node-local sharing,
 and scales cache capacity independently. Layer-wise paths can pipeline movement
 with model execution.
 
-This design solves:
+This design addresses:
 
 - cross-request and cross-instance persistence;
 - backend portability behind a common lifecycle;
@@ -649,7 +651,7 @@ large-object movement requirements: the metadata service should not proxy bulk
 Model State, and registered memory plus direct transfer can avoid redundant
 copies and CPU bottlenecks.
 
-This design solves:
+This design addresses:
 
 - distributed capacity and immutable object lifecycle;
 - direct, high-bandwidth transfer between memory segments;
@@ -675,7 +677,7 @@ changes and custom persistence paths.
 
 The design is integrated because allocation, attention-window constraints,
 retention priority, and active-request pressure are known at the scheduler. It
-solves low-overhead local reuse and provides explicit operator hints. Its main
+enables low-overhead local reuse and provides explicit operator hints. Its main
 trade-off is that pool geometry and reuse semantics are closely tied to the
 compiled model and Inference Runtime. Multiple pools are needed for differing
 attention windows or KV-head counts, and current documentation notes that some
@@ -728,7 +730,7 @@ integration writes state layer by layer so that communication can overlap
 prefill computation; LMCache and other middleware can supply an engine-facing
 connector.
 
-This design solves registered-memory allocation, remote transfer, and cache
+This design addresses registered-memory allocation, remote transfer, and cache
 capacity outside GPU HBM. Its traditional key/value interface intentionally
 leaves model identity, token hashing, layer layout, reuse admission, and request
 routing to the integrating middleware and Inference Runtime. It is another
@@ -1246,7 +1248,7 @@ Claims use explicit evidence states:
 | Measured | Produced by a reproducible experiment with retained artifacts | numerical claim with confidence and limitations |
 | Proposed | Architecture or research direction not validated end to end | "proposes", "targets", or "may" |
 
-The v1.0 zero-overhead architecture is proposed. The current descriptor,
+The v1.1 zero-overhead architecture is proposed. The current descriptor,
 planning, Host DRAM store, adapter, and policy components are implemented only
 within the boundaries stated in Section 9.4.
 

@@ -19,15 +19,21 @@ service.
 
 ## Start Here
 
-- **Flagship paper:** [NexusKV Whitepaper v1.0 — Beyond KV Cache: Toward a
+- **Whitepaper:** [NexusKV Whitepaper v1.1 — Beyond KV Cache: Toward a
   Zero-Overhead Model State Intelligence Layer for LLM
   Inference](docs/papers/beyond-kv-cache.md)
+- **Architecture:** [NexusKV Architecture](docs/design/nexuskv-architecture.md)
+- **Roadmap:** [NexusKV Roadmap](docs/roadmap.md)
+- **Implementation status:** [Migration Status](docs/architecture/migration-status.md)
+- **Benchmark contract:** [Benchmark Methodology](docs/benchmarks/benchmark-methodology.md)
+
+## Supporting Design Documents
+
 - [docs/architecture/repo-assessment.md](docs/architecture/repo-assessment.md)
 - [docs/architecture/target-platform.md](docs/architecture/target-platform.md)
 - [docs/design/attention-state-descriptor.md](docs/design/attention-state-descriptor.md)
 - [docs/design/nxradixtree.md](docs/design/nxradixtree.md)
 - [docs/design/execution-boundary.md](docs/design/execution-boundary.md)
-- [docs/benchmarks/benchmark-methodology.md](docs/benchmarks/benchmark-methodology.md)
 - [docs/ops/reliability-model.md](docs/ops/reliability-model.md)
 
 ## Toolchain And Tests
@@ -56,12 +62,13 @@ cargo clippy --workspace --all-targets --locked -- -D warnings
 cargo test --workspace --locked
 ```
 
-## Near-Term Direction
+## Development Direction
 
-The first migration milestone does not try to replace the legacy prototype in one step. It establishes:
+Development is governed by the Whitepaper, Architecture, and Roadmap rather
+than an open-ended feature list. The current direction is Phase 2: cost-based
+reuse planning, admission policy, and benchmark evidence over the existing
+State Contract and deterministic execution boundary.
 
-1. Versioned state descriptors for multiple attention/state types.
-2. A Rust-first `nxradixtree` core for exact and prefix reuse planning.
-3. Python connector surfaces for SGLang and vLLM.
-4. A new Go Control Plane scaffold for health, admin, and policy-facing services.
-5. Test and benchmark scaffolding that can grow with the platform.
+Every feature must identify its owning architecture layer, the problem it
+addresses, its benchmark or validation method, and whether it changes Model
+State compatibility.
