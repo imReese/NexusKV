@@ -19,9 +19,9 @@ service.
 
 ## Start Here
 
-- **Flagship paper:** [NexusKV Whitepaper v1.0 — Beyond KV Cache: A
+- **Flagship paper:** [NexusKV Whitepaper v1.0 — Beyond KV Cache: Toward a
   Zero-Overhead Model State Intelligence Layer for LLM
-  Inference](docs/papers/a-survey-of-kv-cache-systems-for-llm-inference.md)
+  Inference](docs/papers/beyond-kv-cache.md)
 - [docs/architecture/repo-assessment.md](docs/architecture/repo-assessment.md)
 - [docs/architecture/target-platform.md](docs/architecture/target-platform.md)
 - [docs/design/attention-state-descriptor.md](docs/design/attention-state-descriptor.md)
