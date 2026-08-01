@@ -1,0 +1,64 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="560" viewBox="0 0 1200 560" role="img" aria-labelledby="title desc">
+  <title id="title">Zero-overhead cache pipeline</title>
+  <desc id="desc">State lookup, planning, and asynchronous transfer overlap useful GPU computation before a consume deadline, with recomputation as fallback.</desc>
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L9,3 z" fill="#475569"/>
+    </marker>
+    <style>
+      .title { font: 700 30px Arial, sans-serif; fill: #0f172a; }
+      .label { font: 700 18px Arial, sans-serif; fill: #0f172a; }
+      .detail { font: 15px Arial, sans-serif; fill: #475569; }
+      .axis { stroke: #334155; stroke-width: 2; marker-end: url(#arrow); }
+      .compute { fill: #dcfce7; stroke: #16a34a; stroke-width: 2; rx: 10; }
+      .meta { fill: #e0e7ff; stroke: #4f46e5; stroke-width: 2; rx: 10; }
+      .transfer { fill: #ffedd5; stroke: #ea580c; stroke-width: 2; rx: 10; }
+      .fallback { fill: #f8fafc; stroke: #64748b; stroke-width: 2; rx: 10; }
+      .deadline { stroke: #dc2626; stroke-width: 2.5; stroke-dasharray: 7 5; }
+      .guide { stroke: #94a3b8; stroke-width: 1.5; stroke-dasharray: 5 5; }
+    </style>
+  </defs>
+
+  <rect width="1200" height="560" fill="#ffffff"/>
+  <text class="title" x="600" y="48" text-anchor="middle">Zero-Overhead Cache Pipeline</text>
+
+  <line class="axis" x1="170" y1="490" x2="1110" y2="490"/>
+  <text class="detail" x="1130" y="495">time</text>
+  <text class="label" x="35" y="145">Metadata</text>
+  <text class="label" x="35" y="270">Data Plane</text>
+  <text class="label" x="35" y="395">GPU work</text>
+
+  <rect class="meta" x="175" y="105" width="175" height="70"/>
+  <text class="label" x="262" y="135" text-anchor="middle">Match + validate</text>
+  <text class="detail" x="262" y="158" text-anchor="middle">non-blocking lookup</text>
+
+  <rect class="meta" x="365" y="105" width="175" height="70"/>
+  <text class="label" x="452" y="135" text-anchor="middle">Cost + plan</text>
+  <text class="detail" x="452" y="158" text-anchor="middle">reserve destination</text>
+
+  <rect class="transfer" x="420" y="230" width="445" height="70"/>
+  <text class="label" x="642" y="260" text-anchor="middle">Asynchronous transfer and restore</text>
+  <text class="detail" x="642" y="283" text-anchor="middle">bounded by bandwidth, memory, and interference budgets</text>
+
+  <rect class="compute" x="175" y="355" width="690" height="70"/>
+  <text class="label" x="520" y="385" text-anchor="middle">Useful Runtime computation continues</text>
+  <text class="detail" x="520" y="408" text-anchor="middle">transfer latency is overlapped rather than assumed away</text>
+
+  <line class="deadline" x1="900" y1="85" x2="900" y2="455"/>
+  <text class="label" x="900" y="75" text-anchor="middle" fill="#dc2626">consume deadline</text>
+
+  <rect class="compute" x="930" y="230" width="210" height="70"/>
+  <text class="label" x="1035" y="260" text-anchor="middle">State ready</text>
+  <text class="detail" x="1035" y="283" text-anchor="middle">commit reuse</text>
+
+  <rect class="fallback" x="930" y="355" width="210" height="70"/>
+  <text class="label" x="1035" y="385" text-anchor="middle">State late / unsafe</text>
+  <text class="detail" x="1035" y="408" text-anchor="middle">recompute safely</text>
+
+  <line class="guide" x1="350" y1="175" x2="420" y2="230"/>
+  <line class="guide" x1="540" y1="175" x2="570" y2="230"/>
+  <line class="guide" x1="865" y1="265" x2="930" y2="265"/>
+  <line class="guide" x1="865" y1="390" x2="930" y2="390"/>
+
+  <text class="detail" x="600" y="530" text-anchor="middle">Zero-overhead condition: reuse is ready by the deadline and does not regress other admitted work.</text>
+</svg>

@@ -111,6 +111,16 @@ This work makes four contributions:
 4. It specifies a reproducible evaluation methodology centered on visible
    overhead and Effective Gain instead of hit rate alone.
 
+As shown in Figure 1, each expansion in reuse scope adds a new coordination
+problem. The final stage is therefore an Intelligence Layer, not another
+capacity tier.
+
+![Figure 1: Evolution of Model State Infrastructure](figures/kv-cache-evolution.svg)
+
+*Figure 1. Evolution from a request-local KV buffer to a Model State
+Intelligence Layer. The stages describe increasing scope, not a claim that one
+system replaces the preceding systems.*
+
 ## 2. Problem Formulation
 
 ### 2.1 Definitions
@@ -278,6 +288,15 @@ Three trends are visible:
    tiers, introducing transfer and admission decisions.
 3. **Hierarchy becomes coordination.** Cross-worker reuse requires routing,
    semantic compatibility, topology awareness, and cost feedback.
+
+Figure 2 places representative projects at their primary architectural locus.
+The vertical flow emphasizes composition: an Inference Runtime may use
+middleware, storage, and transfer components from different projects.
+
+![Figure 2: Model State Infrastructure system landscape](figures/kv-cache-research-landscape.svg)
+
+*Figure 2. Layered system landscape. A box marks a project's primary role in
+this paper; it does not exclude secondary capabilities or integrations.*
 
 The detailed, source-oriented coverage ledger is maintained in
 [`kv-cache-system-coverage.md`](kv-cache-system-coverage.md).
@@ -490,6 +509,17 @@ request admission
 Runtime schedules ready work ---------------------------> consume or recompute
 ```
 
+Figure 3 makes the timing condition explicit. Lookup and planning begin before
+the state is required, and transfer overlaps useful Runtime computation. If the
+state is not safe and ready by its deadline, the request follows the recompute
+path.
+
+![Figure 3: Zero-overhead cache pipeline](figures/zero-overhead-pipeline.svg)
+
+*Figure 3. Zero-overhead pipeline. The transfer still consumes resources; its
+latency is absent from the critical path only when it completes within the
+overlap and interference budgets.*
+
 Four properties are required:
 
 1. **Non-blocking discovery.** Metadata lookup must not serialize the scheduler.
@@ -637,22 +667,15 @@ compatible path is registered, recomputation is the default.
 NexusKV is not intended to replace an Inference Runtime, a transfer library, or
 a distributed KV Store. It coordinates them:
 
-```text
-Inference Runtimes
-vLLM | SGLang | future adapters
-             |
-             v
-NexusKV Intelligence Layer
-descriptor | matcher | planner | policy | prefetch scheduler
-             |
-     +-------+-------+
-     |               |
-     v               v
-Control Plane      Data Plane
-policy             GPU / host / SSD
-registry           NIXL / Mooncake
-observability      remote stores
-```
+As shown in Figure 4, Runtime adapters terminate the engine-specific lifecycle,
+while the Intelligence Layer coordinates a versioned Control Plane and external
+Data Plane capabilities.
+
+![Figure 4: NexusKV architecture](figures/nexuskv-zero-overhead-architecture.svg)
+
+*Figure 4. NexusKV architecture. NexusKV owns semantic and cost decisions; it
+delegates model execution, storage capacity, and buffer movement to composed
+systems.*
 
 The Control Plane distributes versioned policy, topology, tenant constraints,
 and capability metadata. The latency-sensitive planner and state index belong
