@@ -38,6 +38,82 @@ replace them. The zero-overhead objective is a measurable target in which useful
 cache work remains outside the request's critical path, not a performance claim
 already established by the current implementation.
 
+## Why Now
+
+### Context Explosion
+
+Long-context serving turns Model State into a capacity and movement problem, not
+only an allocator problem. Public model releases now explicitly target the
+[million-token context regime](https://qwenlm.github.io/blog/qwen2.5-1m/).
+At that scale, repeatedly computing or moving every cached token can dominate
+TTFT, memory pressure, and admission decisions. A useful cache policy must
+compare the reusable extent with its transfer and recomputation alternatives.
+
+### Agent Workloads
+
+Agent requests repeatedly incorporate system prompts, tool schemas, retrieved
+documents, tool results, and multi-turn execution history. Some state is shared
+across requests; some is valid only for one tenant, branch, model revision, or
+checkpoint lineage. The system needs an identity contract that distinguishes a
+similar history from state that is safe to materialize.
+
+### Disaggregated Inference
+
+Prefill/decode separation places the producer and consumer of a KV Cache on
+different workers. Architectures such as
+[DistServe](https://arxiv.org/abs/2401.09670) and
+[Mooncake](https://arxiv.org/abs/2407.00079) make routing and Model State
+movement explicit dependencies of scheduling. A remote match is useful only
+when routing or transfer completes more cheaply than recomputation without
+overloading the selected worker or link.
+
+### New Attention Architectures
+
+MHA, MLA, DSA, and KDA expose different serving states. Conventional K/V pages,
+compressed latent state, selector-dependent regions, and recurrent terminal
+checkpoints do not share one compatibility or restoration rule. Cache identity
+must therefore describe the attention-specific materialization contract rather
+than assuming a uniform pair of tensors.
+
+### Heterogeneous Memory
+
+Inference deployments increasingly compose several capacity tiers:
+
+```text
+GPU HBM
+   |
+Host DRAM
+   |
+Remote memory
+   |
+Storage
+```
+
+Each lower tier may add capacity while also adding queueing, transfer,
+registration, synchronization, and failure costs. Hierarchy creates an
+optimization surface; it does not determine which state deserves promotion or
+whether a request should wait for it.
+
+These trends converge in 2026: more state is potentially reusable, but its
+representation, location, and time-to-use are less uniform. This paper argues
+that a separate decision boundary is now useful if it remains composable with
+the systems that execute, store, and move the state.
+
+## Non-goals
+
+NexusKV is not intended to be:
+
+- another KV database or general-purpose object store;
+- another Inference Runtime;
+- a replacement for vLLM, SGLang, or their schedulers and allocators;
+- a transport framework such as NIXL;
+- a storage backend such as Mooncake Store.
+
+Those systems retain ownership of model execution, physical capacity, or byte
+movement. NexusKV focuses on **decision intelligence**: State Identity, reuse
+admission, cost-based placement and transfer planning, bounded asynchronous
+prefetch, and deterministic fallback to recomputation.
+
 ## Abstract
 
 Key-value (KV) state has evolved from a private buffer inside an Inference
@@ -69,6 +145,8 @@ condition has already been demonstrated by the current implementation.
 ## Contents
 
 - [Executive Summary](#executive-summary)
+- [Why Now](#why-now)
+- [Non-goals](#non-goals)
 - [1. Introduction](#1-introduction)
 - [2. Problem Formulation](#2-problem-formulation)
 - [3. Model State Infrastructure Landscape](#3-model-state-infrastructure-landscape)
@@ -1304,27 +1382,29 @@ methodology in this paper defines the evidence required to validate that target.
 
 ### System Documentation and Source Repositories
 
-1. vLLM Project. [Automatic Prefix
+1. Qwen Team. [Qwen2.5-1M: Deploy Your Own Qwen with Context Length up to 1M
+   Tokens](https://qwenlm.github.io/blog/qwen2.5-1m/).
+2. vLLM Project. [Automatic Prefix
    Caching](https://docs.vllm.ai/en/stable/design/prefix_caching/).
-2. vLLM Project. [KV Cache
+3. vLLM Project. [KV Cache
    Interface](https://docs.vllm.ai/en/latest/api/vllm/v1/kv_cache_interface/).
-3. NVIDIA. [TensorRT-LLM KV Cache
+4. NVIDIA. [TensorRT-LLM KV Cache
    System](https://nvidia.github.io/TensorRT-LLM/features/kvcache.html).
-4. SGLang Project. [HiCache: Hierarchical KV Caching for
+5. SGLang Project. [HiCache: Hierarchical KV Caching for
    SGLang](https://lmsys.org/blog/2025-09-10-sglang-hicache/).
-5. LMCache Project. [Multiprocess Architecture](https://docs.lmcache.ai/mp/).
-6. Mooncake Project. [Mooncake Store
+6. LMCache Project. [Multiprocess Architecture](https://docs.lmcache.ai/mp/).
+7. Mooncake Project. [Mooncake Store
    Design](https://github.com/kvcache-ai/Mooncake/blob/main/docs/source/design/mooncake-store.md).
-7. NVIDIA. [NVIDIA Inference Xfer Library
+8. NVIDIA. [NVIDIA Inference Xfer Library
    Design](https://github.com/ai-dynamo/nixl/blob/main/docs/nixl.md).
-8. NVIDIA Dynamo. [KV Router
+9. NVIDIA Dynamo. [KV Router
    Design](https://docs.nvidia.com/dynamo/latest/design-docs/component-design/router-design).
-9. NVIDIA Dynamo. [KV Block
-   Manager](https://docs.nvidia.com/dynamo/dev/knowledge-base/modular-components/kvbm/overview).
-10. ByteDance. [InfiniStore Design and
+10. NVIDIA Dynamo. [KV Block
+    Manager](https://docs.nvidia.com/dynamo/dev/knowledge-base/modular-components/kvbm/overview).
+11. ByteDance. [InfiniStore Design and
     Architecture](https://bytedance.github.io/InfiniStore/design.html).
-11. TACO Project. [FlexKV](https://github.com/taco-project/FlexKV).
-12. AIBrix Project. [KV Cache Offloading
+12. TACO Project. [FlexKV](https://github.com/taco-project/FlexKV).
+13. AIBrix Project. [KV Cache Offloading
     Framework](https://aibrix.readthedocs.io/latest/designs/aibrix-kvcache-offloading-framework.html).
-13. llm-d Project. [KV Cache
+14. llm-d Project. [KV Cache
     Management](https://llm-d.ai/docs/0.7/architecture/advanced/kv-management).
