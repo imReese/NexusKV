@@ -164,3 +164,74 @@ class HuaweiAscendCannAdapter:
             base_addr=acl_ptr,
             size_bytes=size_bytes,
         )
+
+
+@dataclass(slots=True)
+class AppleMetalUmaAdapter:
+    """Adapter for Apple Silicon (Mac M3/M4 Ultra) Metal MPS Unified Memory Architecture (UMA)."""
+
+    manager: NativeTransportManager = field(default_factory=NativeTransportManager)
+
+    def register_metal_uma_buffer(self, buffer_id: str, host_dram_ptr: int, size_bytes: int) -> ZeroCopyRegistration:
+        # Zero-copy native pointer sharing on Apple Silicon UMA (CPU and GPU share identical DRAM address)
+        return self.manager.register_zero_copy_region(
+            handle_id=f"apple_metal_uma_{buffer_id}",
+            base_addr=host_dram_ptr,
+            size_bytes=size_bytes,
+        )
+
+
+@dataclass(slots=True)
+class IntelGaudiLevelZeroAdapter:
+    """Adapter for Intel Gaudi2/Gaudi3 & Xe GPUs via oneAPI Level Zero IPC Handle."""
+
+    manager: NativeTransportManager = field(default_factory=NativeTransportManager)
+
+    def register_level_zero_ipc_handle(self, handle_id: str, ze_ptr: int, size_bytes: int) -> ZeroCopyRegistration:
+        return self.manager.register_zero_copy_region(
+            handle_id=f"intel_ze_{handle_id}",
+            base_addr=ze_ptr,
+            size_bytes=size_bytes,
+        )
+
+
+@dataclass(slots=True)
+class CambriconMluAdapter:
+    """Adapter for Cambricon MLU BANG C/C++ IPC Memory Handle."""
+
+    manager: NativeTransportManager = field(default_factory=NativeTransportManager)
+
+    def register_mlu_ipc_handle(self, handle_id: str, mlu_ptr: int, size_bytes: int) -> ZeroCopyRegistration:
+        return self.manager.register_zero_copy_region(
+            handle_id=f"cambricon_mlu_{handle_id}",
+            base_addr=mlu_ptr,
+            size_bytes=size_bytes,
+        )
+
+
+@dataclass(slots=True)
+class MooreThreadsMusaAdapter:
+    """Adapter for Moore Threads MUSA GPU IPC Handle."""
+
+    manager: NativeTransportManager = field(default_factory=NativeTransportManager)
+
+    def register_musa_ipc_handle(self, handle_id: str, musa_ptr: int, size_bytes: int) -> ZeroCopyRegistration:
+        return self.manager.register_zero_copy_region(
+            handle_id=f"moore_musa_{handle_id}",
+            base_addr=musa_ptr,
+            size_bytes=size_bytes,
+        )
+
+
+@dataclass(slots=True)
+class BirenBr100Adapter:
+    """Adapter for Biren Tech BR100 Device Memory Handle."""
+
+    manager: NativeTransportManager = field(default_factory=NativeTransportManager)
+
+    def register_biren_buffer(self, buffer_id: str, biren_ptr: int, size_bytes: int) -> ZeroCopyRegistration:
+        return self.manager.register_zero_copy_region(
+            handle_id=f"biren_br100_{buffer_id}",
+            base_addr=biren_ptr,
+            size_bytes=size_bytes,
+        )

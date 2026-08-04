@@ -48,6 +48,11 @@ class DeviceClass(StrEnum):
     CUDA = "cuda"
     ROCM = "rocm"
     TPU = "tpu"
+    METAL_MPS = "metal_mps"
+    GAUDI = "gaudi"
+    CAMBRICON = "cambricon"
+    MUSA = "musa"
+    BIREN = "biren"
     OTHER = "other"
 
 class BufferKind(StrEnum):

@@ -13,7 +13,7 @@
       "WARM_START",
       "POST_EVICTION_RELOAD"
     ],
-    "DeviceClass": ["CPU", "CUDA", "ROCM", "TPU", "OTHER"],
+    "DeviceClass": ["CPU", "CUDA", "ROCM", "TPU", "METAL_MPS", "GAUDI", "CAMBRICON", "MUSA", "BIREN", "OTHER"],
     "BufferKind": ["DEVICE", "HOST_PINNED", "HOST_PAGEABLE", "REMOTE", "FILE_BACKED"],
     "TransferBackend": ["BASELINE_TRANSPORT", "STAGED_COPY", "RDMA", "ZERO_COPY"],
     "TransferCapability": [

@@ -63,6 +63,11 @@ pub enum DeviceClass {
     Cuda,
     Rocm,
     Tpu,
+    MetalMps,
+    Gaudi,
+    Cambricon,
+    Musa,
+    Biren,
     Other,
 }
 
