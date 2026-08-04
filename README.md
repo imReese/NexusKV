@@ -18,40 +18,44 @@
 
 ## 💡 What is NexusKV?
 
-**NexusKV** is a next-generation **Model State Intelligence Layer** designed for LLM inference. Rather than treating the KV cache as a monolithic, hit-driven storage service, NexusKV introduces a **cost-based, zero-overhead architecture** that decouples the Control Plane (Go), Data Plane (Rust), and Inference Engine Adapters (Python).
+**NexusKV** is a next-generation **Model State Intelligence Layer** designed for production LLM inference platforms (such as **vLLM V1 Engine** and **SGLang**).
 
-NexusKV goes **beyond standard KV cache** by unifying model state descriptors for modern attention architectures—including **DeepSeek MLA** (Multi-head Latent Attention), **DeepSeek DSA** (DeepSeek Sparse Attention), and **Kimi KDA** (Kimi Delta Attention Recurrent Checkpoints).
+As inference serving moves toward **Prefill-Decode (PD) Disaggregation**, **HiCache Multi-Tier Offloading**, and **DeepSeek MLA/DSA Architectures**, traditional KV caches treat cached tensors as monolithic, hit-driven storage blobs. This leads to **network transfer stalls, TTFT regressions, and memory fragmentation**.
+
+NexusKV solves this by decoupling the **Go Distributed Control Plane**, **Rust Data & Radix Matching Engine**, and **Python Engine FFI Interceptors**. It provides an intelligent decision engine that calculates **Cost-Based Effective Gain** ($G = T_{compute} - T_{cache} > 0$), enforces **Quota Backpressure**, and guarantees a **Sub-millisecond Fail-Open Fallback (<1ms)** to local GPU prefill computation.
 
 ---
 
-## ⚡ Why NexusKV? (Feature Comparison)
+## ⚡ Technical Comparison: NexusKV vs. Native Engine Caching & Transfer Frameworks
 
-| Feature / Dimension | Native Engine Cache (vLLM/SGLang) | Multi-Tier Cache (HiCache/LMCache) | Shared Storage (3FS/Mooncake) | **NexusKV (Model State Intelligence Layer)** |
+| Architecture Feature | Native Prefix Caching (vLLM / SGLang Radix) | HiCache & LMCache (Multi-Tier Cache) | Mooncake Store & NIXL (Raw Transfer / Storage) | **NexusKV (Model State Intelligence Layer)** |
 | :--- | :--- | :--- | :--- | :--- |
-| **Cache Scope** | Local Worker / HBM Only | Local Multi-Tier (HBM/DRAM/Disk) | Distributed Storage Store | **Global Cross-Worker Model State Intelligence** |
-| **Reuse Decision** | Naive Hit-Driven | Naive Hit-Driven | Naive Storage Fetch | **Cost-Based Effective Gain ($G = T_{compute} - T_{cache} > 0$)** |
-| **Attention Support** | Standard MHA/GQA Pages | Standard MHA/GQA Pages | Raw Tensor Blobs | **Native Support for MHA, DeepSeek MLA, DSA & Kimi KDA** |
-| **Overload Protection** | 被动 Eviction | 被动 Eviction | Network Congestion | **Quota Admission Tracker & Quota Backpressure** |
-| **Execution Safety** | N/A | Risk of I/O Stalls | Risk of Network Stalls | **Sub-millisecond Fail-Open Guarantee (<1ms Fallback to Prefill)** |
-| **Architecture** | Engine Monolith | Engine Subsystem | Storage System | **Decoupled Go Control Plane + Rust Data Engine + Python FFI** |
+| **Primary Focus** | In-GPU HBM Trie Reuse | HBM → DRAM → Disk Offload | RDMA / NVLink High-Speed Transport | **Cost-Based Intelligence & Decoupled State Control** |
+| **Cache Reuse Strategy** | Local Hit-Driven | Local Hit-Driven | Storage Block Pull | **Effective Gain Equation ($G = T_{compute} - T_{cache} > 0$)** |
+| **Disaggregated PD Handshake** | Handled by Engine IPC | Block-Based Transfer | Raw RDMA Buffer Copy | **`pd_disaggregate_handshake` with Dynamic Cost Profiling** |
+| **Attention Taxonomy** | Standard MHA / Paged KV | Standard MHA / Paged KV | Raw Tensor Blobs | **Native MLA ($c_t^{KV} + k_t^R$), DSA (Sparse Regions), KDA Checkpoints** |
+| **Overloaded System Behavior** | Evicts Local Blocks | Evicts Local Blocks | Network Queue Stalls | **Quota Admission Tracker & Active Memory Backpressure** |
+| **Fault Resilience** | Engine Stalls on I/O | Risk of I/O Stalls | Risk of Transport Hangs | **Sub-millisecond Fail-Open Guarantee (<1ms Fallback to Prefill)** |
+| **Architecture Footprint** | Embedded in Worker | Python Sidecar | C++ Transport Driver | **Decoupled Go Control Plane + Rust Radix Engine + Python FFI** |
 
 ---
 
-## 🏗 System Architecture
+## 🏗 System Architecture & Integration Workflow
 
 ```text
  ┌─────────────────────────────────────────────────────────────────────────────┐
- │                       Inference Engine Runtime (vLLM / SGLang)              │
+ │            vLLM V1 Engine (KVConnectorBase_V1) / SGLang (RadixAttention)   │
  └──────────────────────────────────────┬──────────────────────────────────────┘
-                                        │ Native FFI Hooks / Connector Surface
+                                        │ Native Fast FFI Interceptor (<1ms Guarantee)
                                         ▼
  ┌─────────────────────────────────────────────────────────────────────────────┐
  │                         NexusKV Intelligence Layer                          │
- │  • Cost Estimator: Effective Gain  G = T_compute - T_cache                  │
- │  • Quota Admission Tracker: Active Pinned Memory & Transfer Limits          │
- │  • Prefetch Scheduler: Deadline Expiration & Sub-1ms Fail-Open Fallback     │
+ │  • DynamicCostProfiler: Live Auto-Tuning of GPU Prefill & Transport Bandwidth│
+ │  • Effective Gain Estimator:  G = T_compute - T_cache                      │
+ │  • Quota Admission Tracker: Active Pinned Memory & Concurrency Limits       │
+ │  • PD Disaggregation Handshake: Prefill-to-Decode Asynchronous Mounting     │
  └──────────────┬──────────────────────────────────────────────┬───────────────┘
-                │ Key & Matching Queries                       │ Payload & Lease Management
+                │ Key & Radix Prefix Matching                  │ Payload & Lease Management
                 ▼                                              ▼
  ┌──────────────────────────────┐              ┌──────────────────────────────┐
  │     Rust Data Engine         │              │      Go Control Plane        │
@@ -59,54 +63,94 @@ NexusKV goes **beyond standard KV cache** by unifying model state descriptors fo
  │ • nexus-store Host DRAM      │              │ • Monotonic EpochTracker     │
  │ • nexus-transfer Zero-Copy   │              │ • GarbageCollector & Policy  │
  └──────────────────────────────┘              └──────────────────────────────┘
+                ▲                                              ▲
+                │ Direct RDMA & NVLink Pool Registration       │ Policy Overlays
+ ┌──────────────┴──────────────────────────────────────────────┴───────────────┐
+ │        Physical Transport Drivers (Mooncake Transfer Engine / NIXL SDK)    │
+ └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 🚀 Beyond KV Cache: Multi-Attention Taxonomy
+## 🚀 Model State Taxonomy: Beyond Standard KV Cache
 
-NexusKV provides specialized state descriptors and validation for next-generation attention architectures:
+NexusKV introduces a unified **Attention State Taxonomy** that understands the mathematical and physical structure of next-generation attention mechanisms:
 
-- **MHA / GQA / MQA**: Standard contiguous and page-aligned key/value tensor caches.
-- **DeepSeek MLA (Multi-Head Latent Attention)**: Compressed latent KV states ($c_t^{KV}$) and decoupled RoPE positional tensors ($k_t^R$).
-- **DeepSeek DSA (DeepSeek Sparse Attention)**: Query-dependent sparse selection regions and selector index auxiliary metadata.
-- **Kimi KDA (Kimi Delta Attention)**: Recurrent terminal state checkpoints ($h_t$) for hybrid attention-recurrent models.
+1. **MHA / GQA / MQA**: Standard contiguous or page-aligned key/value tensor caches.
+2. **DeepSeek MLA (Multi-Head Latent Attention)**:
+   - Compressed Latent KV Tensors ($c_t^{KV} \in \mathbb{R}^{d_{c}}$).
+   - Decoupled Positional RoPE Tensors ($k_t^R \in \mathbb{R}^{d_R}$).
+3. **DeepSeek DSA (DeepSeek Sparse Attention)**:
+   - Query-dependent sparse selection regions.
+   - Selector index auxiliary metadata ($top\_k$ routing tables).
+4. **Kimi KDA (Kimi Delta Attention)**:
+   - Recurrent terminal state checkpoints ($h_t$).
+   - Hybrid attention-recurrent boundary validation.
 
 ---
 
-## ⚡ Quick Start
+## ⚡ Integration Examples
 
-### 1. Python Fast Integration
+### 1. Integration with vLLM V1 Engine & SGLang
 
 ```python
 from nexuskv.connectors.vllm.connector import VLLMConnector
 from nexuskv.connectors.native_hooks import NativeEngineHookInterceptor
-from nexuskv.connectors.base import VLLMLifecycleContext
+from nexuskv.connectors.base import VLLMLifecycleContext, PDDisaggregateContext
 
-# Initialize connector & native hook interceptor with <1ms fail-open guarantee
+# 1. Initialize vLLM V1 Connector & Native Hook Interceptor (<1ms Guarantee)
 connector = VLLMConnector()
 interceptor = NativeEngineHookInterceptor(connector=connector)
 
-# Intercept engine lifecycle event
+# 2. Construct Request Context with DeepSeek MLA Descriptor
 context = VLLMLifecycleContext(
-    tenant="tenant_a",
-    namespace="chat_production",
-    model="deepseek-v3",
-    tokens=[101, 2023, 2003, 1037, 3899],
+    tenant="production_tenant",
+    namespace="chat_disaggregated",
+    model="deepseek-v3-mla",
+    tokens=[101, 2023, 2003, 1037, 3899, 5012],
     descriptor=connector.default_descriptor(),
 )
 
+# 3. Intercept Request Start Hook
 decision = interceptor.intercept_hook("request_start", context)
 
 if decision.materialization_result.status == "completed":
-    print("NexusKV Cost-Based Reuse Approved! Binding cached state handle...")
+    print("NexusKV Effective Gain > 0! Binding cached MLA latent handle.")
 else:
     print("Fail-Open Fallback: Executing GPU prefill recomputation locally.")
+
+# 4. Prefill-Decode (PD) Disaggregation Handshake
+pd_context = PDDisaggregateContext(
+    tenant="production_tenant",
+    namespace="chat_disaggregated",
+    model="deepseek-v3-mla",
+    tokens=context.tokens,
+    descriptor=context.descriptor,
+    prefill_worker_id="prefill-gpu-node-01",
+    decode_worker_id="decode-gpu-node-04",
+)
+pd_decision = connector.on_pd_disaggregate_handshake(pd_context, interceptor.planner)
 ```
 
-### 2. Run Benchmark Evidence & Stress Test Suite
+### 2. Auto-Tuning Dynamic Cost Profiler & RDMA Driver Registration
 
-Run the synthetic benchmark comparison and 7x24 memory leak stress suite with a single command:
+```python
+from nexuskv.planner.autotune import DynamicCostProfiler
+from nexuskv.execution.native_transport import MooncakeTransferEngineAdapter, NIXLDriverAdapter
+from nexuskv.contracts.generated import TierKind
+
+# Live Auto-Tuning of Network Bandwidth & GPU Token Processing Speed
+profiler = DynamicCostProfiler()
+profiler.record_prefill_sample(token_count=1000, duration_sec=0.001)  # 1us / token
+profiler.record_bandwidth_sample(TierKind.HOST_DRAM, payload_bytes=1000000, duration_sec=0.0001)
+
+# Register Physical RDMA Memory Pools (Mooncake Transfer Engine / NIXL)
+mooncake = MooncakeTransferEngineAdapter()
+reg = mooncake.register_rdma_pool(pool_id="pool_01", base_addr=0x7FFF0000, size_bytes=1048576)
+print(f"Registered RDMA Pool Handle: {reg.handle_id}, Active: {reg.is_registered}")
+```
+
+### 3. Run Synthetic Benchmarks & Cluster Stress Suite
 
 ```bash
 python3 tools/run_benchmarks.py
@@ -116,14 +160,14 @@ python3 tools/run_benchmarks.py
 
 ## 🛠 Toolchain & Verification
 
-### Go Control Plane
+### 1. Go Control Plane Tests
 
 ```bash
 GOTOOLCHAIN=go1.25.9 go test ./...
 cd go && GOTOOLCHAIN=go1.25.9 go test ./...
 ```
 
-### Rust Data Plane Workspace
+### 2. Rust Data Engine Workspace
 
 ```bash
 cd rust
@@ -132,7 +176,7 @@ cargo clippy --workspace --all-targets --locked -- -D warnings
 cargo test --workspace --locked
 ```
 
-### Python Suite & Native PyO3 Extension Build
+### 3. Python Test Suite (68+ Tests) & PyO3 Extension Build
 
 ```bash
 # Build PyO3 native extension
@@ -140,7 +184,7 @@ cd rust
 cargo rustc -p bindings-py --crate-type cdylib
 cd ..
 
-# Run Python unittest suite (65+ tests)
+# Run Python unittest suite (68+ tests)
 PYTHONPATH=python python3 -m unittest discover -s python/tests -p "test_*.py"
 ```
 

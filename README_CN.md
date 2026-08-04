@@ -18,40 +18,44 @@
 
 ## 💡 什么是 NexusKV？
 
-**NexusKV** 是专为大语言模型（LLM）推理设计的下一代**模型状态智能层（Model State Intelligence Layer）**。不同于传统将 KV Cache 视为盲目命中驱动（Hit-Driven）的单体存储服务，NexusKV 引入了**成本驱动（Cost-Based）与零开销分层架构**，解耦了 Go 控制面、Rust 高性能数据引擎与 Python 推理引擎适配器。
+**NexusKV** 是专为生产级大语言模型推理平台（如 **vLLM V1 引擎** 与 **SGLang**）设计的下一代**模型状态智能层（Model State Intelligence Layer）**。
 
-NexusKV 的核心突破在于**超越传统的 KV Cache 范式**，原生统一支持现代异构 Attention 架构的状态描述符——包括 **DeepSeek MLA** (Multi-head Latent Attention 隐向量/位置切分)、**DeepSeek DSA** (DeepSeek Sparse Attention 稀疏选择区域) 以及 **Kimi KDA** (Kimi Delta Attention 循环终端 Checkpoint)。
+随着 LLM 推理全面迈向 **Prefill-Decode (PD) 分离架构**、**HiCache 多级存储卸载** 以及 **DeepSeek MLA / DSA 新型 Attention**，传统将 KV Cache 视为盲目命中驱动（Hit-Driven）的存储方案暴露出了严重的缺陷：**网络传输导致 TTFT 恶化、内存碎片化以及缺乏物理算力感知**。
+
+NexusKV 通过解耦 **Go 分布式控制面**、**Rust 数据与 Radix 匹配引擎** 以及 **Python 引擎 FFI 拦截器** 解决了这一难题。它提供了基于 **有效收益评估方程 ($G = T_{compute} - T_{cache} > 0$)** 的智能决策引擎，支持 **Quota 主动反压**，并提供 **<1ms 极速 Fail-Open 平滑降级保障**。
 
 ---
 
-## ⚡ 为什么选择 NexusKV？ (与现有方案对比)
+## ⚡ 技术对比：NexusKV vs. 推理引擎原生 Cache 及传输框架
 
-| 特性 / 维度 | 引擎原生 Cache (vLLM/SGLang) | 多级缓存系统 (HiCache/LMCache) | 共享存储 (3FS/Mooncake) | **NexusKV (模型状态智能层)** |
+| 架构维度 | 原生 Prefix Caching (vLLM / SGLang Radix) | HiCache & LMCache (多级缓存) | Mooncake Store & NIXL (传输/存储底层) | **NexusKV (模型状态智能层)** |
 | :--- | :--- | :--- | :--- | :--- |
-| **缓存感知范围** | 单机/单 Worker 显存 | 单机多级 (HBM/DRAM/Disk) | 分布式存储 Blob | **跨节点全网 Model State 智能感知** |
-| **复用决策依据** | 盲目命中驱动 | 盲目命中驱动 | 盲目存储拉取 | **基于有效收益评估 ($G = T_{compute} - T_{cache} > 0$)** |
-| **Attention 架构** | 标准 MHA/GQA 页面 | 标准 MHA/GQA 页面 | 裸 Tensor 块 | **原生支持 MHA、DeepSeek MLA/DSA 及 Kimi KDA** |
-| **过载保护机制** | 被动 Eviction 驱逐 | 被动 Eviction 驱逐 | 网络拥塞阻塞 | **Quota 准入跟踪与主动反压 (Backpressure)** |
-| **执行稳定性** | N/A | I/O 阻塞风险 | 网络 IO 阻塞风险 | **<1ms Fail-Open 降级保障 (超时自动退回 GPU 重算)** |
-| **系统架构设计** | 引擎单体内部 | 引擎子系统 | 存储底层 | **解耦 Go 控制面 + Rust 数据引擎 + Python FFI 拦截** |
+| **核心关注点** | GPU HBM 前缀树复用 | HBM → DRAM → Disk 卸载 | RDMA / NVLink 高速传输 | **成本收益智能决策与状态控制解耦** |
+| **缓存复用策略** | 本地盲目命中驱动 | 本地盲目命中驱动 | 存储块拉取 | **基于有效收益评估 ($G = T_{compute} - T_{cache} > 0$)** |
+| **PD 分离握手** | 引擎进程间 IPC | 块级别传输 | 裸 RDMA 内存拷贝 | **`pd_disaggregate_handshake` 与动态 Cost 调优** |
+| **Attention 体系** | 标准 MHA / Paged KV | 标准 MHA / Paged KV | 裸 Tensor Blobs | **原生支持 MLA ($c_t^{KV} + k_t^R$)、DSA 稀疏区及 KDA Checkpoint** |
+| **系统过载表现** | 被动驱逐本地块 | 被动驱逐本地块 | 网络队列阻塞 | **`QuotaTracker` 活页内存与并发主动反压** |
+| **系统韧性保障** | I/O 导致引擎挂起 | I/O 阻塞风险 | 传输挂起风险 | **<1ms Fail-Open 降级保障（毫秒级退回到 GPU 重算）** |
+| **系统架构解耦** | 嵌入在 Worker 进程 | Python Sidecar | C++ 传输驱动 | **解耦 Go 控制面 + Rust 数据引擎 + Python FFI** |
 
 ---
 
-## 🏗 系统架构设计
+## 🏗 系统架构与集成拓扑
 
 ```text
  ┌─────────────────────────────────────────────────────────────────────────────┐
- │                      推理引擎运行时 (vLLM / SGLang Engine)                  │
+ │       vLLM V1 Engine (KVConnectorBase_V1) / SGLang Engine (RadixAttention) │
  └──────────────────────────────────────┬──────────────────────────────────────┘
-                                        │ Native FFI Hooks / Connector Lifecycle
+                                        │ Native Fast FFI Interceptor (<1ms 保障)
                                         ▼
  ┌─────────────────────────────────────────────────────────────────────────────┐
- │                        NexusKV 智能决策层 (Intelligence Layer)              │
- │  • Cost Estimator: 有效收益评估  G = T_compute - T_cache                     │
- │  • Quota Admission Tracker: 活页内存与并发传输准入限制                      │
- │  • Prefetch Scheduler: 消费截止时间 (Deadline) 与 <1ms Fail-Open 降级       │
+ │                       NexusKV 智能决策层 (Intelligence Layer)               │
+ │  • DynamicCostProfiler: GPU Prefill 算力与网络带宽实时自适应调优              │
+ │  • Effective Gain Estimator: 有效收益评估  G = T_compute - T_cache           │
+ │  • Quota Admission Tracker: 锁页内存与并发传输主动反压限制                    │
+ │  • PD Disaggregation Handshake: Prefill 到 Decode 节点的异步状态挂载握手      │
  └──────────────┬──────────────────────────────────────────────┬───────────────┘
-                │ Key 匹配与查询                               │ Payload 存储与租约管控
+                │ Key 匹配与 Radix 前缀树查询                  │ Payload 存储与租约管控
                 ▼                                              ▼
  ┌──────────────────────────────┐              ┌──────────────────────────────┐
  │       Rust 数据引擎          │              │        Go 分布式控制面       │
@@ -59,55 +63,94 @@ NexusKV 的核心突破在于**超越传统的 KV Cache 范式**，原生统一�
  │ • nexus-store Host DRAM 存储 │              │ • Monotonic EpochTracker     │
  │ • nexus-transfer 零拷贝句柄  │              │ • GarbageCollector 垃圾回收  │
  └──────────────────────────────┘              └──────────────────────────────┘
+                ▲                                              ▲
+                │ 物理 RDMA & NVLink 内存池注册                 │ 策略覆盖推发
+ ┌──────────────┴──────────────────────────────────────────────┴───────────────┐
+ │      物理传输驱动层 (Mooncake Transfer Engine / NVIDIA NIXL SDK)            │
+ └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 🚀 超越 KV Cache：新型 Attention 状态感知
+## 🚀 模型状态体系：超越标准 KV Cache
 
-NexusKV 为下一代 Attention 架构提供专门的状态描述符与兼容性校验：
+NexusKV 引入了统一的 **Attention State Taxonomy（状态描述符体系）**，理解下一代 Attention 架构的物理与数学结构：
 
-- **MHA / GQA / MQA**：标准的连续或 Block/Page 对齐的 Key/Value 张量缓存。
-- **DeepSeek MLA (Multi-Head Latent Attention)**：压缩隐向量状态 ($c_t^{KV}$) 与解耦的 RoPE 位置编码张量 ($k_t^R$)。
-- **DeepSeek DSA (DeepSeek Sparse Attention)**：Query 相关的稀疏选择区域（Sparse Selection）与 Selector 辅助索引元数据。
-- **Kimi KDA (Kimi Delta Attention)**：混合 Attention 模型的循环终端 Checkpoint ($h_t$)。
+1. **MHA / GQA / MQA**：标准的连续或 Block/Page 对齐 Key/Value 张量缓存。
+2. **DeepSeek MLA (Multi-Head Latent Attention)**：
+   - 压缩隐向量张量 ($c_t^{KV} \in \mathbb{R}^{d_{c}}$)；
+   - 解耦的 RoPE 位置编码张量 ($k_t^R \in \mathbb{R}^{d_R}$)。
+3. **DeepSeek DSA (DeepSeek Sparse Attention)**：
+   - Query 相关的稀疏选择区域；
+   - Selector 索引辅助元数据 ($top\_k$ 路由表)。
+4. **Kimi KDA (Kimi Delta Attention)**：
+   - Recurrent 终端状态 Checkpoint ($h_t$)；
+   - 混合 Attention-Recurrent 边界校验。
 
 ---
 
-## ⚡ 快速上手
+## ⚡ 集成与代码示例
 
-### 1. Python 快速对接示例
+### 1. 与 vLLM V1 引擎及 SGLang 的集成
 
 ```python
 from nexuskv.connectors.vllm.connector import VLLMConnector
 from nexuskv.connectors.native_hooks import NativeEngineHookInterceptor
-from nexuskv.connectors.base import VLLMLifecycleContext
+from nexuskv.connectors.base import VLLMLifecycleContext, PDDisaggregateContext
 
 # 1. 初始化 Connector 与 <1ms Fail-Open 强保障拦截器
 connector = VLLMConnector()
 interceptor = NativeEngineHookInterceptor(connector=connector)
 
-# 2. 构建请求上下文
+# 2. 构建携带 DeepSeek MLA 描述符的请求上下文
 context = VLLMLifecycleContext(
-    tenant="tenant_a",
-    namespace="chat_production",
-    model="deepseek-v3",
-    tokens=[101, 2023, 2003, 1037, 3899],
+    tenant="production_tenant",
+    namespace="chat_disaggregated",
+    model="deepseek-v3-mla",
+    tokens=[101, 2023, 2003, 1037, 3899, 5012],
     descriptor=connector.default_descriptor(),
 )
 
-# 3. 拦截请求生命周期事件
+# 3. 拦截请求 Lifecycle Hook
 decision = interceptor.intercept_hook("request_start", context)
 
 if decision.materialization_result.status == "completed":
-    print("NexusKV 收益计算正向，通过准入！直接绑定缓存 Handle 消耗字节。")
+    print("NexusKV 有效收益 G > 0！绑定缓存的 MLA 隐向量 Handle 消耗。")
 else:
     print("Fail-Open 平滑降级：在毫秒级内自动退回到 GPU 本地 Prefill 重算。")
+
+# 4. Prefill-Decode (PD) 分离握手
+pd_context = PDDisaggregateContext(
+    tenant="production_tenant",
+    namespace="chat_disaggregated",
+    model="deepseek-v3-mla",
+    tokens=context.tokens,
+    descriptor=context.descriptor,
+    prefill_worker_id="prefill-gpu-node-01",
+    decode_worker_id="decode-gpu-node-04",
+)
+pd_decision = connector.on_pd_disaggregate_handshake(pd_context, interceptor.planner)
 ```
 
-### 2. 一键运行基准测试与长压套件
+### 2. 动态硬件 Cost 调优器与 RDMA 驱动注册
 
-使用单条命令一键运行策略收益对比评估与 7x24 内存泄漏检测：
+```python
+from nexuskv.planner.autotune import DynamicCostProfiler
+from nexuskv.execution.native_transport import MooncakeTransferEngineAdapter, NIXLDriverAdapter
+from nexuskv.contracts.generated import TierKind
+
+# 网络带宽与 GPU Prefill token 处理速度的实时自适应调优
+profiler = DynamicCostProfiler()
+profiler.record_prefill_sample(token_count=1000, duration_sec=0.001)  # 1us / token
+profiler.record_bandwidth_sample(TierKind.HOST_DRAM, payload_bytes=1000000, duration_sec=0.0001)
+
+# 注册物理 RDMA 内存池 (Mooncake Transfer Engine / NIXL)
+mooncake = MooncakeTransferEngineAdapter()
+reg = mooncake.register_rdma_pool(pool_id="pool_01", base_addr=0x7FFF0000, size_bytes=1048576)
+print(f"已注册物理 RDMA 内存池 Handle: {reg.handle_id}, 状态: {reg.is_registered}")
+```
+
+### 3. 一键运行基准测试与长压套件
 
 ```bash
 python3 tools/run_benchmarks.py
@@ -117,14 +160,14 @@ python3 tools/run_benchmarks.py
 
 ## 🛠 构建与测试指南
 
-### Go 控制面测试
+### 1. Go 控制面测试
 
 ```bash
 GOTOOLCHAIN=go1.25.9 go test ./...
 cd go && GOTOOLCHAIN=go1.25.9 go test ./...
 ```
 
-### Rust 数据面 Workspace 检查与测试
+### 2. Rust 数据引擎 Workspace
 
 ```bash
 cd rust
@@ -133,15 +176,15 @@ cargo clippy --workspace --all-targets --locked -- -D warnings
 cargo test --workspace --locked
 ```
 
-### Python 套件与 Native PyO3 C++ 扩展构建
+### 3. Python 套件 (68+ 测试用例) 与 PyO3 Native 扩展构建
 
 ```bash
-# 编译构建 PyO3 Native 扩展模块
+# 编译构建 PyO3 Native 扩展
 cd rust
 cargo rustc -p bindings-py --crate-type cdylib
 cd ..
 
-# 运行 Python 全套单元测试 (65+ 测试用例)
+# 运行 Python 全套单元测试 (68+ 测试用例)
 PYTHONPATH=python python3 -m unittest discover -s python/tests -p "test_*.py"
 ```
 
