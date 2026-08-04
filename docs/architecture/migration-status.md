@@ -186,3 +186,17 @@ Completed:
 - added Go control-plane fabric package (`go/controlplane/fabric/fabric.go`) with thread-safe `LeaseManager`, `EpochTracker`, and `GarbageCollector`
 - added Python tenant security authorizer (`python/nexuskv/security/tenant.py`) with tenant authorization checks and HMAC-SHA256 keyed hash computation for cache key isolation
 
+## PR 17: Native Zero-Copy & Pinned Memory Transport Manager
+
+Completed:
+
+- added `NativePinnedMemoryHandle` and `ZeroCopyRegistration` structs to `rust/crates/nexus-transfer`
+- added `NativeTransportManager` (`python/nexuskv/execution/native_transport.py`) for zero-copy handle registrations and Host DRAM pinned memory management
+
+## PR 18: Native Engine Hook Interceptor & Cluster Stress Suite
+
+Completed:
+
+- added `NativeEngineHookInterceptor` (`python/nexuskv/connectors/native_hooks.py`) providing sub-millisecond fail-open fallback guarantees
+- added `ClusterStressTestRunner` (`python/nexuskv/benchmarks/stress.py`) for high-concurrency stress testing and RSS memory leak detection
+

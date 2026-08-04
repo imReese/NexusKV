@@ -208,3 +208,39 @@ pub trait KvCacheMemoryProvider {
 
     fn transferable_kv_cache_memory(&self) -> Result<TransferableKvCacheMemory, Self::Error>;
 }
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct NativePinnedMemoryHandle {
+    pub ptr: usize,
+    pub size_bytes: usize,
+    pub is_pinned: bool,
+}
+
+impl NativePinnedMemoryHandle {
+    pub fn new(ptr: usize, size_bytes: usize) -> Self {
+        Self {
+            ptr,
+            size_bytes,
+            is_pinned: true,
+        }
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ZeroCopyRegistration {
+    pub handle_id: String,
+    pub base_addr: usize,
+    pub size_bytes: usize,
+    pub is_registered: bool,
+}
+
+impl ZeroCopyRegistration {
+    pub fn register(handle_id: String, base_addr: usize, size_bytes: usize) -> Self {
+        Self {
+            handle_id,
+            base_addr,
+            size_bytes,
+            is_registered: true,
+        }
+    }
+}
