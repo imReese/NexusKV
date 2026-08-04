@@ -108,3 +108,59 @@ class NIXLDriverAdapter:
             base_addr=base_addr,
             size_bytes=size_bytes,
         )
+
+
+@dataclass(slots=True)
+class CudaIpcHandleAdapter:
+    """Adapter for NVIDIA CUDA IPC (Inter-Process Communication) and UVA (Unified Virtual Addressing)."""
+
+    manager: NativeTransportManager = field(default_factory=NativeTransportManager)
+
+    def register_cuda_ipc_handle(self, handle_id: str, ipc_bytes: bytes, uva_ptr: int, size_bytes: int) -> ZeroCopyRegistration:
+        return self.manager.register_zero_copy_region(
+            handle_id=f"cuda_ipc_{handle_id}",
+            base_addr=uva_ptr,
+            size_bytes=size_bytes,
+        )
+
+
+@dataclass(slots=True)
+class AmdRocmHipIpcAdapter:
+    """Adapter for AMD ROCm HIP IPC & HSA Unified Memory."""
+
+    manager: NativeTransportManager = field(default_factory=NativeTransportManager)
+
+    def register_hip_ipc_handle(self, handle_id: str, hip_ptr: int, size_bytes: int) -> ZeroCopyRegistration:
+        return self.manager.register_zero_copy_region(
+            handle_id=f"hip_ipc_{handle_id}",
+            base_addr=hip_ptr,
+            size_bytes=size_bytes,
+        )
+
+
+@dataclass(slots=True)
+class GoogleTpuXlaAdapter:
+    """Adapter for Google TPU XLA Paged Buffer Handle."""
+
+    manager: NativeTransportManager = field(default_factory=NativeTransportManager)
+
+    def register_tpu_buffer(self, buffer_id: str, tpu_ptr: int, size_bytes: int) -> ZeroCopyRegistration:
+        return self.manager.register_zero_copy_region(
+            handle_id=f"tpu_xla_{buffer_id}",
+            base_addr=tpu_ptr,
+            size_bytes=size_bytes,
+        )
+
+
+@dataclass(slots=True)
+class HuaweiAscendCannAdapter:
+    """Adapter for Huawei Ascend 910B/C CANN ACL IPC Handle."""
+
+    manager: NativeTransportManager = field(default_factory=NativeTransportManager)
+
+    def register_ascend_ipc_handle(self, handle_id: str, acl_ptr: int, size_bytes: int) -> ZeroCopyRegistration:
+        return self.manager.register_zero_copy_region(
+            handle_id=f"ascend_cann_{handle_id}",
+            base_addr=acl_ptr,
+            size_bytes=size_bytes,
+        )

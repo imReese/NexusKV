@@ -20,14 +20,29 @@ class TestCostAutotune(unittest.TestCase):
         bw = profiler.get_current_bandwidth(TierKind.HOST_DRAM)
         self.assertGreater(bw, 1.0e8)
 
-    def test_rdma_driver_adapters(self):
-        mooncake = MooncakeTransferEngineAdapter()
-        reg_mc = mooncake.register_rdma_pool(pool_id="p1", base_addr=0x1000, size_bytes=2048)
-        self.assertTrue(reg_mc.is_registered)
+    def test_multi_backend_hardware_adapters(self):
+        from nexuskv.execution.native_transport import (
+            CudaIpcHandleAdapter,
+            AmdRocmHipIpcAdapter,
+            GoogleTpuXlaAdapter,
+            HuaweiAscendCannAdapter,
+        )
 
-        nixl = NIXLDriverAdapter()
-        reg_nixl = nixl.register_nvlink_region(region_id="r1", base_addr=0x2000, size_bytes=4096)
-        self.assertTrue(reg_nixl.is_registered)
+        cuda_adapter = CudaIpcHandleAdapter()
+        reg_cuda = cuda_adapter.register_cuda_ipc_handle("h1", b"ipc_handle", uva_ptr=0x7FFF0000, size_bytes=4096)
+        self.assertTrue(reg_cuda.is_registered)
+
+        amd_adapter = AmdRocmHipIpcAdapter()
+        reg_amd = amd_adapter.register_hip_ipc_handle("h1", hip_ptr=0x7FFF1000, size_bytes=4096)
+        self.assertTrue(reg_amd.is_registered)
+
+        tpu_adapter = GoogleTpuXlaAdapter()
+        reg_tpu = tpu_adapter.register_tpu_buffer("b1", tpu_ptr=0x7FFF2000, size_bytes=4096)
+        self.assertTrue(reg_tpu.is_registered)
+
+        ascend_adapter = HuaweiAscendCannAdapter()
+        reg_ascend = ascend_adapter.register_ascend_ipc_handle("h1", acl_ptr=0x7FFF3000, size_bytes=4096)
+        self.assertTrue(reg_ascend.is_registered)
 
 
 if __name__ == "__main__":
