@@ -5,6 +5,8 @@ use std::error::Error;
 use std::fmt::{Display, Formatter};
 use std::hash::{Hash, Hasher};
 
+pub mod hbm;
+
 use nexus_state::EntryIdentity;
 
 #[derive(Clone, Debug, Eq, PartialEq)]

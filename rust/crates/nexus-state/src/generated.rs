@@ -20,6 +20,9 @@ pub enum StateSemanticType {
     MlaState,
     DsaState,
     KdaCheckpoint,
+    CsaState,
+    HcaSummary,
+    DsparkSparse,
     GenericContainer,
 }
 

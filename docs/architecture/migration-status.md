@@ -206,10 +206,12 @@ Completed:
 
 - added `PDDisaggregateContext` and `on_pd_disaggregate_handshake` lifecycle hook method to `EngineConnector` in `python/nexuskv/connectors/base.py`
 
-## PR 20: Dynamic Hardware Cost Profiler & RDMA Driver Interfaces
+## PR 21: GPU HBM Allocator & DeepSeek V4 / Kimi K3 / DSpark State Taxonomy
 
 Completed:
 
-- added `DynamicCostProfiler` (`python/nexuskv/planner/autotune.py`) for real-time network and GPU prefill latency feedback
-- added `MooncakeTransferEngineAdapter` and `NIXLDriverAdapter` in `python/nexuskv/execution/native_transport.py` for physical RDMA memory pool registration
+- added `HbmBlockAllocator` in Rust (`rust/crates/nexus-store/src/hbm.rs`) and Python (`python/nexuskv/execution/hbm.py`) for GPU HBM paged memory pool management and Pin/Unpin offloading
+- expanded `StateSemanticType` schema with `CSA_STATE`, `HCA_SUMMARY`, and `DSPARK_SPARSE`
+- added `create_csa_descriptor`, `create_hca_descriptor`, and `create_dspark_descriptor` in `python/nexuskv/adapters/state.py`
+- added `K3CascadeMountEngine` in `python/nexuskv/execution/k3_cascade.py` for Kimi K3 recurrent checkpoint HBM mounting and history cascading
 

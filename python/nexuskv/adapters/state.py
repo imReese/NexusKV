@@ -125,6 +125,82 @@ def create_kda_descriptor(descriptor_id: str, engine_family: EngineFamily = Engi
     )
 
 
+def create_csa_descriptor(descriptor_id: str, engine_family: EngineFamily = EngineFamily.VLLM) -> AttentionStateDescriptor:
+    """DeepSeek V4 Compressed Sparse Attention (CSA) descriptor (4-token group FP4 Top-K)."""
+    return AttentionStateDescriptor(
+        schema_version=SCHEMA_VERSION,
+        descriptor_id=descriptor_id,
+        engine_family=engine_family,
+        semantic_type=StateSemanticType.CSA_STATE,
+        granularity=Granularity.BLOCK,
+        tensor_specs=[
+            TensorSpec(name="csa_compressed_kv", role=TensorRole.LATENT, dtype="fp4", shape=["num_layers", "blocks", "dim"]),
+            TensorSpec(name="csa_topk_indices", role=TensorRole.AUXILIARY, dtype="int32", shape=["num_layers", "topk"]),
+        ],
+        quantization=QuantizationMetadata(scheme="fp4", bits=4, group_size=4),
+        layout=LayoutMetadata(layout="csa_4token_sparse", page_tokens=0, block_tokens=4, packed=True),
+        compatibility_flags=[CompatibilityFlag.EXACT_REUSE, CompatibilityFlag.PREFIX_REUSE, CompatibilityFlag.BLOCK_REUSE],
+        transfer_paths=[TransferPath(backend=TransferBackend.ZERO_COPY, capabilities=[TransferCapability.ASYNC, TransferCapability.ZERO_COPY_CANDIDATE])],
+        materialization=MaterializationProfile(
+            capabilities=[MaterializationCapability.FULL, MaterializationCapability.PARTIAL, MaterializationCapability.FALLBACK_RECOMPUTE],
+            tier_kinds=[TierKind.DEVICE, TierKind.HOST_DRAM],
+            device_classes=[DeviceClass.CUDA],
+            buffer_kinds=[BufferKind.DEVICE, BufferKind.HOST_PINNED],
+        ),
+        layout_metadata={"attention_family": "CSA", "group_tokens": 4},
+    )
+
+
+def create_hca_descriptor(descriptor_id: str, engine_family: EngineFamily = EngineFamily.VLLM) -> AttentionStateDescriptor:
+    """DeepSeek V4 Heavily Compressed Attention (HCA) 128-token global summary descriptor."""
+    return AttentionStateDescriptor(
+        schema_version=SCHEMA_VERSION,
+        descriptor_id=descriptor_id,
+        engine_family=engine_family,
+        semantic_type=StateSemanticType.HCA_SUMMARY,
+        granularity=Granularity.SEGMENT,
+        tensor_specs=[
+            TensorSpec(name="hca_summary_vec", role=TensorRole.LATENT, dtype="float16", shape=["num_layers", "summary_dim"]),
+        ],
+        quantization=QuantizationMetadata(scheme="none", bits=16, group_size=0),
+        layout=LayoutMetadata(layout="hca_128token_summary", page_tokens=0, block_tokens=128, packed=True),
+        compatibility_flags=[CompatibilityFlag.EXACT_REUSE, CompatibilityFlag.PREFIX_REUSE, CompatibilityFlag.WARM_START],
+        transfer_paths=[TransferPath(backend=TransferBackend.ZERO_COPY, capabilities=[TransferCapability.ASYNC])],
+        materialization=MaterializationProfile(
+            capabilities=[MaterializationCapability.FULL, MaterializationCapability.FALLBACK_RECOMPUTE],
+            tier_kinds=[TierKind.DEVICE, TierKind.HOST_DRAM],
+            device_classes=[DeviceClass.CUDA],
+            buffer_kinds=[BufferKind.DEVICE, BufferKind.HOST_PINNED],
+        ),
+        layout_metadata={"attention_family": "HCA", "summary_tokens": 128},
+    )
+
+
+def create_dspark_descriptor(descriptor_id: str, engine_family: EngineFamily = EngineFamily.SGLANG) -> AttentionStateDescriptor:
+    """Distributed Spark Attention (DSpark) sparse sharded descriptor."""
+    return AttentionStateDescriptor(
+        schema_version=SCHEMA_VERSION,
+        descriptor_id=descriptor_id,
+        engine_family=engine_family,
+        semantic_type=StateSemanticType.DSPARK_SPARSE,
+        granularity=Granularity.PAGE,
+        tensor_specs=[
+            TensorSpec(name="spark_shards", role=TensorRole.KEY, dtype="float16", shape=["num_shards", "page_tokens", "dim"]),
+        ],
+        quantization=QuantizationMetadata(scheme="none", bits=16, group_size=0),
+        layout=LayoutMetadata(layout="dspark_sharded_page", page_tokens=16, block_tokens=16, packed=False),
+        compatibility_flags=[CompatibilityFlag.PAGE_REUSE, CompatibilityFlag.PREFIX_REUSE],
+        transfer_paths=[TransferPath(backend=TransferBackend.RDMA, capabilities=[TransferCapability.ASYNC])],
+        materialization=MaterializationProfile(
+            capabilities=[MaterializationCapability.FULL, MaterializationCapability.PARTIAL, MaterializationCapability.FALLBACK_RECOMPUTE],
+            tier_kinds=[TierKind.DEVICE, TierKind.HOST_DRAM, TierKind.REMOTE_SHARED],
+            device_classes=[DeviceClass.CUDA],
+            buffer_kinds=[BufferKind.DEVICE, BufferKind.HOST_PINNED, BufferKind.REMOTE],
+        ),
+        layout_metadata={"attention_family": "DSPARK", "sharded": True},
+    )
+
+
 __all__ = [
     "AttentionStateDescriptor",
     "BufferKind",
@@ -145,6 +221,12 @@ __all__ = [
     "TransferBackend",
     "TransferCapability",
     "TransferPath",
+    "create_csa_descriptor",
+    "create_dsa_descriptor",
+    "create_dspark_descriptor",
+    "create_hca_descriptor",
+    "create_kda_descriptor",
+    "create_mla_descriptor",
     "supports_partial_materialization",
     "validate_descriptor",
 ]

@@ -17,6 +17,9 @@ class StateSemanticType(StrEnum):
     MLA_STATE = "mla_state"
     DSA_STATE = "dsa_state"
     KDA_CHECKPOINT = "kda_checkpoint"
+    CSA_STATE = "csa_state"
+    HCA_SUMMARY = "hca_summary"
+    DSPARK_SPARSE = "dspark_sparse"
     GENERIC_CONTAINER = "generic_container"
 
 class TensorRole(StrEnum):

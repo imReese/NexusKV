@@ -93,12 +93,22 @@ claims. Current evidence is tracked in
 
 ## Phase 6 (v1.3): PD Disaggregation & Dynamic Cost Auto-Tuning
 
-**Status:** Current development direction.
+**Status:** Completed.
 
 ### Goals
 
 - Implement `pd_disaggregate_handshake` lifecycle hook for Prefill-to-Decode disaggregation.
 - Implement `DynamicCostProfiler` auto-tuning feedback for live network and GPU latency.
+
+## Phase 7 (v2.0): HBM Direct Allocation & DeepSeek V4 / Kimi K3 / DSpark State Taxonomy
+
+**Status:** Current development direction.
+
+### Goals
+
+- Implement `HbmBlockAllocator` in Rust & Python for direct GPU HBM paged block allocation and pin/unpin lifecycle management.
+- Extend State Contract with `CSA_STATE` (DeepSeek V4 4-token FP4 Top-K), `HCA_SUMMARY` (128-token global summary), and `DSPARK_SPARSE` (DSpark sharded sparse).
+- Implement `K3CascadeMountEngine` for Kimi KDA/K3 terminal checkpoint constant residence and instant history cascading.
 
 ## Development Gate
 
