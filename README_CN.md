@@ -18,25 +18,25 @@
 
 ## 💡 什么是 NexusKV？
 
-**NexusKV** 是专为生产级大语言模型推理平台（如 **vLLM V1 引擎** 与 **SGLang**）设计的下一代**模型状态智能层（Model State Intelligence Layer）**。
+**NexusKV** 是专为前沿大语言模型推理平台（原生支持 **vLLM V2 引擎 (Model Runner V2 / Workflow Defined Engine)** 与 **SGLang (Unified Radix Cache / HiCache)**）设计的下一代**模型状态智能层（Model State Intelligence Layer）**。
 
-随着 LLM 推理全面迈向 **Prefill-Decode (PD) 分离架构**、**HiCache 多级存储卸载** 以及 **DeepSeek MLA / DSA 新型 Attention**，传统将 KV Cache 视为盲目命中驱动（Hit-Driven）的存储方案暴露出了严重的缺陷：**网络传输导致 TTFT 恶化、内存碎片化以及缺乏物理算力感知**。
+随着 LLM 推理全面迈向 **Prefill-Decode (PD) 分离架构**、**Sliding Window Attention (SWA)**、**Mamba 状态卸载** 以及 **DeepSeek MLA / DSA 新型 Attention**，传统将 KV Cache 视为盲目命中驱动（Hit-Driven）的存储方案暴露出了严重的缺陷：**网络传输导致 TTFT 恶化、内存碎片化以及缺乏物理算力感知**。
 
-NexusKV 通过解耦 **Go 分布式控制面**、**Rust 数据与 Radix 匹配引擎** 以及 **Python 引擎 FFI 拦截器** 解决了这一难题。它提供了基于 **有效收益评估方程 ($G = T_{compute} - T_{cache} > 0$)** 的智能决策引擎，支持 **Quota 主动反压**，并提供 **<1ms 极速 Fail-Open 平滑降级保障**。
+NexusKV 通过解耦 **Go 分布式控制面 (LeaseManager / EpochTracker)**、**Rust 数据与 Radix 匹配引擎 (`nxradixtree-core` / `nexus-store`)** 以及 **Python 引擎 FFI 拦截器 (`NativeEngineHookInterceptor`)** 解决了这一难题。它提供了基于 **有效收益评估方程 ($G = T_{compute} - T_{cache} > 0$)** 的智能决策引擎，支持 **Quota 主动反压**，并提供 **<1ms 极速 Fail-Open 平滑降级保障**。
 
 ---
 
-## ⚡ 技术对比：NexusKV vs. 推理引擎原生 Cache 及传输框架
+## ⚡ 技术对比：NexusKV vs. 最新推理引擎 Cache 体系
 
-| 架构维度 | 原生 Prefix Caching (vLLM / SGLang Radix) | HiCache & LMCache (多级缓存) | Mooncake Store & NIXL (传输/存储底层) | **NexusKV (模型状态智能层)** |
+| 架构维度 | 原生 Prefix Caching (vLLM V2 / SGLang Unified Radix) | HiCache & LMCache (多级缓存) | Mooncake Store & NIXL (传输/存储底层) | **NexusKV (模型状态智能层)** |
 | :--- | :--- | :--- | :--- | :--- |
-| **核心关注点** | GPU HBM 前缀树复用 | HBM → DRAM → Disk 卸载 | RDMA / NVLink 高速传输 | **成本收益智能决策与状态控制解耦** |
+| **引擎目标** | vLLM V2 MRV2 / SGLang UnifiedRadix | 引擎 Sidecar 进程 | RDMA / NVLink 驱动 | **解耦的分布式控制与智能决策平台** |
 | **缓存复用策略** | 本地盲目命中驱动 | 本地盲目命中驱动 | 存储块拉取 | **基于有效收益评估 ($G = T_{compute} - T_{cache} > 0$)** |
 | **PD 分离握手** | 引擎进程间 IPC | 块级别传输 | 裸 RDMA 内存拷贝 | **`pd_disaggregate_handshake` 与动态 Cost 调优** |
-| **Attention 体系** | 标准 MHA / Paged KV | 标准 MHA / Paged KV | 裸 Tensor Blobs | **原生支持 MLA ($c_t^{KV} + k_t^R$)、DSA 稀疏区及 KDA Checkpoint** |
+| **Attention 体系** | Paged KV / Mamba States | 标准 MHA / Paged KV | 裸 Tensor Blobs | **原生支持 MLA ($c_t^{KV} + k_t^R$)、DSA 稀疏区及 KDA Checkpoint** |
 | **系统过载表现** | 被动驱逐本地块 | 被动驱逐本地块 | 网络队列阻塞 | **`QuotaTracker` 活页内存与并发主动反压** |
 | **系统韧性保障** | I/O 导致引擎挂起 | I/O 阻塞风险 | 传输挂起风险 | **<1ms Fail-Open 降级保障（毫秒级退回到 GPU 重算）** |
-| **系统架构解耦** | 嵌入在 Worker 进程 | Python Sidecar | C++ 传输驱动 | **解耦 Go 控制面 + Rust 数据引擎 + Python FFI** |
+| **系统架构解耦** | 嵌入在 Worker 进程 | Python Sidecar | C++ 传输驱动 | **Go 控制面 + Rust 数据引擎 + Python FFI** |
 
 ---
 
@@ -44,7 +44,7 @@ NexusKV 通过解耦 **Go 分布式控制面**、**Rust 数据与 Radix 匹配�
 
 ```text
  ┌─────────────────────────────────────────────────────────────────────────────┐
- │       vLLM V1 Engine (KVConnectorBase_V1) / SGLang Engine (RadixAttention) │
+ │       vLLM V2 Engine (Workflow Defined Engine) / SGLang (UnifiedRadixCache)│
  └──────────────────────────────────────┬──────────────────────────────────────┘
                                         │ Native Fast FFI Interceptor (<1ms 保障)
                                         ▼
@@ -81,7 +81,7 @@ NexusKV 引入了统一的 **Attention State Taxonomy（状态描述符体系）
    - 压缩隐向量张量 ($c_t^{KV} \in \mathbb{R}^{d_{c}}$)；
    - 解耦的 RoPE 位置编码张量 ($k_t^R \in \mathbb{R}^{d_R}$)。
 3. **DeepSeek DSA (DeepSeek Sparse Attention)**：
-   - Query 相关的稀疏选择区域；
+   - Query 相关的稀疏选择区域 (`dsa` backend)；
    - Selector 索引辅助元数据 ($top\_k$ 路由表)。
 4. **Kimi KDA (Kimi Delta Attention)**：
    - Recurrent 终端状态 Checkpoint ($h_t$)；
@@ -91,14 +91,14 @@ NexusKV 引入了统一的 **Attention State Taxonomy（状态描述符体系）
 
 ## ⚡ 集成与代码示例
 
-### 1. 与 vLLM V1 引擎及 SGLang 的集成
+### 1. 与 vLLM V2 引擎及 SGLang Unified Radix Cache 的集成
 
 ```python
 from nexuskv.connectors.vllm.connector import VLLMConnector
 from nexuskv.connectors.native_hooks import NativeEngineHookInterceptor
 from nexuskv.connectors.base import VLLMLifecycleContext, PDDisaggregateContext
 
-# 1. 初始化 Connector 与 <1ms Fail-Open 强保障拦截器
+# 1. 初始化 vLLM V2 / SGLang Connector 与 <1ms Fail-Open 强保障拦截器
 connector = VLLMConnector()
 interceptor = NativeEngineHookInterceptor(connector=connector)
 

@@ -18,25 +18,25 @@
 
 ## 💡 What is NexusKV?
 
-**NexusKV** is a next-generation **Model State Intelligence Layer** designed for production LLM inference platforms (such as **vLLM V1 Engine** and **SGLang**).
+**NexusKV** is a next-generation **Model State Intelligence Layer** designed for cutting-edge LLM inference platforms (supporting **vLLM V2 Engine (Model Runner V2 / Workflow Defined Engine)** and **SGLang (Unified Radix Cache / HiCache)**).
 
-As inference serving moves toward **Prefill-Decode (PD) Disaggregation**, **HiCache Multi-Tier Offloading**, and **DeepSeek MLA/DSA Architectures**, traditional KV caches treat cached tensors as monolithic, hit-driven storage blobs. This leads to **network transfer stalls, TTFT regressions, and memory fragmentation**.
+As LLM inference scales into **Prefill-Decode (PD) Disaggregation**, **Sliding Window Attention (SWA)**, **Mamba State Offloading**, and **DeepSeek MLA/DSA Architectures**, traditional KV cache management relies on local, hit-driven block eviction. This results in **network transfer stalls, TTFT regressions, and memory fragmentation**.
 
-NexusKV solves this by decoupling the **Go Distributed Control Plane**, **Rust Data & Radix Matching Engine**, and **Python Engine FFI Interceptors**. It provides an intelligent decision engine that calculates **Cost-Based Effective Gain** ($G = T_{compute} - T_{cache} > 0$), enforces **Quota Backpressure**, and guarantees a **Sub-millisecond Fail-Open Fallback (<1ms)** to local GPU prefill computation.
+NexusKV addresses this by decoupling the **Go Distributed Control Plane (LeaseManager / EpochTracker)**, **Rust Data & Radix Matching Engine (`nxradixtree-core` / `nexus-store`)**, and **Python Engine FFI Interceptors (`NativeEngineHookInterceptor`)**. It provides an intelligent decision engine that calculates **Cost-Based Effective Gain** ($G = T_{compute} - T_{cache} > 0$), enforces **Quota Backpressure**, and guarantees a **Sub-millisecond Fail-Open Fallback (<1ms)** to local GPU prefill computation.
 
 ---
 
-## ⚡ Technical Comparison: NexusKV vs. Native Engine Caching & Transfer Frameworks
+## ⚡ Technical Comparison: NexusKV vs. Latest Native Engine Caches
 
-| Architecture Feature | Native Prefix Caching (vLLM / SGLang Radix) | HiCache & LMCache (Multi-Tier Cache) | Mooncake Store & NIXL (Raw Transfer / Storage) | **NexusKV (Model State Intelligence Layer)** |
+| Architecture Dimension | Native Prefix Caching (vLLM V2 / SGLang Unified Radix) | HiCache & LMCache (Multi-Tier Cache) | Mooncake Store & NIXL (Raw Transfer / Storage) | **NexusKV (Model State Intelligence Layer)** |
 | :--- | :--- | :--- | :--- | :--- |
-| **Primary Focus** | In-GPU HBM Trie Reuse | HBM → DRAM → Disk Offload | RDMA / NVLink High-Speed Transport | **Cost-Based Intelligence & Decoupled State Control** |
+| **Engine Target** | vLLM V2 MRV2 / SGLang UnifiedRadix | Engine Multiprocess Sidecar | RDMA / NVLink Driver | **Decoupled Control & Intelligence Platform** |
 | **Cache Reuse Strategy** | Local Hit-Driven | Local Hit-Driven | Storage Block Pull | **Effective Gain Equation ($G = T_{compute} - T_{cache} > 0$)** |
-| **Disaggregated PD Handshake** | Handled by Engine IPC | Block-Based Transfer | Raw RDMA Buffer Copy | **`pd_disaggregate_handshake` with Dynamic Cost Profiling** |
-| **Attention Taxonomy** | Standard MHA / Paged KV | Standard MHA / Paged KV | Raw Tensor Blobs | **Native MLA ($c_t^{KV} + k_t^R$), DSA (Sparse Regions), KDA Checkpoints** |
+| **PD Disaggregation Handshake** | Engine-level IPC Handshake | Block-Based Transfer | Raw RDMA Memory Copy | **`pd_disaggregate_handshake` with Dynamic Cost Profiling** |
+| **Model State Taxonomy** | Paged KV / Mamba States | Standard MHA / Paged KV | Raw Tensor Blobs | **Native Support for MHA, DeepSeek MLA, DSA & Kimi KDA** |
 | **Overloaded System Behavior** | Evicts Local Blocks | Evicts Local Blocks | Network Queue Stalls | **Quota Admission Tracker & Active Memory Backpressure** |
-| **Fault Resilience** | Engine Stalls on I/O | Risk of I/O Stalls | Risk of Transport Hangs | **Sub-millisecond Fail-Open Guarantee (<1ms Fallback to Prefill)** |
-| **Architecture Footprint** | Embedded in Worker | Python Sidecar | C++ Transport Driver | **Decoupled Go Control Plane + Rust Radix Engine + Python FFI** |
+| **Execution Resilience** | Risk of I/O Stalls | Risk of I/O Stalls | Risk of Transport Hangs | **Sub-millisecond Fail-Open Guarantee (<1ms Fallback to Prefill)** |
+| **Decoupled Stack** | Embedded in Worker | Python Sidecar | C++ Transport Driver | **Go Control Plane + Rust Radix Engine + Python FFI** |
 
 ---
 
@@ -44,7 +44,7 @@ NexusKV solves this by decoupling the **Go Distributed Control Plane**, **Rust D
 
 ```text
  ┌─────────────────────────────────────────────────────────────────────────────┐
- │            vLLM V1 Engine (KVConnectorBase_V1) / SGLang (RadixAttention)   │
+ │       vLLM V2 Engine (Workflow Defined Engine) / SGLang (UnifiedRadixCache)│
  └──────────────────────────────────────┬──────────────────────────────────────┘
                                         │ Native Fast FFI Interceptor (<1ms Guarantee)
                                         ▼
@@ -74,14 +74,14 @@ NexusKV solves this by decoupling the **Go Distributed Control Plane**, **Rust D
 
 ## 🚀 Model State Taxonomy: Beyond Standard KV Cache
 
-NexusKV introduces a unified **Attention State Taxonomy** that understands the mathematical and physical structure of next-generation attention mechanisms:
+NexusKV introduces a unified **Attention State Taxonomy** designed to parse the physical and mathematical structure of modern attention mechanisms:
 
 1. **MHA / GQA / MQA**: Standard contiguous or page-aligned key/value tensor caches.
 2. **DeepSeek MLA (Multi-Head Latent Attention)**:
    - Compressed Latent KV Tensors ($c_t^{KV} \in \mathbb{R}^{d_{c}}$).
    - Decoupled Positional RoPE Tensors ($k_t^R \in \mathbb{R}^{d_R}$).
 3. **DeepSeek DSA (DeepSeek Sparse Attention)**:
-   - Query-dependent sparse selection regions.
+   - Query-dependent sparse selection regions (`dsa` backend).
    - Selector index auxiliary metadata ($top\_k$ routing tables).
 4. **Kimi KDA (Kimi Delta Attention)**:
    - Recurrent terminal state checkpoints ($h_t$).
@@ -91,14 +91,14 @@ NexusKV introduces a unified **Attention State Taxonomy** that understands the m
 
 ## ⚡ Integration Examples
 
-### 1. Integration with vLLM V1 Engine & SGLang
+### 1. Integration with vLLM V2 Engine & SGLang Unified Radix Cache
 
 ```python
 from nexuskv.connectors.vllm.connector import VLLMConnector
 from nexuskv.connectors.native_hooks import NativeEngineHookInterceptor
 from nexuskv.connectors.base import VLLMLifecycleContext, PDDisaggregateContext
 
-# 1. Initialize vLLM V1 Connector & Native Hook Interceptor (<1ms Guarantee)
+# 1. Initialize vLLM V2 / SGLang Connector & Native Hook Interceptor (<1ms Guarantee)
 connector = VLLMConnector()
 interceptor = NativeEngineHookInterceptor(connector=connector)
 
