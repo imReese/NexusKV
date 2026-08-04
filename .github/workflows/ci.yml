@@ -1,0 +1,85 @@
+name: NexusKV Unified CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  rust-ci:
+    name: Rust / ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Rust
+        run: rustup toolchain install stable --component clippy,rustfmt
+      - name: Check Formatting
+        working-directory: rust
+        run: cargo fmt --all -- --check
+      - name: Run Clippy
+        working-directory: rust
+        run: cargo clippy --workspace --all-targets --locked -- -D warnings
+      - name: Run Rust Tests
+        working-directory: rust
+        run: cargo test --workspace --locked
+
+  go-ci:
+    name: Go / ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+      - name: Run Root Go Tests
+        run: go test ./...
+      - name: Run Control-Plane Go Tests
+        working-directory: go
+        run: go test ./...
+
+  python-ci:
+    name: Python / ${{ matrix.os }} / Python ${{ matrix.python-version }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        python-version: ['3.11', '3.12']
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Rust Toolchain
+        run: rustup toolchain install stable
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Build PyO3 Native Planner Extension
+        working-directory: rust
+        run: |
+          if [ "${{ runner.os }}" = "macOS" ]; then
+            cargo rustc -p bindings-py --crate-type cdylib -- -C link-arg=-undefined -C link-arg=dynamic_lookup
+            cp target/debug/libnexuskv_planner_native.dylib target/debug/libnexuskv_planner_native.so
+          else
+            cargo rustc -p bindings-py --crate-type cdylib
+          fi
+      - name: Run Contract Codegen Verification
+        run: python3 tools/generate_contracts.py
+      - name: Run Python Test Suite (65+ Tests)
+        run: PYTHONPATH=python python3 -m unittest discover -s python/tests -p "test_*.py"
