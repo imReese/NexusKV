@@ -51,12 +51,18 @@ from nexuskv.execution.types import (
 )
 
 
+from nexuskv.execution.quota import QuotaTracker
+from nexuskv.planner.cost import CostEstimator
+
+
 @dataclass(slots=True)
 class BaselineExecutionRunner:
     backend: ExecutionBackend | None = None
     catalog: BackendCatalog | None = None
     policy: ExecutionPolicy | None = None
     policy_provider: ExecutionPolicyProvider | None = None
+    quota_tracker: QuotaTracker | None = None
+    cost_estimator: CostEstimator | None = None
 
     def execute(self, request: MaterializationRequest) -> MaterializationOutcome:
         self.policy = self._active_policy()
@@ -113,25 +119,41 @@ class BaselineExecutionRunner:
             )
 
         if request.lookup.status == LookupStatus.HIT and request.lookup.match is not None:
+            source = SourceTier(
+                tier=request.lookup.match.entry.location.tier,
+                locator=request.lookup.match.entry.location.locator,
+            )
+            denial_reason = self._check_quota_and_cost(request, source.tier, target)
+            if denial_reason is not None:
+                return self._decision(
+                    self._fallback_disposition(request.context.descriptor, denial_reason, primary=True),
+                    target=target,
+                    fallback_reason=denial_reason,
+                )
             return self._materialize_decision(
                 request,
                 required_capability=MaterializationCapability.FULL,
-                source=SourceTier(
-                    tier=request.lookup.match.entry.location.tier,
-                    locator=request.lookup.match.entry.location.locator,
-                ),
+                source=source,
                 target=target,
                 disposition=ExecutionDisposition.MATERIALIZE,
             )
 
         if request.lookup.status == LookupStatus.PARTIAL and request.lookup.partial_plan is not None:
+            source = SourceTier(
+                tier=request.lookup.partial_plan.entry.location.tier,
+                locator=request.lookup.partial_plan.entry.location.locator,
+            )
+            denial_reason = self._check_quota_and_cost(request, source.tier, target)
+            if denial_reason is not None:
+                return self._decision(
+                    self._fallback_disposition(request.context.descriptor, denial_reason, primary=True),
+                    target=target,
+                    fallback_reason=denial_reason,
+                )
             return self._materialize_decision(
                 request,
                 required_capability=MaterializationCapability.PARTIAL,
-                source=SourceTier(
-                    tier=request.lookup.partial_plan.entry.location.tier,
-                    locator=request.lookup.partial_plan.entry.location.locator,
-                ),
+                source=source,
                 target=target,
                 disposition=ExecutionDisposition.MATERIALIZE,
             )
@@ -170,16 +192,52 @@ class BaselineExecutionRunner:
                 fallback_reason=FallbackReason.UNSUPPORTED_CAPABILITY,
             )
 
+        source = SourceTier(
+            tier=request.lookup.partial_plan.entry.location.tier,
+            locator=request.lookup.partial_plan.entry.location.locator,
+        )
+        denial_reason = self._check_quota_and_cost(request, source.tier, target)
+        if denial_reason is not None:
+            return self._decision(
+                ExecutionDisposition.SKIP,
+                target=target,
+                fallback_reason=denial_reason,
+            )
+
         return self._materialize_decision(
             request,
             required_capability=MaterializationCapability.PREFETCH,
-            source=SourceTier(
-                tier=request.lookup.partial_plan.entry.location.tier,
-                locator=request.lookup.partial_plan.entry.location.locator,
-            ),
+            source=source,
             target=target,
             disposition=ExecutionDisposition.PREFETCH,
         )
+
+    def _check_quota_and_cost(
+        self,
+        request: MaterializationRequest,
+        source_tier: TierKind | None,
+        target_tier: TargetTier,
+    ) -> FallbackReason | None:
+        payload_bytes = self._byte_size_hint(request.context.descriptor.granularity, len(request.context.tokens))
+        if self.quota_tracker is not None and self.policy is not None:
+            allowed, _ = self.quota_tracker.check_admission(
+                self.policy,
+                requested_payload_bytes=payload_bytes,
+            )
+            if not allowed:
+                return FallbackReason.ENGINE_POLICY
+
+        if self.cost_estimator is not None:
+            estimate = self.cost_estimator.estimate(
+                token_count=len(request.context.tokens),
+                payload_bytes=payload_bytes,
+                source_tier=source_tier,
+                target_tier=target_tier.tier,
+                concurrent_transfers=self.quota_tracker.active_transfers if self.quota_tracker else 0,
+            )
+            if not estimate.is_profitable:
+                return FallbackReason.ENGINE_POLICY
+        return None
 
     def _decide_store(self, request: MaterializationRequest) -> MaterializationDecision:
         descriptor = request.context.descriptor

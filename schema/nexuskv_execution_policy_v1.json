@@ -165,7 +165,8 @@
         "mode": {
           "enum": [
             "disabled",
-            "advisory"
+            "advisory",
+            "enforced"
           ]
         },
         "max_payload_bytes": {
@@ -173,6 +174,14 @@
           "minimum": 0
         },
         "max_entries": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "max_concurrent_transfers": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "max_pinned_dram_bytes": {
           "type": "integer",
           "minimum": 0
         }

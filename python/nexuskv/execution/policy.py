@@ -31,6 +31,7 @@ class FallbackBehavior(StrEnum):
 class PlaceholderMode(StrEnum):
     DISABLED = "disabled"
     ADVISORY = "advisory"
+    ENFORCED = "enforced"
 
 
 @dataclass(slots=True)
@@ -53,6 +54,37 @@ class QuotaAdmissionPolicy:
     mode: PlaceholderMode
     max_payload_bytes: int
     max_entries: int
+    max_concurrent_transfers: int = 0
+    max_pinned_dram_bytes: int = 0
+
+    def check_admission(
+        self,
+        payload_bytes: int = 0,
+        current_entries: int = 0,
+        current_transfers: int = 0,
+        current_pinned_bytes: int = 0,
+    ) -> tuple[bool, str | None]:
+        if self.mode == PlaceholderMode.DISABLED:
+            return True, None
+        
+        reasons: list[str] = []
+        if self.max_payload_bytes > 0 and payload_bytes > self.max_payload_bytes:
+            reasons.append(f"payload_bytes ({payload_bytes}) > max_payload_bytes ({self.max_payload_bytes})")
+        if self.max_entries > 0 and current_entries >= self.max_entries:
+            reasons.append(f"current_entries ({current_entries}) >= max_entries ({self.max_entries})")
+        if self.max_concurrent_transfers > 0 and current_transfers >= self.max_concurrent_transfers:
+            reasons.append(f"current_transfers ({current_transfers}) >= max_concurrent_transfers ({self.max_concurrent_transfers})")
+        if self.max_pinned_dram_bytes > 0 and current_pinned_bytes >= self.max_pinned_dram_bytes:
+            reasons.append(f"current_pinned_bytes ({current_pinned_bytes}) >= max_pinned_dram_bytes ({self.max_pinned_dram_bytes})")
+        
+        if reasons:
+            detail = "; ".join(reasons)
+            if self.mode == PlaceholderMode.ENFORCED:
+                return False, detail
+            # Advisory mode allows but logs/notes detail
+            return True, f"advisory quota limit reached: {detail}"
+        
+        return True, None
 
 
 @dataclass(slots=True)
@@ -203,6 +235,8 @@ class ExecutionPolicy:
                 mode=PlaceholderMode(data["quota_admission_policy"]["mode"]),
                 max_payload_bytes=int(data["quota_admission_policy"]["max_payload_bytes"]),
                 max_entries=int(data["quota_admission_policy"]["max_entries"]),
+                max_concurrent_transfers=int(data["quota_admission_policy"].get("max_concurrent_transfers", 0)),
+                max_pinned_dram_bytes=int(data["quota_admission_policy"].get("max_pinned_dram_bytes", 0)),
             ),
             backend_overlays={
                 TransferBackend(name): BackendCapabilityOverlay(
@@ -262,6 +296,8 @@ class ExecutionPolicy:
                 "mode": self.quota_admission_policy.mode.value,
                 "max_payload_bytes": self.quota_admission_policy.max_payload_bytes,
                 "max_entries": self.quota_admission_policy.max_entries,
+                "max_concurrent_transfers": self.quota_admission_policy.max_concurrent_transfers,
+                "max_pinned_dram_bytes": self.quota_admission_policy.max_pinned_dram_bytes,
             },
             "backend_overlays": {
                 backend.value: {
@@ -300,6 +336,10 @@ class ExecutionPolicy:
             raise ValueError("quota_admission_policy.max_payload_bytes must be >= 0")
         if self.quota_admission_policy.max_entries < 0:
             raise ValueError("quota_admission_policy.max_entries must be >= 0")
+        if self.quota_admission_policy.max_concurrent_transfers < 0:
+            raise ValueError("quota_admission_policy.max_concurrent_transfers must be >= 0")
+        if self.quota_admission_policy.max_pinned_dram_bytes < 0:
+            raise ValueError("quota_admission_policy.max_pinned_dram_bytes must be >= 0")
         for backend, overlay in self.backend_overlays.items():
             if overlay.priority_override is not None and overlay.priority_override < 0:
                 raise ValueError(f"backend_overlays.{backend.value}.priority_override must be >= 0")

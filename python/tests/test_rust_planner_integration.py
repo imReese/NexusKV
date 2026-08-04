@@ -20,7 +20,7 @@ class RustPlannerIntegrationTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         subprocess.run(
-            ["cargo", "build", "-p", "bindings-py"],
+            ["cargo", "rustc", "-p", "bindings-py", "--", "-C", "link-arg=-undefined", "-C", "link-arg=dynamic_lookup"],
             cwd=ROOT / "rust",
             check=True,
             capture_output=True,

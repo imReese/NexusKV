@@ -12,7 +12,20 @@ from nexuskv.contracts.serde import from_primitive, to_primitive
 ROOT = Path(__file__).resolve().parents[3]
 
 
+import shutil
+
+
 def _load_native_module():
+    # Sync .dylib to .so on macOS if needed
+    for dylib_path in (
+        ROOT / "rust" / "target" / "debug" / "libnexuskv_planner_native.dylib",
+        ROOT / "rust" / "target" / "release" / "libnexuskv_planner_native.dylib",
+    ):
+        if dylib_path.exists():
+            so_path = dylib_path.with_suffix(".so")
+            if not so_path.exists() or dylib_path.stat().st_mtime > so_path.stat().st_mtime:
+                shutil.copyfile(dylib_path, so_path)
+
     for candidate in (
         ROOT / "rust" / "target" / "debug" / "libnexuskv_planner_native.so",
         ROOT / "rust" / "target" / "release" / "libnexuskv_planner_native.so",

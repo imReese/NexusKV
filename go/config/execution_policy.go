@@ -57,6 +57,7 @@ const (
 const (
 	PlaceholderModeDisabled PlaceholderMode = "disabled"
 	PlaceholderModeAdvisory PlaceholderMode = "advisory"
+	PlaceholderModeEnforced PlaceholderMode = "enforced"
 )
 
 type RecomputeFallbackPolicy struct {
@@ -73,9 +74,11 @@ type TenantNamespacePolicy struct {
 }
 
 type QuotaAdmissionPolicy struct {
-	Mode            PlaceholderMode `json:"mode"`
-	MaxPayloadBytes int64           `json:"max_payload_bytes"`
-	MaxEntries      int64           `json:"max_entries"`
+	Mode                   PlaceholderMode `json:"mode"`
+	MaxPayloadBytes        int64           `json:"max_payload_bytes"`
+	MaxEntries             int64           `json:"max_entries"`
+	MaxConcurrentTransfers int64           `json:"max_concurrent_transfers,omitempty"`
+	MaxPinnedDRAMBytes     int64           `json:"max_pinned_dram_bytes,omitempty"`
 }
 
 type BackendCapabilityOverlay struct {
@@ -247,6 +250,12 @@ func (p ExecutionPolicy) Validate() error {
 	if p.QuotaAdmissionPolicy.MaxEntries < 0 {
 		return errors.New("quota_admission_policy.max_entries must be >= 0")
 	}
+	if p.QuotaAdmissionPolicy.MaxConcurrentTransfers < 0 {
+		return errors.New("quota_admission_policy.max_concurrent_transfers must be >= 0")
+	}
+	if p.QuotaAdmissionPolicy.MaxPinnedDRAMBytes < 0 {
+		return errors.New("quota_admission_policy.max_pinned_dram_bytes must be >= 0")
+	}
 	for backend, overlay := range p.BackendOverlays {
 		if !isValidTransferBackend(backend) {
 			return fmt.Errorf("backend_overlays contains unsupported backend %q", backend)
@@ -361,10 +370,10 @@ func validateBackendPriorityCoverage(enabled []TransferBackend, priority []Trans
 }
 
 func validatePlaceholderMode(name string, value PlaceholderMode) error {
-	if value == PlaceholderModeDisabled || value == PlaceholderModeAdvisory {
+	if value == PlaceholderModeDisabled || value == PlaceholderModeAdvisory || value == PlaceholderModeEnforced {
 		return nil
 	}
-	return fmt.Errorf("%s must be one of %q or %q", name, PlaceholderModeDisabled, PlaceholderModeAdvisory)
+	return fmt.Errorf("%s must be one of %q, %q, or %q", name, PlaceholderModeDisabled, PlaceholderModeAdvisory, PlaceholderModeEnforced)
 }
 
 func isValidFallbackBehavior(value FallbackBehavior) bool {
