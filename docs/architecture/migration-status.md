@@ -200,3 +200,16 @@ Completed:
 - added `NativeEngineHookInterceptor` (`python/nexuskv/connectors/native_hooks.py`) providing sub-millisecond fail-open fallback guarantees
 - added `ClusterStressTestRunner` (`python/nexuskv/benchmarks/stress.py`) for high-concurrency stress testing and RSS memory leak detection
 
+## PR 19: Prefill-Decode (PD) Disaggregation Handshake Hook
+
+Completed:
+
+- added `PDDisaggregateContext` and `on_pd_disaggregate_handshake` lifecycle hook method to `EngineConnector` in `python/nexuskv/connectors/base.py`
+
+## PR 20: Dynamic Hardware Cost Profiler & RDMA Driver Interfaces
+
+Completed:
+
+- added `DynamicCostProfiler` (`python/nexuskv/planner/autotune.py`) for real-time network and GPU prefill latency feedback
+- added `MooncakeTransferEngineAdapter` and `NIXLDriverAdapter` in `python/nexuskv/execution/native_transport.py` for physical RDMA memory pool registration
+

@@ -70,6 +70,13 @@ class VLLMLifecycleContext(EngineRequestContext):
 
 
 @dataclass(slots=True)
+class PDDisaggregateContext(EngineRequestContext):
+    prefill_worker_id: str = "prefill-node-01"
+    decode_worker_id: str = "decode-node-01"
+    handshake_ack: bool = True
+
+
+@dataclass(slots=True)
 class LookupOutcome:
     query: QueryKey
     status: LookupStatus
@@ -226,6 +233,20 @@ class EngineConnector(ABC):
             lookup=lookup,
             execution=outcome,
             should_store_after_stage=allow_store_after_stage,
+        )
+
+    def on_pd_disaggregate_handshake(
+        self,
+        context: PDDisaggregateContext,
+        planner: ReusePlanner,
+    ) -> LifecycleDecision:
+        lookup = self.lookup(context, planner)
+        return self.execute_lifecycle(
+            hook="pd_disaggregate_handshake",
+            context=context,
+            lookup=lookup,
+            allow_store_after_stage=False,
+            enable_prefetch=True,
         )
 
     def prepare_store(

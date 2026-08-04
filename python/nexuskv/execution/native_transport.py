@@ -78,3 +78,33 @@ class NativeTransportManager:
     def active_pinned_bytes(self) -> int:
         with self._lock:
             return sum(b.size_bytes for b in self._allocated_buffers.values() if b.is_active)
+
+
+@dataclass(slots=True)
+class MooncakeTransferEngineAdapter:
+    """Adapter for Moonshot AI Mooncake Transfer Engine C++ RDMA driver."""
+
+    engine_name: str = "MooncakeTransferEngine"
+    manager: NativeTransportManager = field(default_factory=NativeTransportManager)
+
+    def register_rdma_pool(self, pool_id: str, base_addr: int, size_bytes: int) -> ZeroCopyRegistration:
+        return self.manager.register_zero_copy_region(
+            handle_id=f"mooncake_pool_{pool_id}",
+            base_addr=base_addr,
+            size_bytes=size_bytes,
+        )
+
+
+@dataclass(slots=True)
+class NIXLDriverAdapter:
+    """Adapter for NVIDIA NIXL RDMA & NVLink transport driver."""
+
+    driver_name: str = "NVIDIA_NIXL_Driver"
+    manager: NativeTransportManager = field(default_factory=NativeTransportManager)
+
+    def register_nvlink_region(self, region_id: str, base_addr: int, size_bytes: int) -> ZeroCopyRegistration:
+        return self.manager.register_zero_copy_region(
+            handle_id=f"nixl_nvlink_{region_id}",
+            base_addr=base_addr,
+            size_bytes=size_bytes,
+        )

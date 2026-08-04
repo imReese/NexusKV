@@ -82,15 +82,23 @@ claims. Current evidence is tracked in
 - Compose distributed deployment from replaceable storage and transfer Data
   Plane systems.
 
-### Exit criteria
+## Phase 5 (v1.2): Hardware SDK & Native RDMA Driver Integration
 
-- Every state family has conformance tests and a safe recompute path.
-- Metadata truth, payload availability, and transfer completion have distinct
-  failure semantics.
-- Distributed evaluation covers worker churn, stale metadata, link pressure,
-  and tenant interference.
-- The fabric remains an Intelligence Layer rather than absorbing Inference
-  Runtime, storage, or transport ownership.
+**Status:** Current development direction.
+
+### Goals
+
+- Bind physical RDMA drivers (Mooncake Transfer Engine & NVIDIA NIXL SDK).
+- Integrate native memory pool registration and zero-copy handles.
+
+## Phase 6 (v1.3): PD Disaggregation & Dynamic Cost Auto-Tuning
+
+**Status:** Current development direction.
+
+### Goals
+
+- Implement `pd_disaggregate_handshake` lifecycle hook for Prefill-to-Decode disaggregation.
+- Implement `DynamicCostProfiler` auto-tuning feedback for live network and GPU latency.
 
 ## Development Gate
 
