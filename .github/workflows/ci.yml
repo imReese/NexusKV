@@ -82,7 +82,6 @@ jobs:
         run: |
           if [ "${{ runner.os }}" = "macOS" ]; then
             cargo rustc -p bindings-py --crate-type cdylib -- -C link-arg=-undefined -C link-arg=dynamic_lookup
-            cp target/debug/libnexuskv_planner_native.dylib target/debug/libnexuskv_planner_native.so || true
           else
             cargo rustc -p bindings-py --crate-type cdylib
           fi

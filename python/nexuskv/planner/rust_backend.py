@@ -16,27 +16,38 @@ import shutil
 
 
 def _load_native_module():
-    # Sync .dylib to .so on macOS if needed
-    for dylib_path in (
-        ROOT / "rust" / "target" / "debug" / "libnexuskv_planner_native.dylib",
-        ROOT / "rust" / "target" / "release" / "libnexuskv_planner_native.dylib",
-    ):
-        if dylib_path.exists():
-            so_path = dylib_path.with_suffix(".so")
-            if not so_path.exists() or dylib_path.stat().st_mtime > so_path.stat().st_mtime:
-                shutil.copyfile(dylib_path, so_path)
+    target_dirs = [
+        ROOT / "rust" / "target" / "debug",
+        ROOT / "rust" / "target" / "release",
+    ]
 
-    for candidate in (
-        ROOT / "rust" / "target" / "debug" / "libnexuskv_planner_native.so",
-        ROOT / "rust" / "target" / "release" / "libnexuskv_planner_native.so",
-    ):
-        if candidate.exists():
-            spec = importlib.util.spec_from_file_location("nexuskv_planner_native", candidate)
-            if spec is None or spec.loader is None:
-                continue
-            module = importlib.util.module_from_spec(spec)
-            spec.loader.exec_module(module)
-            return module
+    # Sync .dylib / .dll to .so if importlib requires .so on Unix
+    for target_dir in target_dirs:
+        for src_ext, dst_ext in ((".dylib", ".so"), (".dll", ".pyd")):
+            src_path = target_dir / f"libnexuskv_planner_native{src_ext}"
+            if src_path.exists():
+                dst_path = target_dir / f"libnexuskv_planner_native{dst_ext}"
+                if not dst_path.exists() or src_path.stat().st_mtime > dst_path.stat().st_mtime:
+                    shutil.copyfile(src_path, dst_path)
+
+    candidate_filenames = [
+        "libnexuskv_planner_native.so",
+        "libnexuskv_planner_native.pyd",
+        "libnexuskv_planner_native.dylib",
+        "nexuskv_planner_native.so",
+        "nexuskv_planner_native.pyd",
+    ]
+
+    for target_dir in target_dirs:
+        for filename in candidate_filenames:
+            candidate = target_dir / filename
+            if candidate.exists():
+                spec = importlib.util.spec_from_file_location("nexuskv_planner_native", candidate)
+                if spec is None or spec.loader is None:
+                    continue
+                module = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(module)
+                return module
     raise ModuleNotFoundError("nexuskv_planner_native extension module not found; build bindings-py first")
 
 
