@@ -171,3 +171,18 @@ Completed:
 - added three-way strategy comparison evaluator (`python/nexuskv/benchmarks/runner.py`) for Pure Recompute, Hit-Driven, and NexusKV Cost-Based strategies
 - added metric collector and JSON report generator (`python/nexuskv/benchmarks/metrics.py`)
 
+## PR 15: Multi-Attention Taxonomy (DeepSeek MLA, DSA & Kimi KDA)
+
+Completed:
+
+- expanded `StateSemanticType` contract schema with `DSA_STATE` and `KDA_CHECKPOINT`
+- regenerated Python and Rust contract bindings
+- added descriptor creation and validation helpers for DeepSeek MLA, DeepSeek DSA, and Kimi KDA architectures in `python/nexuskv/adapters/state.py`
+
+## PR 16: Control-Plane Distributed Fabric & Multi-Tenant Isolation
+
+Completed:
+
+- added Go control-plane fabric package (`go/controlplane/fabric/fabric.go`) with thread-safe `LeaseManager`, `EpochTracker`, and `GarbageCollector`
+- added Python tenant security authorizer (`python/nexuskv/security/tenant.py`) with tenant authorization checks and HMAC-SHA256 keyed hash computation for cache key isolation
+

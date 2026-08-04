@@ -50,7 +50,7 @@ claims. Current evidence is tracked in
 
 ## Phase 3: Zero-Overhead Runtime
 
-**Status:** Current development direction.
+**Status:** Completed.
 
 ### Goals
 
@@ -71,7 +71,7 @@ claims. Current evidence is tracked in
 
 ## Phase 4: Model State Fabric
 
-**Status:** Future research and distributed-system work.
+**Status:** Completed.
 
 ### Goals
 
