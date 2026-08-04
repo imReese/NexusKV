@@ -19,8 +19,11 @@ ROOT = Path(__file__).resolve().parents[2]
 class RustPlannerIntegrationTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
+        cmd = ["cargo", "rustc", "-p", "bindings-py", "--crate-type", "cdylib"]
+        if sys.platform == "darwin":
+            cmd.extend(["--", "-C", "link-arg=-undefined", "-C", "link-arg=dynamic_lookup"])
         subprocess.run(
-            ["cargo", "rustc", "-p", "bindings-py", "--", "-C", "link-arg=-undefined", "-C", "link-arg=dynamic_lookup"],
+            cmd,
             cwd=ROOT / "rust",
             check=True,
             capture_output=True,
