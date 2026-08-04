@@ -59,23 +59,25 @@ impl HbmBlockAllocator {
     }
 
     pub fn unpin_block(&mut self, block_id: usize) -> bool {
-        if let Some(block) = self.blocks.get_mut(&block_id) {
-            if block.is_pinned {
-                block.is_pinned = false;
-                self.pinned_bytes -= block.size_bytes;
-                return true;
-            }
+        let Some(block) = self.blocks.get_mut(&block_id) else {
+            return false;
+        };
+        if block.is_pinned {
+            block.is_pinned = false;
+            self.pinned_bytes -= block.size_bytes;
+            return true;
         }
         false
     }
 
     pub fn pin_block(&mut self, block_id: usize) -> bool {
-        if let Some(block) = self.blocks.get_mut(&block_id) {
-            if !block.is_pinned {
-                block.is_pinned = true;
-                self.pinned_bytes += block.size_bytes;
-                return true;
-            }
+        let Some(block) = self.blocks.get_mut(&block_id) else {
+            return false;
+        };
+        if !block.is_pinned {
+            block.is_pinned = true;
+            self.pinned_bytes += block.size_bytes;
+            return true;
         }
         false
     }
