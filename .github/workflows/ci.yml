@@ -13,6 +13,10 @@ concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  CARGO_INCREMENTAL: "0"
+  CARGO_TERM_COLOR: always
+
 jobs:
   rust-ci:
     name: Rust / ${{ matrix.os }}
@@ -23,15 +27,17 @@ jobs:
         os: [ubuntu-latest, macos-latest]
     steps:
       - uses: actions/checkout@v4
-      - name: Install Rust
-        run: rustup toolchain install stable --component clippy,rustfmt
+      - name: Install Rust toolchain
+        run: |
+          rustup set profile minimal
+          rustup toolchain install stable --component clippy,rustfmt
       - name: Check Formatting
         working-directory: rust
         run: cargo fmt --all -- --check
       - name: Run Clippy
         working-directory: rust
         run: cargo clippy --workspace --all-targets --locked -- -D warnings
-      - name: Run Rust Tests
+      - name: Run Workspace Tests
         working-directory: rust
         run: cargo test --workspace --locked
 
@@ -47,7 +53,8 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.22'
+          go-version: 'stable'
+          check-latest: true
       - name: Run Root Go Tests
         run: go test ./...
       - name: Run Control-Plane Go Tests
@@ -55,7 +62,7 @@ jobs:
         run: go test ./...
 
   python-ci:
-    name: Python / ${{ matrix.os }} / Python ${{ matrix.python-version }}
+    name: Python / ${{ matrix.os }} / Py${{ matrix.python-version }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -75,11 +82,13 @@ jobs:
         run: |
           if [ "${{ runner.os }}" = "macOS" ]; then
             cargo rustc -p bindings-py --crate-type cdylib -- -C link-arg=-undefined -C link-arg=dynamic_lookup
-            cp target/debug/libnexuskv_planner_native.dylib target/debug/libnexuskv_planner_native.so
+            cp target/debug/libnexuskv_planner_native.dylib target/debug/libnexuskv_planner_native.so || true
           else
             cargo rustc -p bindings-py --crate-type cdylib
           fi
       - name: Run Contract Codegen Verification
         run: python3 tools/generate_contracts.py
-      - name: Run Python Test Suite (65+ Tests)
+      - name: Run Python Test & Benchmark Suite (65+ Tests)
         run: PYTHONPATH=python python3 -m unittest discover -s python/tests -p "test_*.py"
+      - name: Run Benchmark Evidence & Stress Utility
+        run: python3 tools/run_benchmarks.py
