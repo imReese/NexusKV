@@ -1,45 +1,138 @@
+<div align="center">
+
 # NexusKV
 
+### *Beyond KV Cache: Toward a Zero-Overhead Model State Intelligence Layer for LLM Inference*
+
 [![NexusKV Unified CI](https://github.com/imReese/NexusKV/actions/workflows/ci.yml/badge.svg)](https://github.com/imReese/NexusKV/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Go Version](https://img.shields.io/badge/Go-1.23%2B-00ADD8?logo=go)](go/)
+[![Rust Workspace](https://img.shields.io/badge/Rust-2021-000000?logo=rust)](rust/)
+[![Python Suite](https://img.shields.io/badge/Python-3.11%20%7C%203.12-3776AB?logo=python)](python/)
 
-NexusKV is a Zero-Overhead Model State Intelligence Layer for LLM inference. It separates Control Plane, Data Plane, Intelligence Layer, and engine-adapter concerns across Go, Rust, and Python rather than treating the KV Cache as a single monolithic service.
+[English](README.md) | [简体中文](README_CN.md)
 
-## Repository Structure
+</div>
 
-- `go/` — Control Plane scaffold, execution policy distribution, leases (`LeaseManager`), epoch tracking, and garbage collection.
-- `rust/` — Data Plane contracts, bounded Host DRAM payload store (`nexus-store`), zero-copy memory registration (`nexus-transfer`), and high-performance radix tree matcher (`nxradixtree-core`).
-- `python/` — Engine-facing adapters (vLLM, SGLang), native FFI hooks, quota admission tracker, cost estimator ($G = T_{compute} - T_{cache}$), multi-attention descriptors (MLA, DSA, KDA), tenant security isolation, and benchmark evidence engine.
-- `schema/` — Versioned JSON schema contracts (`nexuskv_contract.json` & `nexuskv_execution_policy.json`).
-- `docs/` — Whitepaper v1.1, architecture design, migration PR history, and benchmark methodology.
+---
 
-## Start Here
+## 💡 What is NexusKV?
 
-- **Whitepaper:** [NexusKV Whitepaper v1.1 — Beyond KV Cache: Toward a Zero-Overhead Model State Intelligence Layer for LLM Inference](docs/papers/beyond-kv-cache.md)
-- **Architecture:** [NexusKV Architecture](docs/design/nexuskv-architecture.md)
-- **Roadmap:** [NexusKV Roadmap](docs/roadmap.md) (All Phases 1–4 Completed)
-- **Implementation status:** [Migration Status](docs/architecture/migration-status.md)
-- **Benchmark contract:** [Benchmark Methodology](docs/benchmarks/benchmark-methodology.md)
+**NexusKV** is a next-generation **Model State Intelligence Layer** designed for LLM inference. Rather than treating the KV cache as a monolithic, hit-driven storage service, NexusKV introduces a **cost-based, zero-overhead architecture** that decouples the Control Plane (Go), Data Plane (Rust), and Inference Engine Adapters (Python).
 
-## Toolchain And Tests
+NexusKV goes **beyond standard KV cache** by unifying model state descriptors for modern attention architectures—including **DeepSeek MLA** (Multi-head Latent Attention), **DeepSeek DSA** (DeepSeek Sparse Attention), and **Kimi KDA** (Kimi Delta Attention Recurrent Checkpoints).
 
-### 1. Go Control Plane Tests
+---
+
+## ⚡ Why NexusKV? (Feature Comparison)
+
+| Feature / Dimension | Native Engine Cache (vLLM/SGLang) | Multi-Tier Cache (HiCache/LMCache) | Shared Storage (3FS/Mooncake) | **NexusKV (Model State Intelligence Layer)** |
+| :--- | :--- | :--- | :--- | :--- |
+| **Cache Scope** | Local Worker / HBM Only | Local Multi-Tier (HBM/DRAM/Disk) | Distributed Storage Store | **Global Cross-Worker Model State Intelligence** |
+| **Reuse Decision** | Naive Hit-Driven | Naive Hit-Driven | Naive Storage Fetch | **Cost-Based Effective Gain ($G = T_{compute} - T_{cache} > 0$)** |
+| **Attention Support** | Standard MHA/GQA Pages | Standard MHA/GQA Pages | Raw Tensor Blobs | **Native Support for MHA, DeepSeek MLA, DSA & Kimi KDA** |
+| **Overload Protection** | 被动 Eviction | 被动 Eviction | Network Congestion | **Quota Admission Tracker & Quota Backpressure** |
+| **Execution Safety** | N/A | Risk of I/O Stalls | Risk of Network Stalls | **Sub-millisecond Fail-Open Guarantee (<1ms Fallback to Prefill)** |
+| **Architecture** | Engine Monolith | Engine Subsystem | Storage System | **Decoupled Go Control Plane + Rust Data Engine + Python FFI** |
+
+---
+
+## 🏗 System Architecture
+
+```text
+ ┌─────────────────────────────────────────────────────────────────────────────┐
+ │                       Inference Engine Runtime (vLLM / SGLang)              │
+ └──────────────────────────────────────┬──────────────────────────────────────┘
+                                        │ Native FFI Hooks / Connector Surface
+                                        ▼
+ ┌─────────────────────────────────────────────────────────────────────────────┐
+ │                         NexusKV Intelligence Layer                          │
+ │  • Cost Estimator: Effective Gain  G = T_compute - T_cache                  │
+ │  • Quota Admission Tracker: Active Pinned Memory & Transfer Limits          │
+ │  • Prefetch Scheduler: Deadline Expiration & Sub-1ms Fail-Open Fallback     │
+ └──────────────┬──────────────────────────────────────────────┬───────────────┘
+                │ Key & Matching Queries                       │ Payload & Lease Management
+                ▼                                              ▼
+ ┌──────────────────────────────┐              ┌──────────────────────────────┐
+ │     Rust Data Engine         │              │      Go Control Plane        │
+ │ • nxradixtree-core Matcher   │              │ • Distributed LeaseManager   │
+ │ • nexus-store Host DRAM      │              │ • Monotonic EpochTracker     │
+ │ • nexus-transfer Zero-Copy   │              │ • GarbageCollector & Policy  │
+ └──────────────────────────────┘              └──────────────────────────────┘
+```
+
+---
+
+## 🚀 Beyond KV Cache: Multi-Attention Taxonomy
+
+NexusKV provides specialized state descriptors and validation for next-generation attention architectures:
+
+- **MHA / GQA / MQA**: Standard contiguous and page-aligned key/value tensor caches.
+- **DeepSeek MLA (Multi-Head Latent Attention)**: Compressed latent KV states ($c_t^{KV}$) and decoupled RoPE positional tensors ($k_t^R$).
+- **DeepSeek DSA (DeepSeek Sparse Attention)**: Query-dependent sparse selection regions and selector index auxiliary metadata.
+- **Kimi KDA (Kimi Delta Attention)**: Recurrent terminal state checkpoints ($h_t$) for hybrid attention-recurrent models.
+
+---
+
+## ⚡ Quick Start
+
+### 1. Python Fast Integration
+
+```python
+from nexuskv.connectors.vllm.connector import VLLMConnector
+from nexuskv.connectors.native_hooks import NativeEngineHookInterceptor
+from nexuskv.connectors.base import VLLMLifecycleContext
+
+# Initialize connector & native hook interceptor with <1ms fail-open guarantee
+connector = VLLMConnector()
+interceptor = NativeEngineHookInterceptor(connector=connector)
+
+# Intercept engine lifecycle event
+context = VLLMLifecycleContext(
+    tenant="tenant_a",
+    namespace="chat_production",
+    model="deepseek-v3",
+    tokens=[101, 2023, 2003, 1037, 3899],
+    descriptor=connector.default_descriptor(),
+)
+
+decision = interceptor.intercept_hook("request_start", context)
+
+if decision.materialization_result.status == "completed":
+    print("NexusKV Cost-Based Reuse Approved! Binding cached state handle...")
+else:
+    print("Fail-Open Fallback: Executing GPU prefill recomputation locally.")
+```
+
+### 2. Run Benchmark Evidence & Stress Test Suite
+
+Run the synthetic benchmark comparison and 7x24 memory leak stress suite with a single command:
+
+```bash
+python3 tools/run_benchmarks.py
+```
+
+---
+
+## 🛠 Toolchain & Verification
+
+### Go Control Plane
 
 ```bash
 GOTOOLCHAIN=go1.25.9 go test ./...
 cd go && GOTOOLCHAIN=go1.25.9 go test ./...
 ```
 
-### 2. Rust Workspace Checks & Tests
+### Rust Data Plane Workspace
 
 ```bash
 cd rust
 cargo fmt --all -- --check
-cargo check --workspace --all-targets --locked
 cargo clippy --workspace --all-targets --locked -- -D warnings
 cargo test --workspace --locked
 ```
 
-### 3. Python Suite & PyO3 Native Build
+### Python Suite & Native PyO3 Extension Build
 
 ```bash
 # Build PyO3 native extension
@@ -47,21 +140,22 @@ cd rust
 cargo rustc -p bindings-py --crate-type cdylib
 cd ..
 
-# Run full Python unittest suite (65+ tests)
+# Run Python unittest suite (65+ tests)
 PYTHONPATH=python python3 -m unittest discover -s python/tests -p "test_*.py"
 ```
 
-### 4. Benchmark Evidence & Stress Suite
+---
 
-```bash
-# Run 3-way strategy comparison & cluster stress test
-python3 tools/run_benchmarks.py
-```
+## 📚 Documentation Sitemap
 
-## Architecture Status
+- 📄 **Whitepaper:** [Beyond KV Cache: Toward a Zero-Overhead Model State Intelligence Layer for LLM Inference](docs/papers/beyond-kv-cache.md)
+- 🏛 **Architecture Design:** [NexusKV Platform Architecture](docs/design/nexuskv-architecture.md)
+- 🗺 **Evolution Roadmap:** [Roadmap & Milestone Status](docs/roadmap.md)
+- 📝 **Migration History:** [PR Migration History](docs/architecture/migration-status.md)
+- 📊 **Benchmark Methodology:** [Benchmark Evaluation Methodology](docs/benchmarks/benchmark-methodology.md)
 
-All Phase 1–4 milestones defined in the Whitepaper have been implemented, tested, and validated:
-1. **Phase 1: State Contracts & Radix Indexing** — `nxradixtree-core`, Rust/Go/Python schemas.
-2. **Phase 2: Cost-Based Reuse Engine & Benchmark Evidence** — Effective Gain calculator, Quota admission policy, 3-strategy runner (`trace.py`, `runner.py`, `metrics.py`).
-3. **Phase 3: Zero-Overhead Asynchronous Runtime** — `PrefetchScheduler`, `TransferSessionTracker`, Native FFI Hook Interceptor with <1ms Fail-Open guarantee.
-4. **Phase 4: Model State Fabric & Multi-Attention Taxonomy** — DeepSeek MLA, DeepSeek DSA, Kimi KDA descriptors, Go Control-Plane Fabric (Leases, Epochs, GC), and HMAC-SHA256 Multi-Tenant Isolation.
+---
+
+## 📄 License
+
+NexusKV is licensed under the [MIT License](LICENSE).
