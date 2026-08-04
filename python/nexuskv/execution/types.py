@@ -63,6 +63,10 @@ class TransferStatus(StrEnum):
     MISSING = "missing"
     FALLBACK = "fallback"
     REJECTED = "rejected"
+    INITIATED = "initiated"
+    IN_FLIGHT = "in_flight"
+    CANCELLED = "cancelled"
+    FAILED = "failed"
 
 
 @dataclass(slots=True)
