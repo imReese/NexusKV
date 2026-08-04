@@ -18,6 +18,8 @@ pub enum StateSemanticType {
     GqaKv,
     MqaKv,
     MlaState,
+    DsaState,
+    KdaCheckpoint,
     GenericContainer,
 }
 

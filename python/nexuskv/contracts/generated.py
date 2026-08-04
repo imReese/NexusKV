@@ -15,6 +15,8 @@ class StateSemanticType(StrEnum):
     GQA_KV = "gqa_kv"
     MQA_KV = "mqa_kv"
     MLA_STATE = "mla_state"
+    DSA_STATE = "dsa_state"
+    KDA_CHECKPOINT = "kda_checkpoint"
     GENERIC_CONTAINER = "generic_container"
 
 class TensorRole(StrEnum):

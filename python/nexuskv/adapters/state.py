@@ -48,6 +48,83 @@ def supports_partial_materialization(descriptor: AttentionStateDescriptor) -> bo
     )
 
 
+def create_mla_descriptor(descriptor_id: str, engine_family: EngineFamily = EngineFamily.SGLANG) -> AttentionStateDescriptor:
+    """DeepSeek Multi-head Latent Attention (MLA) state descriptor."""
+    return AttentionStateDescriptor(
+        schema_version=SCHEMA_VERSION,
+        descriptor_id=descriptor_id,
+        engine_family=engine_family,
+        semantic_type=StateSemanticType.MLA_STATE,
+        granularity=Granularity.PAGE,
+        tensor_specs=[
+            TensorSpec(name="c_kv", role=TensorRole.LATENT, dtype="bfloat16", shape=["num_pages", "page_size", "512"]),
+            TensorSpec(name="k_pe", role=TensorRole.POSITION, dtype="bfloat16", shape=["num_pages", "page_size", "64"]),
+        ],
+        quantization=QuantizationMetadata(scheme="fp8", bits=8, group_size=128),
+        layout=LayoutMetadata(layout="page_paged", page_tokens=16, block_tokens=16, packed=True),
+        compatibility_flags=[CompatibilityFlag.EXACT_REUSE, CompatibilityFlag.PAGE_REUSE],
+        transfer_paths=[TransferPath(backend=TransferBackend.STAGED_COPY, capabilities=[TransferCapability.HOST_TO_DEVICE])],
+        materialization=MaterializationProfile(
+            capabilities=[MaterializationCapability.FULL, MaterializationCapability.PARTIAL, MaterializationCapability.PREFETCH],
+            tier_kinds=[TierKind.DEVICE, TierKind.HOST_DRAM],
+            device_classes=[DeviceClass.CUDA],
+            buffer_kinds=[BufferKind.DEVICE, BufferKind.HOST_PINNED],
+        ),
+        layout_metadata={"attention_family": "MLA", "latent_dim": "512", "pe_dim": "64"},
+    )
+
+
+def create_dsa_descriptor(descriptor_id: str, engine_family: EngineFamily = EngineFamily.SGLANG) -> AttentionStateDescriptor:
+    """DeepSeek Sparse Attention (DSA) state descriptor."""
+    return AttentionStateDescriptor(
+        schema_version=SCHEMA_VERSION,
+        descriptor_id=descriptor_id,
+        engine_family=engine_family,
+        semantic_type=StateSemanticType.DSA_STATE,
+        granularity=Granularity.PAGE,
+        tensor_specs=[
+            TensorSpec(name="kv_sparse", role=TensorRole.KEY, dtype="bfloat16", shape=["num_pages", "page_size", "128"]),
+            TensorSpec(name="selector_aux", role=TensorRole.AUXILIARY, dtype="int32", shape=["num_pages", "top_k"]),
+        ],
+        quantization=QuantizationMetadata(scheme="none", bits=16, group_size=0),
+        layout=LayoutMetadata(layout="sparse_indexed", page_tokens=16, block_tokens=16, packed=False),
+        compatibility_flags=[CompatibilityFlag.EXACT_REUSE, CompatibilityFlag.PAGE_REUSE],
+        transfer_paths=[TransferPath(backend=TransferBackend.BASELINE_TRANSPORT, capabilities=[TransferCapability.HOST_TO_DEVICE])],
+        materialization=MaterializationProfile(
+            capabilities=[MaterializationCapability.FULL, MaterializationCapability.PARTIAL],
+            tier_kinds=[TierKind.DEVICE, TierKind.HOST_DRAM],
+            device_classes=[DeviceClass.CUDA],
+            buffer_kinds=[BufferKind.DEVICE, BufferKind.HOST_PINNED],
+        ),
+        layout_metadata={"attention_family": "DSA", "selection_top_k": "64"},
+    )
+
+
+def create_kda_descriptor(descriptor_id: str, engine_family: EngineFamily = EngineFamily.VLLM) -> AttentionStateDescriptor:
+    """Kimi Delta Attention (KDA) recurrent checkpoint descriptor."""
+    return AttentionStateDescriptor(
+        schema_version=SCHEMA_VERSION,
+        descriptor_id=descriptor_id,
+        engine_family=engine_family,
+        semantic_type=StateSemanticType.KDA_CHECKPOINT,
+        granularity=Granularity.SEGMENT,
+        tensor_specs=[
+            TensorSpec(name="h_recurrent", role=TensorRole.LATENT, dtype="float32", shape=["num_layers", "hidden_dim"]),
+        ],
+        quantization=QuantizationMetadata(scheme="none", bits=32, group_size=0),
+        layout=LayoutMetadata(layout="recurrent_checkpoint", page_tokens=0, block_tokens=0, packed=True),
+        compatibility_flags=[CompatibilityFlag.EXACT_REUSE, CompatibilityFlag.WARM_START],
+        transfer_paths=[TransferPath(backend=TransferBackend.BASELINE_TRANSPORT, capabilities=[TransferCapability.HOST_TO_DEVICE])],
+        materialization=MaterializationProfile(
+            capabilities=[MaterializationCapability.FULL, MaterializationCapability.FALLBACK_RECOMPUTE],
+            tier_kinds=[TierKind.DEVICE, TierKind.HOST_DRAM],
+            device_classes=[DeviceClass.CUDA],
+            buffer_kinds=[BufferKind.DEVICE, BufferKind.HOST_PINNED],
+        ),
+        layout_metadata={"attention_family": "KDA", "checkpoint_boundary": "terminal_recurrent_state"},
+    )
+
+
 __all__ = [
     "AttentionStateDescriptor",
     "BufferKind",
