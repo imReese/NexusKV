@@ -5,6 +5,8 @@
 //! must keep the provider and its allocation alive for the whole registration and
 //! transfer lifetime.
 
+pub mod shm;
+
 use std::error::Error;
 use std::fmt::{Display, Formatter};
 

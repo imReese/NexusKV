@@ -84,6 +84,20 @@ func (m *LeaseManager) RevokeLease(leaseID string) bool {
 	return false
 }
 
+func (m *LeaseManager) RevokeLeasesForHolder(holderID string) int {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	revokedCount := 0
+	for id, lease := range m.leases {
+		if lease.HolderID == holderID {
+			delete(m.leases, id)
+			revokedCount++
+		}
+	}
+	return revokedCount
+}
+
 // EpochTracker maintains monotonic epochs for global metadata invalidation.
 type EpochTracker struct {
 	epoch uint64

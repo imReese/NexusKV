@@ -206,12 +206,12 @@ Completed:
 
 - added `PDDisaggregateContext` and `on_pd_disaggregate_handshake` lifecycle hook method to `EngineConnector` in `python/nexuskv/connectors/base.py`
 
-## PR 21: GPU HBM Allocator & DeepSeek V4 / Kimi K3 / DSpark State Taxonomy
+## PR 22: Control Plane Discovery, Maturin Wheels, Prometheus Metrics & POSIX SHM
 
 Completed:
 
-- added `HbmBlockAllocator` in Rust (`rust/crates/nexus-store/src/hbm.rs`) and Python (`python/nexuskv/execution/hbm.py`) for GPU HBM paged memory pool management and Pin/Unpin offloading
-- expanded `StateSemanticType` schema with `CSA_STATE`, `HCA_SUMMARY`, and `DSPARK_SPARSE`
-- added `create_csa_descriptor`, `create_hca_descriptor`, and `create_dspark_descriptor` in `python/nexuskv/adapters/state.py`
-- added `K3CascadeMountEngine` in `python/nexuskv/execution/k3_cascade.py` for Kimi K3 recurrent checkpoint HBM mounting and history cascading
+- added `NodeDiscoveryService` and `WorkerHeartbeatMonitor` in Go (`go/controlplane/fabric/discovery.go`) for worker node heartbeat tracking and lease revocation
+- added Maturin PyO3 configuration in `rust/crates/bindings-py/pyproject.toml`
+- added `PrometheusMetricsExporter` in Go (`go/controlplane/fabric/metrics.go`) for Prometheus metric endpoints
+- added `PosixShmAllocator` in Rust (`rust/crates/nexus-transfer/src/shm.rs`) for POSIX shared memory zero-copy handles
 

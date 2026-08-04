@@ -102,13 +102,24 @@ claims. Current evidence is tracked in
 
 ## Phase 7 (v2.0): HBM Direct Allocation & DeepSeek V4 / Kimi K3 / DSpark State Taxonomy
 
-**Status:** Current development direction.
+**Status:** Completed.
 
 ### Goals
 
 - Implement `HbmBlockAllocator` in Rust & Python for direct GPU HBM paged block allocation and pin/unpin lifecycle management.
 - Extend State Contract with `CSA_STATE` (DeepSeek V4 4-token FP4 Top-K), `HCA_SUMMARY` (128-token global summary), and `DSPARK_SPARSE` (DSpark sharded sparse).
 - Implement `K3CascadeMountEngine` for Kimi KDA/K3 terminal checkpoint constant residence and instant history cascading.
+
+## Phase 8 (v2.1): Control Plane Discovery, Maturin Wheels & Prometheus Metrics
+
+**Status:** Current development direction.
+
+### Goals
+
+- Implement Go `NodeDiscoveryService` and `WorkerHeartbeatMonitor` for automatic node registration and lease eviction.
+- Add Maturin `pyproject.toml` configuration in `rust/crates/bindings-py` for 1-command wheel packaging.
+- Implement Go `PrometheusMetricsExporter` for Prometheus metrics dashboard endpoints.
+- Add POSIX `/dev/shm` shared memory allocator in `rust/crates/nexus-transfer/src/shm.rs`.
 
 ## Development Gate
 

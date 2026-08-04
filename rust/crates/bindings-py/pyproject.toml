@@ -1,0 +1,22 @@
+[build-system]
+requires = ["maturin>=1.5,<2.0"]
+build-backend = "maturin"
+
+[project]
+name = "nexuskv-planner-native"
+version = "0.1.0"
+description = "NexusKV Native Rust Radix Engine PyO3 Bindings"
+authors = [{ name = "NexusKV Team" }]
+readme = "README.md"
+requires-python = ">=3.11"
+classifiers = [
+    "Programming Language :: Rust",
+    "Programming Language :: Python :: Implementation :: CPython",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+
+[tool.maturin]
+module-name = "nexuskv_planner_native"
+features = ["pyo3/extension-module"]
+python-source = "python"
