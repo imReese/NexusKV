@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://nexuskv.dev/schema/nexuskv_execution_policy_v1.json",
+  "$id": "https://nexuskv.dev/schema/nexuskv_execution_policy.json",
   "title": "NexusKV Execution Policy v1",
   "type": "object",
   "additionalProperties": false,

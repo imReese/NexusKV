@@ -11,7 +11,7 @@ NexusKV now has two distinct contract families:
 - `nexuskv.contract.v1` for shared runtime data such as descriptors, planner identities, and planner results
 - `nexuskv.execution_policy.v1` for operator-authored control-plane configuration
 
-This PR uses a separate versioned JSON schema at [schema/nexuskv_execution_policy_v1.json](../../schema/nexuskv_execution_policy_v1.json) instead of extending the hot-path IDL.
+This PR uses a separate versioned JSON schema at [schema/nexuskv_execution_policy.json](../../schema/nexuskv_execution_policy.json) instead of extending the hot-path IDL.
 
 Why:
 

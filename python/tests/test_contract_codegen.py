@@ -26,7 +26,7 @@ from nexuskv.contracts.generated import (
 
 
 ROOT = Path(__file__).resolve().parents[2]
-SCHEMA_PATH = ROOT / "schema" / "nexuskv_contract_v1.json"
+SCHEMA_PATH = ROOT / "schema" / "nexuskv_contract.json"
 
 
 class ContractCodegenTest(unittest.TestCase):

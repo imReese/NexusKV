@@ -7,7 +7,7 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
-SCHEMA_PATH = ROOT / "schema" / "nexuskv_contract_v1.json"
+SCHEMA_PATH = ROOT / "schema" / "nexuskv_contract.json"
 PYTHON_OUT = ROOT / "python" / "nexuskv" / "contracts" / "generated.py"
 RUST_OUT = ROOT / "rust" / "crates" / "nexus-state" / "src" / "generated.rs"
 
