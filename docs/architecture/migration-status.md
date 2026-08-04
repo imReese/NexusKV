@@ -153,3 +153,21 @@ Completed:
 - updated the backend catalog to apply overlays deterministically during selection
 - updated the execution runner to consume an active policy provider on every execution call
 - kept SGLang and vLLM connectors policy-agnostic while proving policy reload changes connector-observable execution behavior
+
+## PR 13: Quota Admission Policy & Cost Estimator
+
+Completed:
+
+- updated execution policy schema and Go control-plane validation to support enforced quota mode, max concurrent transfers, and max pinned DRAM bytes
+- added thread-safe `QuotaTracker` for tracking active runtime bytes, entries, transfers, and pinned memory
+- added `CostEstimator` with Effective Gain model ($G = T_{compute} - T_{cache}$)
+- integrated quota and cost evaluation directly into `BaselineExecutionRunner`
+
+## PR 14: Benchmark Evidence Pipeline
+
+Completed:
+
+- added synthetic and replay trace generator (`python/nexuskv/benchmarks/trace.py`)
+- added three-way strategy comparison evaluator (`python/nexuskv/benchmarks/runner.py`) for Pure Recompute, Hit-Driven, and NexusKV Cost-Based strategies
+- added metric collector and JSON report generator (`python/nexuskv/benchmarks/metrics.py`)
+

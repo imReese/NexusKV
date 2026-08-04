@@ -28,7 +28,7 @@ claims. Current evidence is tracked in
 
 ## Phase 2: Cost-Based Reuse Engine
 
-**Status:** Current development direction.
+**Status:** Completed.
 
 ### Goals
 
@@ -50,7 +50,7 @@ claims. Current evidence is tracked in
 
 ## Phase 3: Zero-Overhead Runtime
 
-**Status:** Future implementation and validation.
+**Status:** Current development direction.
 
 ### Goals
 
