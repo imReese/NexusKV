@@ -201,6 +201,56 @@ def create_dspark_descriptor(descriptor_id: str, engine_family: EngineFamily = E
     )
 
 
+def create_gdn_descriptor(descriptor_id: str, engine_family: EngineFamily = EngineFamily.SGLANG) -> AttentionStateDescriptor:
+    """Gated DeltaNet (GDN) linear recurrent state descriptor."""
+    return AttentionStateDescriptor(
+        schema_version=SCHEMA_VERSION,
+        descriptor_id=descriptor_id,
+        engine_family=engine_family,
+        semantic_type=StateSemanticType.KDA_CHECKPOINT,
+        granularity=Granularity.SEGMENT,
+        tensor_specs=[
+            TensorSpec(name="gdn_state_vec", role=TensorRole.LATENT, dtype="bfloat16", shape=["num_layers", "state_dim"]),
+        ],
+        quantization=QuantizationMetadata(scheme="none", bits=16, group_size=0),
+        layout=LayoutMetadata(layout="gdn_recurrent_state", page_tokens=0, block_tokens=1, packed=True),
+        compatibility_flags=[CompatibilityFlag.EXACT_REUSE, CompatibilityFlag.WARM_START],
+        transfer_paths=[TransferPath(backend=TransferBackend.ZERO_COPY, capabilities=[TransferCapability.ASYNC])],
+        materialization=MaterializationProfile(
+            capabilities=[MaterializationCapability.FULL, MaterializationCapability.FALLBACK_RECOMPUTE],
+            tier_kinds=[TierKind.DEVICE, TierKind.HOST_DRAM],
+            device_classes=[DeviceClass.CUDA, DeviceClass.METAL_MPS],
+            buffer_kinds=[BufferKind.DEVICE, BufferKind.HOST_PINNED],
+        ),
+        layout_metadata={"attention_family": "GDN", "recurrent": True},
+    )
+
+
+def create_mamba_descriptor(descriptor_id: str, engine_family: EngineFamily = EngineFamily.VLLM) -> AttentionStateDescriptor:
+    """Mamba / Mamba-2 Selective State Space (SSM) recurrent state descriptor."""
+    return AttentionStateDescriptor(
+        schema_version=SCHEMA_VERSION,
+        descriptor_id=descriptor_id,
+        engine_family=engine_family,
+        semantic_type=StateSemanticType.KDA_CHECKPOINT,
+        granularity=Granularity.SEGMENT,
+        tensor_specs=[
+            TensorSpec(name="ssm_state", role=TensorRole.LATENT, dtype="bfloat16", shape=["num_layers", "d_state", "d_inner"]),
+        ],
+        quantization=QuantizationMetadata(scheme="none", bits=16, group_size=0),
+        layout=LayoutMetadata(layout="mamba_ssm_state", page_tokens=0, block_tokens=1, packed=True),
+        compatibility_flags=[CompatibilityFlag.EXACT_REUSE, CompatibilityFlag.WARM_START],
+        transfer_paths=[TransferPath(backend=TransferBackend.ZERO_COPY, capabilities=[TransferCapability.ASYNC])],
+        materialization=MaterializationProfile(
+            capabilities=[MaterializationCapability.FULL, MaterializationCapability.FALLBACK_RECOMPUTE],
+            tier_kinds=[TierKind.DEVICE, TierKind.HOST_DRAM],
+            device_classes=[DeviceClass.CUDA, DeviceClass.METAL_MPS],
+            buffer_kinds=[BufferKind.DEVICE, BufferKind.HOST_PINNED],
+        ),
+        layout_metadata={"attention_family": "MAMBA_SSM", "recurrent": True},
+    )
+
+
 __all__ = [
     "AttentionStateDescriptor",
     "BufferKind",
@@ -224,8 +274,10 @@ __all__ = [
     "create_csa_descriptor",
     "create_dsa_descriptor",
     "create_dspark_descriptor",
+    "create_gdn_descriptor",
     "create_hca_descriptor",
     "create_kda_descriptor",
+    "create_mamba_descriptor",
     "create_mla_descriptor",
     "supports_partial_materialization",
     "validate_descriptor",
