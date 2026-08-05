@@ -43,8 +43,11 @@ __pycache__/
 *.so
 
 # Distribution / packaging
+build/
+dist/
 python/build/
 python/dist/
+*.whl
 *.egg-info/
 .installed.cfg
 *.egg
