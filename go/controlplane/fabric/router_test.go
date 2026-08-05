@@ -8,7 +8,7 @@ func TestCacheAwareClusterRouter(t *testing.T) {
 	lm := NewLeaseManager()
 	router := NewCacheAwareClusterRouter(lm)
 
-	w1 := router.RegisterWorker("gpu-node-01", "192.168.1.10:8080")
+	_ = router.RegisterWorker("gpu-node-01", "192.168.1.10:8080")
 	w2 := router.RegisterWorker("gpu-node-02", "192.168.1.11:8080")
 
 	prefixKey := "t1:ns1:llama-70b:prefix-hash-123"
@@ -29,7 +29,7 @@ func TestCacheAwareClusterRouter(t *testing.T) {
 	}
 
 	// Test load penalty fallback
-	w2.ActiveTransfers = 1000 // Heavily loaded worker
+	w2.ActiveTransfers = 10000 // Heavily loaded worker (active transfer penalty)
 	best, _, err = router.SelectBestWorkerNode(prefixKey, 8192)
 	if err != nil {
 		t.Fatalf("routing error: %v", err)
