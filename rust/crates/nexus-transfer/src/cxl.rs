@@ -26,7 +26,7 @@ impl CxlSharedMemoryRegion {
         if length_bytes == 0 {
             return Err("CXL region length cannot be zero");
         }
-        if page_size_bytes == 0 || length_bytes % page_size_bytes != 0 {
+        if page_size_bytes == 0 || !length_bytes.is_multiple_of(page_size_bytes) {
             return Err("CXL region length must be aligned to page_size_bytes");
         }
 
