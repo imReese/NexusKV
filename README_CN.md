@@ -10,7 +10,7 @@
 [![Rust Workspace](https://img.shields.io/badge/Rust-2021-000000?logo=rust)](rust/)
 [![Python Suite](https://img.shields.io/badge/Python-3.11%20%7C%203.12-3776AB?logo=python)](python/)
 
-[English](README.md) | [简体中文](README_CN.md)
+[English](README.md) | [简体中文](README_CN.md) | [📖 开箱即用与部署指南](docs/quickstart_cn.md) | [🏛 架构全景指南](docs/architecture_cn.md)
 
 </div>
 

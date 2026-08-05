@@ -1,0 +1,6 @@
+max_width = 100
+edition = "2024"
+use_small_heuristics = "Default"
+imports_granularity = "Crate"
+group_imports = "StdExternalCrate"
+newline_style = "Unix"
