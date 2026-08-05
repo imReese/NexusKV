@@ -36,7 +36,10 @@ impl NixlTransferDescriptor {
             src_device_id,
             dst_device_id,
             payload_bytes,
-            is_wire_speed: matches!(backend, NixlBackendTransport::NvLink | NixlBackendTransport::RdmaRoCe),
+            is_wire_speed: matches!(
+                backend,
+                NixlBackendTransport::NvLink | NixlBackendTransport::RdmaRoCe
+            ),
         })
     }
 }

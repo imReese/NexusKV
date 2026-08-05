@@ -15,7 +15,11 @@ pub struct CxlSharedMemoryRegion {
 }
 
 impl CxlSharedMemoryRegion {
-    pub fn new(base_phys_addr: u64, length_bytes: usize, page_size_bytes: usize) -> Result<Self, &'static str> {
+    pub fn new(
+        base_phys_addr: u64,
+        length_bytes: usize,
+        page_size_bytes: usize,
+    ) -> Result<Self, &'static str> {
         if base_phys_addr == 0 {
             return Err("CXL base physical address cannot be zero");
         }
