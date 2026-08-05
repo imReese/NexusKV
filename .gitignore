@@ -17,6 +17,7 @@ coverage.out
 
 # Dependency directories
 vendor/
+site/
 
 # ==============================================================================
 # 2. Rust (Data-plane & nxradixtree core)
