@@ -2,14 +2,14 @@
 
 ---
 
-## 💡 一、 业界技术演进趋势 (Industry Trends)
+## 💡 一、 2026 年最新大模型推理前沿与硬件演进 (2026 Tech Landscape)
 
-在 2026 年大模型基础设施领域，推理架构正在经历高度敏捷的物理变革：
+在大模型基础设施领域，推理架构正在经历由 **DeepSeek-V4** 与 **NVIDIA Vera Rubin / Blackwell Ultra** 引领的物理级变革：
 
-1. **Prefill-Decode (PD) 分离与节点解耦**：推理集群全面走向 Prefill/Decode 物理节点分离，跨节点 KV 传输开销已成为影响 TTFT 的首要瓶颈。
-2. **新型 Attention 状态爆发**：以 DeepSeek-V3 / MLA（低秩潜空间）、Kimi-K1.5 / KDA（线性递归状态）为代表的多模态 Attention 架构快速普及，基础设施层需原生感知多种状态语义。
-3. **硬件级物理总线跃迁**：物理传输从 TCP/RDMA 快速走向 NVLink P2P、CXL 3.0 柜级共享内存与 NIXL 跨机极速总线。
-4. **Agentic 复杂多分支推演**：Agentic AI 与 Tree-of-Thought (ToT) 搜索要求底层提供 Copy-on-Write (CoW) 零开销多分支前缀状态共享与主动推测预取。
+1. **硬件辅助 Prefill-Decode (PD) 物理卸载**：随着 **NVIDIA Rubin CPX**（Prefill 专属加速处理器）与 Rubin GPU (HBM4) 的普及，Prefill 与 Decode 在物理硬件层实现彻底解耦，跨节点 0-Hop 内存传输与算力感知成为核心关隘。
+2. **DeepSeek-V4 混合 Attention 架构 (CSA + HCA)**：DeepSeek-V4（1M+ 拓扑上下文）全面引入 **Compressed Sparse Attention (CSA)** 与 **Heavily Compressed Attention (HCA)**，相比 V3 降低 90% 的 KV Cache 内存负担，要求基础设施层原生支持混合压缩标度与动态 Scale 重映射。
+3. **极速总线与开放内存织网 (NVLink 6 & UALink 2.0)**：物理传输全面拥抱 **6th-Gen NVLink**、**UALink 2.0 开放织网** 与 **CXL 3.1 柜级共享内存**，实现跨卡跨机 Fabric-Attached Memory 挂载。
+4. **NVFP4 / FP4 硬件量化标度与 Agent 多分支 CoW**：在 NVFP4 低精度推理下，状态层需原生支持 FP4 量化 Scale 标度与 Agentic ToT / MCTS 搜索的零开销 Copy-on-Write 前缀共享。
 
 ---
 
@@ -23,20 +23,20 @@
                                            │
                                            ▼
  ┌───────────────────────────────────────────────────────────────────────────────────┐
- │ 2026 Q2 (推进中): DeepSeek-V3 / MLA 深度优化与 Speculative 预取                    │
- │ - MLA 512维 Latent 压缩解耦 / Speculative Prefetch Engine / PyPI & Helm 自动化     │
+ │ 2026 Q2 (推进中): DeepSeek-V4 (CSA/HCA) 混合 Attention 与 NVFP4 量化标度支持       │
+ │ - DeepSeek-V4 CSA/HCA 混合 Attention 状态重映射 / NVFP4 Scale 对齐 / Helm & PyPI│
  └─────────────────────────────────────────┬─────────────────────────────────────────┘
                                            │
                                            ▼
  ┌───────────────────────────────────────────────────────────────────────────────────┐
- │ 2026 Q3: 无锁并发前缀树、C++ Client SDK 与 Consistent Hashing                     │
- │ - RCU 无锁 Radix Tree 遍历 / C++ Header-Only SDK / Consistent Hash Ring 节点自愈  │
+ │ 2026 Q3: Rubin CPX Prefill 解耦、C++ Client SDK 与 Consistent Hashing             │
+ │ - Rubin CPX Prefill/Decode 硬件握手 / RCU 无锁 Radix Tree / C++ SDK / 节点自愈    │
  └─────────────────────────────────────────┬─────────────────────────────────────────┘
                                            │
                                            ▼
  ┌───────────────────────────────────────────────────────────────────────────────────┐
- │ 2026 Q4: CXL 3.0 柜级内存池与 NIXL 硬件零拷贝                                       │
- │ - CXL 3.0 Shared Memory TraCT 挂载 / NIXL P2P 驱动集成 / Agent 多分支 CoW 树      │
+ │ 2026 Q4: UALink 2.0 开放织网、CXL 3.1 柜级内存池与 Agent 多分支 CoW                 │
+ │ - UALink 2.0 / CXL 3.1 柜级共享内存挂载 / Agentic ToT 零拷贝 Copy-on-Write 树     │
  └───────────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -51,25 +51,25 @@
 
 ---
 
-### 2026 Q2：DeepSeek-V3 / MLA 深度优化与 Speculative 预取 (推进中)
+### 2026 Q2：DeepSeek-V4 (CSA/HCA) 混合 Attention 与 NVFP4 量化标度 (推进中)
 
 - [x] **Grafana & 可观测性面板**：提供预设仪表盘 `grafana-dashboard.json`，实时监控命中率、传输带宽 (GB/s) 与 Fail-Open 事件。
 - [x] **PyPI Wheel 自动化构建**：配置 `.github/workflows/release.yml`，支持多平台 Maturin 自动化二进制构建。
 - [x] **Speculative Intent 预取引擎**：实现 Decode 前的 Token Prefix 意图异步流水线预加载 (`prefetch.py`)。
-- [ ] **DeepSeek-V3 / MLA 原生状态重映射**：针对 DeepSeek-V3 的 MLA ($c_t^{KV} + k_t^R$) 512 维低秩潜向量进行层间 KV 压缩与量化 Scale 标度对齐。
+- [ ] **DeepSeek-V4 (CSA + HCA) 状态重映射**：针对 DeepSeek-V4 的 Compressed Sparse Attention (CSA) 与 Heavily Compressed Attention (HCA) 进行状态重映射与 NVFP4 量化 Scale 标度对齐。
 
 ---
 
-### 2026 Q3：无锁并发前缀树、C++ Client SDK 与 Consistent Hashing
+### 2026 Q3：Rubin CPX Prefill 解耦、C++ Client SDK 与 Consistent Hashing
 
+- [ ] **NVIDIA Rubin CPX 硬件级 PD 握手**：针对 Rubin CPX (Prefill 专属加速处理器) 与 Rubin HBM4 节点，实现硬件级 `pd_disaggregate_handshake` 卸载。
 - [ ] **Lock-Free Concurrent Radix Tree**：在 `nxradixtree-core` 中演进 RCU (Read-Copy-Update) 节点指针更新，大幅降低百核并发查找争用。
 - [ ] **Header-Only C++ Client SDK**：为 TensorRT-LLM、LMDeploy 及 C++ 自研推理网关提供轻量级 C++ 原生客户端库 (`nexuskv_client.h`)。
 - [ ] **Consistent Hash Ring 节点自愈**：在 Go 控制面增加虚拟节点一致性哈希环，应对 Worker 节点动态扩缩容时的状态路由抖动。
 
 ---
 
-### 2026 Q4：CXL 3.0 柜级内存池与 NIXL 硬件零拷贝
+### 2026 Q4：UALink 2.0 开放织网、CXL 3.1 柜级内存池与 Agent 多分支 CoW
 
-- [ ] **CXL 3.0 柜级共享内存池**：集成 CXL 3.0 TraCT，支持共享内存 Load/Store 直接挂载，实现跨机 0-Hop 零网络开销传输。
-- [ ] **NVIDIA NIXL 原生传输引擎**：集成 NIXL P2P 驱动，实现跨卡跨机 GPU 内存硬件级传输。
+- [ ] **UALink 2.0 & CXL 3.1 柜级共享内存池**：集成 UALink 2.0 开放总线与 CXL 3.1 TraCT，支持 Fabric-Attached Memory 直接 Load/Store 挂载，实现跨机 0-Hop 零网络开销传输。
 - [ ] **Agentic 多分支 CoW Radix 树**：针对 ToT / MCTS 搜索，实现 Copy-on-Write 零开销多分支状态共享。
