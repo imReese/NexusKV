@@ -8,22 +8,26 @@ theme:
   name: material
   language: zh
   palette:
-    # Palette toggle for light mode
+    # Palette toggle for Catppuccin Latte (Light)
     - media: "(prefers-color-scheme: light)"
       scheme: default
-      primary: indigo
-      accent: blue
+      primary: custom
+      accent: custom
       toggle:
         icon: material/brightness-7
-        name: 切换至暗黑模式
-    # Palette toggle for dark mode
+        name: 切换至 Catppuccin Mocha (暗黑)
+    # Palette toggle for Catppuccin Mocha (Dark)
     - media: "(prefers-color-scheme: dark)"
       scheme: slate
-      primary: indigo
-      accent: cyan
+      primary: custom
+      accent: custom
       toggle:
         icon: material/brightness-4
-        name: 切换至亮色模式
+        name: 切换至 Catppuccin Latte (亮色)
+
+extra_css:
+  - stylesheets/catppuccin.css
+
   features:
     - navigation.tabs
     - navigation.tabs.sticky
