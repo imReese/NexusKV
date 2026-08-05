@@ -1,132 +1,49 @@
-# NexusKV Roadmap
+# 🧭 NexusKV Long-Term Technical Roadmap (2026 - 2028)
 
-This roadmap translates the
-[NexusKV Whitepaper](papers/beyond-kv-cache.md) into staged implementation
-outcomes. It describes direction, not delivery dates or completed performance
-claims. Current evidence is tracked in
-[Migration Status](architecture/migration-status.md).
+[简体中文文档 (Chinese Version)](roadmap_cn.md)
 
-## Phase 1: State Intelligence Foundation
+---
 
-**Status:** Foundation available; contract hardening continues.
+## 💡 1. Industry Landscape Analysis & Strategic Vision
 
-### Goals
+In 2026, LLM inference infrastructure is undergoing a fundamental paradigm shift. Through deep research into cutting-edge industry implementations (NVIDIA NIXL, CXL 3.0 TraCT, UALink 2.0, SGLang HiCache, Mooncake Store), we identify **5 key technological drivers**:
 
-- Define a versioned State Descriptor across Rust and Python.
-- Validate model, layout, layer, shard, position, and state-type compatibility.
-- Provide deterministic exact and longest-prefix matching.
-- Preserve explicit partial-hit and recompute fallback semantics.
-- Keep Inference Runtime adapters thin and lifecycle-aware.
+1. **Prefill-Decode (PD) Disaggregation at Rack-Scale**: Cross-node KV transfer latency (TTFT / TBT) has replaced raw compute as the primary SLA bottleneck.
+2. **Transport Fabric Evolution**: Transitioning from traditional TCP/RDMA to **CXL 3.0 Shared Memory Pools (0-hop direct load/store)** and **UALink 2.0 / NIXL high-speed interconnects**.
+3. **Universal State Taxonomy**: Unifying Dense (MHA/GQA), Latent (MLA), Sparse/Windowed (CSA/HCA/SWA), and Recurrent State (KDA, Mamba-2, GDN, RWKV-7).
+4. **Agentic Multi-Branch KV Tree**: Copy-on-Write (CoW) branching Radix trees for Agentic AI, Tree-of-Thought (ToT), MCTS search, and Speculative Decoding.
+5. **Confidential Memory Fabric**: Hardware-enforced encryption (TEE) for shared KV memory pools in enterprise financial & healthcare workloads.
 
-### Exit criteria
+---
 
-- Cross-language contract parity tests pass.
-- Negative compatibility cases fail closed.
-- Match behavior is deterministic across namespace, model, revision, and
-  lineage boundaries.
-- Connector decisions remain observable without requiring native transfer.
+## 🏛 2. Strategic Execution Phases
 
-## Phase 2: Cost-Based Reuse Engine
+### Phase 1: Production Stabilization & Universal Engine Contracts (Q3 2026)
+- **Goal**: Complete the Go + Rust + Python decoupled architecture with production-ready multi-tenant hard quotas and engine-agnostic contracts.
+- **Milestones**:
+  - [x] **C-FFI / Native IPC Universal Contract**: Decouple engine hooks from specific framework names.
+  - [x] **Attention State Taxonomy**: Complete descriptors for MHA, GQA, MLA, CSA/HCA, KDA, GDN, Mamba-2 ([state.py](file:///Users/reese/Code/imReese/NexusKV/python/nexuskv/adapters/state.py)).
+  - [x] **4D Utility Router**: Multi-dimensional decision engine balancing gain, load penalty, HBM watermark, and network latency.
+  - [ ] **Multi-Tenant Hard Quota Isolation**: Prevent single tenants from exhausting shared memory buffers.
+  - [ ] **Observability Dashboard**: OpenTelemetry / Prometheus metrics for hit rates, transfer bandwidth (GB/s), and Fail-Open events.
 
-**Status:** Completed.
+### Phase 2: Rack-Scale Memory Pooling & Next-Gen Transports (Q4 2026 - Q1 2027)
+- **Goal**: Embrace CXL 3.0 shared memory pooling and NIXL / UALink 2.0 transport primitives.
+- **Milestones**:
+  - [ ] **CXL 3.0 Memory Pool Fabric**: Direct load/store memory mounting across rack-scale CXL pools (0-Hop zero network transfer).
+  - [ ] **NIXL & UALink 2.0 Native Drivers**: Native support for NVIDIA NIXL SDK and open UALink 2.0 interconnects.
+  - [ ] **Heterogeneous Hardware Alignment**: Specialized Page Block allocators for Huawei Ascend CANN, Cambricon MLU, and Moore Threads MUSA.
 
-### Goals
+### Phase 3: Agentic KV Tree & Predictive Intelligence (Q2 2027 - Q3 2027)
+- **Goal**: Power Agentic AI, MCTS search, and Speculative Decoding with Copy-on-Write branching trees and predictive prefetching.
+- **Milestones**:
+  - [ ] **Multi-Branch Copy-on-Write (CoW) Radix Tree**: Zero-copy state sharing for multi-path tree search.
+  - [ ] **Speculative Agent Prefetcher**: Background prefetching of cold KV caches 2-3 steps ahead based on Agent action topology.
+  - [ ] **Dynamic Trade-off Bidding Optimizer**: Real-time bidding decision between "Transfer KV Cache via Network" vs. "Recompute on Local GPU".
 
-- Calibrate recomputation, lookup, transfer, restoration, and interference
-  costs.
-- Add a reuse planner that compares full reuse, partial reuse, and recompute.
-- Introduce admission, quota, capacity, and backpressure policy.
-- Make placement and fallback decisions explainable.
-- Record predicted and observed Effective Gain.
-
-### Exit criteria
-
-- Recompute remains the deterministic fallback when compatibility or gain is
-  uncertain.
-- Planner decisions are reproducible from a versioned policy and cost snapshot.
-- Benchmarks include misses, late state, contention, and non-reusing requests.
-- Cost-based planning outperforms hit-driven planning under declared workloads
-  without regressing stated fairness and SLO budgets.
-
-## Phase 3: Zero-Overhead Runtime
-
-**Status:** Completed.
-
-### Goals
-
-- Implement bounded asynchronous prefetch behind the transfer contract.
-- Integrate native materialization with Inference Runtime-owned GPU memory.
-- Overlap transfer and restoration with useful model execution.
-- Add topology-aware host, remote-memory, and storage paths.
-- Validate safe abandonment and recomputation when state misses its deadline.
-
-### Exit criteria
-
-- Native transfer backends replace stubs in the evaluated paths.
-- Transfer completion, cancellation, and resource reservation are observable.
-- End-to-end measurements report TTFT, TPOT, goodput, fairness, and Effective
-  Gain against matched recompute baselines.
-- “Zero overhead” is reported only for workloads where critical-path and
-  interference budgets are satisfied.
-
-## Phase 4: Model State Fabric
-
-**Status:** Completed.
-
-### Goals
-
-- Validate serving contracts for MLA, DSA, KDA, and hybrid attention state.
-- Support verified layout or representation conversion where useful.
-- Coordinate distributed metadata, leases, placement, and recovery.
-- Add multi-tenant isolation, quotas, and secure lifecycle controls.
-- Compose distributed deployment from replaceable storage and transfer Data
-  Plane systems.
-
-## Phase 5 (v1.2): Hardware SDK & Native RDMA Driver Integration
-
-**Status:** Current development direction.
-
-### Goals
-
-- Bind physical RDMA drivers (Mooncake Transfer Engine & NVIDIA NIXL SDK).
-- Integrate native memory pool registration and zero-copy handles.
-
-## Phase 6 (v1.3): PD Disaggregation & Dynamic Cost Auto-Tuning
-
-**Status:** Completed.
-
-### Goals
-
-- Implement `pd_disaggregate_handshake` lifecycle hook for Prefill-to-Decode disaggregation.
-- Implement `DynamicCostProfiler` auto-tuning feedback for live network and GPU latency.
-
-## Phase 7 (v2.0): HBM Direct Allocation & DeepSeek V4 / Kimi K3 / DSpark State Taxonomy
-
-**Status:** Completed.
-
-### Goals
-
-- Implement `HbmBlockAllocator` in Rust & Python for direct GPU HBM paged block allocation and pin/unpin lifecycle management.
-- Extend State Contract with `CSA_STATE` (DeepSeek V4 4-token FP4 Top-K), `HCA_SUMMARY` (128-token global summary), and `DSPARK_SPARSE` (DSpark sharded sparse).
-- Implement `K3CascadeMountEngine` for Kimi KDA/K3 terminal checkpoint constant residence and instant history cascading.
-
-## Phase 8 (v2.1): Control Plane Discovery, Maturin Wheels & Prometheus Metrics
-
-**Status:** Current development direction.
-
-### Goals
-
-- Implement Go `NodeDiscoveryService` and `WorkerHeartbeatMonitor` for automatic node registration and lease eviction.
-- Add Maturin `pyproject.toml` configuration in `rust/crates/bindings-py` for 1-command wheel packaging.
-- Implement Go `PrometheusMetricsExporter` for Prometheus metrics dashboard endpoints.
-- Add POSIX `/dev/shm` shared memory allocator in `rust/crates/nexus-transfer/src/shm.rs`.
-
-## Development Gate
-
-Every proposed feature must answer:
-
-1. Does it conform to the Whitepaper?
-2. Which architecture layer owns it?
-3. Which concrete problem does it solve?
-4. How will it be benchmarked or otherwise validated?
-5. Does it change the State Contract or compatibility rules?
+### Phase 4: Autonomous Self-Healing & Confidential KV Fabric (Q4 2027+)
+- **Goal**: Autonomous zero-touch operations and hardware-encrypted confidential memory pools for 1,000+ GPU fleets.
+- **Milestones**:
+  - [ ] **TEE Confidential Memory Protection**: Hardware encryption (Intel TDX / AMD SEV / NVIDIA Confidential Compute) for shared KV pools.
+  - [ ] **Zero-Downtime Live Migration**: Sub-millisecond state live migration upon GPU ECC errors or hardware faults.
+  - [ ] **Cache-Aware Auto-Scaler**: Dynamic auto-scaling of Prefill vs. Decode GPU worker ratios based on global Radix tree heat maps.
