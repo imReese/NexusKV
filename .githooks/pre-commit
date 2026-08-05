@@ -1,0 +1,17 @@
+#!/bin/bash
+# NexusKV Git Pre-Commit Hook
+# Automatically formats and validates code before allowing `git commit`.
+
+set -e
+
+echo "==> [Pre-Commit Hook] Checking Rust Format & Clippy Lints..."
+(cd rust && cargo fmt --check)
+(cd rust && cargo clippy --workspace --all-targets -- -D warnings)
+
+echo "==> [Pre-Commit Hook] Checking Go Format..."
+GOTOOLCHAIN=go1.25.9 go fmt ./...
+
+echo "==> [Pre-Commit Hook] Running Fast Test Suite..."
+make test
+
+echo "✔ [Pre-Commit Hook] All formatting & lint checks passed!"

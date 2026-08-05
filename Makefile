@@ -1,4 +1,4 @@
-.PHONY: all build test bench clean contract
+.PHONY: all build test fmt setup-hooks bench clean contract
 
 all: build
 
@@ -7,6 +7,18 @@ contract:
 
 build: contract
 	./build.sh
+
+fmt:
+	@echo "==> Formatting Rust code..."
+	(cd rust && cargo fmt)
+	@echo "==> Formatting Go code..."
+	gofmt -s -w $(shell find go pkg cmd -name "*.go" 2>/dev/null)
+
+setup-hooks:
+	@echo "==> Installing Git Pre-Commit Hook..."
+	chmod +x .githooks/pre-commit
+	cp .githooks/pre-commit .git/hooks/pre-commit
+	@echo "✔ Git Pre-Commit Hook successfully installed!"
 
 test:
 	@echo "==> Running Go Tests..."
