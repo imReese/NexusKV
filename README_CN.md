@@ -167,36 +167,33 @@ GOTOOLCHAIN=go1.25.9 go test ./...
 cd go && GOTOOLCHAIN=go1.25.9 go test ./...
 ```
 
-### 2. Rust 数据引擎 Workspace
+### 2. 标准 Makefile 一键开箱构建
 
 ```bash
-cd rust
-cargo fmt --all -- --check
-cargo clippy --workspace --all-targets --locked -- -D warnings
-cargo test --workspace --locked
-```
-
-### 3. Python 套件 (68+ 测试用例) 与 PyO3 Native 扩展构建
-
-```bash
-# 编译构建 PyO3 Native 扩展
-cd rust
-cargo rustc -p bindings-py --crate-type cdylib
-cd ..
-
-# 运行 Python 全套单元测试 (68+ 测试用例)
-PYTHONPATH=python python3 -m unittest discover -s python/tests -p "test_*.py"
+make build   # 一键全量编译 Go 控制面与 Rust 动态扩展
+make wheel   # 打包生成标准的 Python .whl 轮子安装包 (dist/*.whl)
+make test    # 顺序运行 Go, Rust, Python 73+ 全量单元测试
+make bench   # 运行双维度与多 Payload 阶梯性能 Benchmark 看板
 ```
 
 ---
 
-## 📚 延伸阅读与架构文档
+## 📚 完整中英文文档导航矩阵 (Documentation Matrix)
 
-- 📄 **白皮书 (Whitepaper):** [Beyond KV Cache: Toward a Zero-Overhead Model State Intelligence Layer for LLM Inference](docs/papers/beyond-kv-cache.md)
-- 🏛 **架构设计:** [NexusKV Platform Architecture](docs/design/nexuskv-architecture.md)
-- 🗺 **演进 Roadmap:** [Roadmap & Milestone Status](docs/roadmap.md)
-- 📝 **Migration 历史:** [PR Migration History](docs/architecture/migration-status.md)
-- 📊 **基准测试契约:** [Benchmark Evaluation Methodology](docs/benchmarks/benchmark-methodology.md)
+为方便全球开发者与团队阅读，NexusKV 提供了 **100% 1-对-1 对应的中文与英文文档矩阵**：
+
+| 文档分类 | 📖 中文文档 (Chinese Guide) | 🌐 英文文档 (English Spec) | 核心主题 |
+| :--- | :--- | :--- | :--- |
+| **快速上手** | [开箱即用与部署指南](docs/quickstart_cn.md) | [Quickstart Guide](docs/quickstart.md) | 环境准备、3大部署形态与 `make` 命令 |
+| **架构设计** | [核心架构与多后端全景](docs/architecture_cn.md) | [Platform Architecture](docs/design/nexuskv-architecture.md) | 三层解耦设计与异构硬件支持矩阵 |
+| **演进规划** | [路线图与阶段规划](docs/roadmap_cn.md) | [Roadmap & Milestones](docs/roadmap.md) | Phase 1 - Phase 8 研发状态与准入闸门 |
+| **状态契约** | [Attention 状态描述符](docs/design/attention-state-descriptor_cn.md) | [Attention Descriptor Spec](docs/design/attention-state-descriptor.md) | MLA / DSA / CSA / HCA 描述符结构 |
+| **接插件生命周期**| [引擎接插件生命周期](docs/design/connector-lifecycle_cn.md) | [Connector Lifecycle](docs/design/connector-lifecycle.md) | vLLM / SGLang 挂载与 PD 分离握手 |
+| **控制面策略** | [控制面执行策略](docs/design/controlplane-execution-policy_cn.md) | [Controlplane Policy](docs/design/controlplane-execution-policy.md) | Lease 租约、Epoch 纪元与 Quota 反压 |
+| **基准测试** | [基准测试方法论](docs/benchmarks/benchmark-methodology_cn.md) | [Benchmark Methodology](docs/benchmarks/benchmark-methodology.md) | 微秒级打点与 QPS / GB 双维度测试 |
+| **可靠性模型** | [系统可靠性与降级熔断](docs/ops/reliability-model_cn.md) | [Reliability Model](docs/ops/reliability-model.md) | <1ms 强保障 Fail-Open 平滑降级 |
+| **技术剖析** | [零开销状态智能层剖析](docs/blog/zero-overhead-kv-cache-runtime_cn.md) | [Zero-Overhead Runtime](docs/blog/zero-overhead-kv-cache-runtime.md) | 成本收益方程 $G = T_{compute} - T_{cache}$ |
+| **论文与白皮书**| [Beyond KV Cache 论文中文版](docs/papers/beyond-kv-cache_cn.md) | [Beyond KV Cache Paper](docs/papers/beyond-kv-cache.md) | 技术原理白皮书 |
 
 ---
 

@@ -167,36 +167,33 @@ GOTOOLCHAIN=go1.25.9 go test ./...
 cd go && GOTOOLCHAIN=go1.25.9 go test ./...
 ```
 
-### 2. Rust Data Engine Workspace
+### 2. Standard Makefile One-Command Build
 
 ```bash
-cd rust
-cargo fmt --all -- --check
-cargo clippy --workspace --all-targets --locked -- -D warnings
-cargo test --workspace --locked
-```
-
-### 3. Python Test Suite (68+ Tests) & PyO3 Extension Build
-
-```bash
-# Build PyO3 native extension
-cd rust
-cargo rustc -p bindings-py --crate-type cdylib
-cd ..
-
-# Run Python unittest suite (68+ tests)
-PYTHONPATH=python python3 -m unittest discover -s python/tests -p "test_*.py"
+make build   # Full build of Go controlplane and Rust native PyO3 extension
+make wheel   # Package native Python .whl wheel file (dist/*.whl)
+make test    # Run Go, Rust, and Python 73+ unit test suite
+make bench   # Run dual-dimension and multi-size payload benchmark matrix
 ```
 
 ---
 
-## 📚 Documentation Sitemap
+## 📚 1-to-1 English & Chinese Documentation Sitemap Matrix
 
-- 📄 **Whitepaper:** [Beyond KV Cache: Toward a Zero-Overhead Model State Intelligence Layer for LLM Inference](docs/papers/beyond-kv-cache.md)
-- 🏛 **Architecture Design:** [NexusKV Platform Architecture](docs/design/nexuskv-architecture.md)
-- 🗺 **Evolution Roadmap:** [Roadmap & Milestone Status](docs/roadmap.md)
-- 📝 **Migration History:** [PR Migration History](docs/architecture/migration-status.md)
-- 📊 **Benchmark Methodology:** [Benchmark Evaluation Methodology](docs/benchmarks/benchmark-methodology.md)
+For global developers and teams, NexusKV provides a **100% 1-to-1 paired English and Chinese documentation matrix**:
+
+| Category | 🌐 English Specification | 📖 Chinese Guide (中文指南) | Key Topics |
+| :--- | :--- | :--- | :--- |
+| **Quickstart** | [Quickstart Guide](docs/quickstart.md) | [开箱即用与部署指南](docs/quickstart_cn.md) | Prerequisites, 3 deployment topologies & `make` commands |
+| **Architecture** | [Platform Architecture](docs/design/nexuskv-architecture.md) | [核心架构与多后端全景](docs/architecture_cn.md) | 3-layer decoupled design & multi-hardware matrix |
+| **Roadmap** | [Roadmap & Milestones](docs/roadmap.md) | [路线图与阶段规划](docs/roadmap_cn.md) | Phase 1 - Phase 8 progress & development gates |
+| **State Contract** | [Attention Descriptor Spec](docs/design/attention-state-descriptor.md) | [Attention 状态描述符](docs/design/attention-state-descriptor_cn.md) | MLA / DSA / CSA / HCA state descriptors |
+| **Connector** | [Connector Lifecycle](docs/design/connector-lifecycle.md) | [引擎接插件生命周期](docs/design/connector-lifecycle_cn.md) | vLLM / SGLang hooks & PD disaggregation |
+| **Control Policy** | [Controlplane Policy](docs/design/controlplane-execution-policy.md) | [控制面执行策略](docs/design/controlplane-execution-policy_cn.md) | Leases, monotonic epochs & quota backpressure |
+| **Benchmarking** | [Benchmark Methodology](docs/benchmarks/benchmark-methodology.md) | [基准测试方法论](docs/benchmarks/benchmark-methodology_cn.md) | Microsecond Wall-Clock timing & QPS / GB dual metrics |
+| **Reliability** | [Reliability Model](docs/ops/reliability-model.md) | [系统可靠性与降级熔断](docs/ops/reliability-model_cn.md) | <1ms Fail-Open fallback guarantees |
+| **Tech Blog** | [Zero-Overhead Runtime](docs/blog/zero-overhead-kv-cache-runtime.md) | [零开销状态智能层剖析](docs/blog/zero-overhead-kv-cache-runtime_cn.md) | Cost equation $G = T_{compute} - T_{cache}$ |
+| **Whitepaper** | [Beyond KV Cache Paper](docs/papers/beyond-kv-cache.md) | [Beyond KV Cache 论文中文版](docs/papers/beyond-kv-cache_cn.md) | Architectural whitepaper |
 
 ---
 
