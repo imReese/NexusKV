@@ -35,11 +35,14 @@ pip install dist/nexuskv_planner_native-*.whl
 # 1. 自动挂载 NexusKV 智能状态层插件
 export VLLM_PLUGINS=nexuskv
 
-# 2. 生产环境标准拉起 vLLM API Server
+# 2. 生产环境标准拉起 vLLM API Server (支持 JSON 配置或直接 CLI 参数)
 vllm serve Qwen/Qwen2.5-72B-Instruct \
   --host 0.0.0.0 \
   --port 8000 \
   --kv-transfer-config '{"kv_connector": "NexusKVConnector", "kv_role": "kv_both"}'
+
+# 或者使用 CLI 快捷参数方式：
+# vllm serve Qwen/Qwen2.5-72B-Instruct --kv-connector NexusKVConnector --kv-role kv_both
 ```
 
 ---

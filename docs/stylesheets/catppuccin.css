@@ -1,7 +1,7 @@
 @import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap');
 
 /* ==========================================================================
-   Catppuccin Palette & High-Performance Modern Theme Overrides for MkDocs
+   Catppuccin Palette & Clean High-Contrast Styling for Material for MkDocs
    ========================================================================== */
 
 :root {
@@ -22,11 +22,10 @@
   --md-default-fg-color--lighter: #7c7f93;
   --md-default-fg-color--lightest: #9ca0b0;
 
-  --md-primary-fg-color: #4c4f69;
-  --md-primary-fg-color--light: #6c6f85;
-  --md-primary-fg-color--dark: #383a4c;
+  --md-primary-fg-color: #8839ef;
+  --md-primary-fg-color--light: #9a5cf7;
+  --md-primary-fg-color--dark: #722bd3;
   --md-primary-bg-color: #eff1f5;
-  --md-primary-bg-color--light: #e6e9ef;
 
   --md-accent-fg-color: #1e66f5;
   --md-accent-bg-color: #dce0e8;
@@ -54,13 +53,12 @@
   --md-default-fg-color--lighter: #bac2de;
   --md-default-fg-color--lightest: #45475a;
 
-  --md-primary-fg-color: #1e1e2e;
-  --md-primary-fg-color--light: #313244;
-  --md-primary-fg-color--dark: #181825;
+  --md-primary-fg-color: #cba6f7;
+  --md-primary-fg-color--light: #dcbbf9;
+  --md-primary-fg-color--dark: #b48ead;
   --md-primary-bg-color: #1e1e2e;
-  --md-primary-bg-color--light: #181825;
 
-  --md-accent-fg-color: #cba6f7;
+  --md-accent-fg-color: #89b4fa;
   --md-accent-bg-color: #313244;
 
   --md-code-bg-color: #11111b;
@@ -74,25 +72,22 @@
 }
 
 /* ==========================================================================
-   Header & Navigation Styling (Glassmorphism & Clean Alignment)
+   Header, Tabs & Navigation Visibility Fix
    ========================================================================== */
 
 .md-header {
-  background-color: var(--md-default-bg-color) !important;
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  background-color: var(--md-default-bg-color--light) !important;
+  color: var(--md-default-fg-color) !important;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: none !important;
-  transition: background-color 0.2s ease, border-color 0.2s ease;
 }
 
 [data-md-color-scheme="default"] .md-header {
   border-bottom: 1px solid rgba(0, 0, 0, 0.08);
 }
 
-.md-header__title {
-  font-weight: 700;
-  letter-spacing: -0.02em;
+.md-header__title,
+.md-header__topic,
+.md-header__button {
   color: var(--md-default-fg-color) !important;
 }
 
@@ -101,86 +96,46 @@
   border-bottom: 1px solid rgba(255, 255, 255, 0.05);
 }
 
-[data-md-color-scheme="default"] .md-tabs {
-  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
-}
-
 .md-tabs__link {
+  color: var(--md-default-fg-color--light) !important;
   font-weight: 500;
-  opacity: 0.8;
-  transition: opacity 0.2s ease, color 0.2s ease;
 }
 
 .md-tabs__link:hover,
 .md-tabs__link--active {
+  color: var(--md-accent-fg-color) !important;
   opacity: 1;
+}
+
+.md-nav__link {
+  color: var(--md-default-fg-color) !important;
+}
+
+.md-nav__link:hover,
+.md-nav__link--active {
   color: var(--md-accent-fg-color) !important;
 }
 
-/* Search Bar High Contrast Fix */
+/* Search Input Styling */
 .md-search__form {
-  background-color: var(--md-default-bg-color--light) !important;
+  background-color: var(--md-default-bg-color) !important;
   border-radius: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-[data-md-color-scheme="default"] .md-search__form {
-  border: 1px solid rgba(0, 0, 0, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.12);
 }
 
 .md-search__input {
   color: var(--md-default-fg-color) !important;
 }
 
-.md-search__input::placeholder {
-  color: var(--md-default-fg-color--light) !important;
-}
-
-/* ==========================================================================
-   Content & Card Enhancements
-   ========================================================================== */
-
-.md-typeset h1 {
-  font-weight: 800;
-  letter-spacing: -0.03em;
-  background: linear-gradient(135deg, #cba6f7 0%, #89b4fa 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  margin-bottom: 1rem;
-}
-
-[data-md-color-scheme="default"] .md-typeset h1 {
-  background: linear-gradient(135deg, #8839ef 0%, #1e66f5 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-}
-
+/* Code & Typography Enhancements */
 .md-typeset code {
-  border-radius: 6px;
-  padding: 0.15em 0.4em;
   font-family: var(--md-font-mono);
   background-color: var(--md-code-bg-color) !important;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-}
-
-[data-md-color-scheme="default"] .md-typeset code {
-  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 6px;
+  padding: 0.15em 0.4em;
 }
 
 .md-typeset pre > code {
-  border-radius: 10px;
+  border-radius: 8px;
   padding: 1rem;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-/* Admonitions (Alerts) Modern Styling */
-.md-typeset .admonition {
-  border-radius: 10px;
-  box-shadow: none;
-  border-left-width: 4px;
-}
-
-/* Smooth micro-animations */
-a, button, .md-nav__link {
-  transition: color 0.15s ease, background-color 0.15s ease, border-color 0.15s ease;
 }
