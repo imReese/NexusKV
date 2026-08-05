@@ -71,21 +71,26 @@ def main() -> None:
     print(f"• Effective Bandwidth Gain : {total_gb_saved / duration:.2f} GB/sec equivalent compute offload")
 
     # 3. Multi-Size KV Tensor Payload Matrix Benchmark
-    print("\n[2/3] Evaluating Multi-Size KV Tensor Payload Bandwidth Matrix...")
+    print("\n[2/3] Evaluating Multi-Size KV Tensor Payload Matrix (Saved Capacity & Decision Latency)...")
     matrix_traces = generator.generate_multi_size_matrix_traces()
-    print("-" * 70)
-    print(f"{'Payload Tier':<40} | {'Hits':<5} | {'Gain (ms)':<10} | {'Throughput (GB/s)':<18}")
-    print("-" * 70)
+    print("-" * 85)
+    print(f"{'Payload Tier':<35} | {'Hits':<5} | {'KV Saved':<10} | {'Gain (ms)':<10} | {'Decision Lat (μs)':<18}")
+    print("-" * 85)
 
     for label, matrix_trace in matrix_traces.items():
-        t_start = time.perf_counter()
+        t_start = time.perf_counter_ns()
         rpt = runner.run_trace(matrix_trace, BenchmarkStrategy.NEXUSKV_COST_BASED)
-        t_dur = time.perf_counter() - t_start
+        t_dur_us = (time.perf_counter_ns() - t_start) / 1000.0
+        
         bytes_saved = sum(len(r.tokens) * 256 for r in matrix_trace.requests)
-        gb_saved = bytes_saved / (1024 ** 3)
-        bw_gbs = gb_saved / t_dur if t_dur > 0 else 0.0
-        print(f"{label:<40} | {rpt.useful_reuses:<5} | {rpt.aggregate_effective_gain_ms:<10.2f} | {bw_gbs:<18.2f}")
-    print("-" * 70)
+        if bytes_saved >= (1024 ** 3):
+            kv_saved_str = f"{bytes_saved / (1024 ** 3):.2f} GB"
+        else:
+            kv_saved_str = f"{bytes_saved / (1024 ** 2):.2f} MB"
+            
+        avg_decision_lat_us = t_dur_us / len(matrix_trace.requests) if matrix_trace.requests else 0.0
+        print(f"{label:<35} | {rpt.useful_reuses:<5} | {kv_saved_str:<10} | {rpt.aggregate_effective_gain_ms:<10.2f} | {avg_decision_lat_us:<18.2f}")
+    print("-" * 85)
 
     # 4. Cluster Stress Test & Memory Leak Check
     print("\n[3/3] Running High-Concurrency Cluster Stress Test & Memory Leak Check...")
