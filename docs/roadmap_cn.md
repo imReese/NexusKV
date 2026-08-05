@@ -1,98 +1,75 @@
-# 🧭 NexusKV 长期技术路线图与业界演进规划 (2026 - 2028 Roadmap)
+# 🧭 NexusKV 高速演进路线图 (2026 季度敏捷规划)
 
 ---
 
-## 💡 一、 业界技术演进趋势与深度思考 (Industry Landscape Analysis)
+## 💡 一、 业界技术演进趋势 (Industry Trends)
 
-在 2026 年大模型基础设施领域，推理架构正在经历一场深刻的物理变革。通过对业界最新工程实践与学术前沿（NVIDIA NIXL、CXL 3.0 TraCT、UALink 2.0、SGLang HiCache、Mooncake Store 等）的深入调研，我们梳理出 **5 大核心技术趋势**：
+在 2026 年大模型基础设施领域，推理架构正在经历高度敏捷的物理变革：
 
-### 1. Prefill-Decode (PD) 彻底分离与柜级 (Rack-Scale) 算力解耦
-* **趋势**：LLM 推理从简单的单机推导，全面迈向 **Prefill-Decode 物理节点分离**。Prefill 节点关注 Compute 带宽，Decode 节点关注 Memory 带宽。
-* **挑战**：跨节点 KV Cache 搬运的网络开销（TTFT / TBT）已取代单纯的计算延迟，成为影响大模型服务质量的首要瓶颈。
-
-### 2. 存储与传输物理介质跃迁 (Transport Fabric Evolution)
-* **趋势**：从传统的网络层传输（TCP / RDMA），快速走向 **CXL 3.0 柜级共享内存池 (Load/Store 直接挂载)** 与 **UALink 2.0 / NIXL 跨卡跨机极速总线**。
-* **挑战**：控制面必须具备对物理介质拓扑（CXL/NVLink/RDMA/Shared DRAM）的动态识别与最优路径选择能力。
-
-### 3. 多模型 Attention 状态通用化 (Universal State Taxonomy)
-* **趋势**：Attention 架构呈爆发式多样化——密集型（MHA/GQA）、低秩潜空间（DeepSeek MLA）、滑动窗口与全局摘要（CSA/HCA/SWA）以及固定尺寸递归状态（Kimi KDA, Mamba-2, Gated DeltaNet, RWKV-7）并存。
-* **挑战**：基础设施层不能再将 KV Cache 简单视作一堆无差异的二进制 Block，必须感知**状态语义与物理衰减开销**。
-
-### 4. Agent 复杂推演与分支前缀树 (Agentic Multi-Branch KV Tree)
-* **趋势**：大模型应用全面从单轮 Chat 转向 Agentic AI、Tree-of-Thought (ToT)、MCTS 搜索以及投机采样（Speculative Decoding）。
-* **挑战**：大量的分支分叉生成导致传统的单链 Cache 匹配失效，亟需 **Copy-on-Write (CoW) 零开销多分支 Radix 前缀树**。
-
-### 5. 机密计算与安全防护 (Confidential Memory Fabric)
-* **趋势**：金融、医疗、政企等敏感场景对大模型推理提出了严苛的数据隐私保护要求。
-* **挑战**：跨节点传输与共享 HBM/DRAM 内存池中的 KV Tensor 必须防止恶意节点窃听与内存 Dump 攻击。
+1. **Prefill-Decode (PD) 分离与节点解耦**：推理集群全面走向 Prefill/Decode 物理节点分离，跨节点 KV 传输开销已成为影响 TTFT 的首要瓶颈。
+2. **新型 Attention 状态爆发**：以 DeepSeek-V3 / MLA（低秩潜空间）、Kimi-K1.5 / KDA（线性递归状态）为代表的多模态 Attention 架构快速普及，基础设施层需原生感知多种状态语义。
+3. **硬件级物理总线跃迁**：物理传输从 TCP/RDMA 快速走向 NVLink P2P、CXL 3.0 柜级共享内存与 NIXL 跨机极速总线。
+4. **Agentic 复杂多分支推演**：Agentic AI 与 Tree-of-Thought (ToT) 搜索要求底层提供 Copy-on-Write (CoW) 零开销多分支前缀状态共享与主动推测预取。
 
 ---
 
-## 🏛 二、 4 大战略演进阶段 (Strategic Execution Phases)
+## 🏛 二、 2026 季度演进里程碑 (2026 Quarterly Milestones)
 
 ```text
  ┌───────────────────────────────────────────────────────────────────────────────────┐
- │ Phase 1: 生产级稳健落地与多引擎通用契约 (2026 Q3)                                     │
- │ - 完善 Go/Rust/Python 三层解耦，企业级多租户配额硬隔离                               │
+ │ 2026 Q1 (已完成): 核心多语言架构闭环与零开销契约                                    │
+ │ - Go 控制面 / Rust `nxradixtree-core` 前缀树 / Python FFI / Apache 2.0 开源协议  │
  └─────────────────────────────────────────┬─────────────────────────────────────────┘
                                            │
                                            ▼
  ┌───────────────────────────────────────────────────────────────────────────────────┐
- │ Phase 2: 柜级硬件池化与下一代传输协议 (2026 Q4 - 2027 Q1)                           │
- │ - CXL 3.0 共享内存池 (TraCT) / 原生 NIXL SDK & UALink 2.0 传输支持                   │
+ │ 2026 Q2 (推进中): DeepSeek-V3 / MLA 深度优化与 Speculative 预取                    │
+ │ - MLA 512维 Latent 压缩解耦 / Speculative Prefetch Engine / PyPI & Helm 自动化     │
  └─────────────────────────────────────────┬─────────────────────────────────────────┘
                                            │
                                            ▼
  ┌───────────────────────────────────────────────────────────────────────────────────┐
- │ Phase 3: Agentic 树状分叉与推测式预读智能中枢 (2027 Q2 - 2027 Q3)                     │
- │ - 多分支 Copy-on-Write (CoW) 树 / Speculative Agent 预读 / 动态出价算力-传输优化器 │
+ │ 2026 Q3: 无锁并发前缀树、C++ Client SDK 与 Consistent Hashing                     │
+ │ - RCU 无锁 Radix Tree 遍历 / C++ Header-Only SDK / Consistent Hash Ring 节点自愈  │
  └─────────────────────────────────────────┬─────────────────────────────────────────┘
                                            │
                                            ▼
  ┌───────────────────────────────────────────────────────────────────────────────────┐
- │ Phase 4: 自愈自治与机密计算安全网络 (2027 Q4+)                                      │
- │ - TEE 机密内存写加密 / 硬件故障零中断热迁移 / 基于热点分布的 PD 节点弹性伸缩           │
+ │ 2026 Q4: CXL 3.0 柜级内存池与 NIXL 硬件零拷贝                                       │
+ │ - CXL 3.0 Shared Memory TraCT 挂载 / NIXL P2P 驱动集成 / Agent 多分支 CoW 树      │
  └───────────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-### 阶段 1：生产级稳健落地与多引擎通用契约 (Phase 1 - 2026 Q3)
+### 2026 Q1：核心多语言架构闭环与零开销契约 (已完成)
 
-* **核心目标**：完成 Go+Rust+Python 架构的稳健闭环，提供开箱即用的通用引擎接入契约，打磨千卡集群生产环境可用性。
-* **关键里程碑**：
-  - [x] **C-FFI / Native IPC 通用契约**：统一 Rust C-FFI / PyO3 / POSIX SHM 接口，完全解耦底层推理引擎。
-  - [x] **Attention 全族系描述符**：完善 MHA, GQA, MLA, CSA/HCA, KDA, GDN, Mamba-2 状态描述符契约 ([state.py](file:///Users/reese/Code/imReese/NexusKV/python/nexuskv/adapters/state.py))。
-  - [x] **4D 复合效用 Router**：支持基于端到端收益、节点并发负载、显存水位与网络开销的智能调度。
-  - [ ] **企业级多租户配额硬隔离 (Multi-Tenant Hard Quota)**：完善 `TenantQuotaManager` 的硬隔离与软反压，防止单一租户刷爆 Shared Memory。
-  - [ ] **可观测性 Dashboard**：提供基于 OpenTelemetry / Prometheus 的全局 Cache 命中率、物理搬运带宽 (GB/s) 与 Fail-Open 降级事件监控。
+- [x] **Go 分布式控制面**：Raft 状态同步、WAL 持久化日志与 `TenantQuotaManager` 多租户硬隔离。
+- [x] **Rust 内核与匹配引擎**：`nxradixtree-core` 前缀树匹配、`nexus-store` 锁页内存与 POSIX SHM 零拷贝。
+- [x] **通用 C-FFI / Python 挂载协议**：完全解耦底层推理引擎，原生适配 vLLM、SGLang 等主流引擎。
+- [x] **Apache 2.0 开源协议**：全面升级许可契约，赋予显式专利授权保护。
 
 ---
 
-### 阶段 2：柜级硬件池化与下一代传输协议 (Phase 2 - 2026 Q4 ~ 2027 Q1)
+### 2026 Q2：DeepSeek-V3 / MLA 深度优化与 Speculative 预取 (推进中)
 
-* **核心目标**：全面拥抱 CXL 3.0 柜级共享内存池与 NIXL / UALink 传输原语，打破节点物理存储壁垒。
-* **关键里程碑**：
-  - [ ] **CXL 3.0 内存池集成 (CXL Shared Memory Fabric)**：实现对 CXL 3.0 柜级共享内存的直接 Load/Store 挂载，消除 RDMA 网络跳数（0-Hop Zero Network Transfer）。
-  - [ ] **NIXL & UALink 2.0 原生传输引擎**：集成 NVIDIA NIXL SDK 原生驱动与开源 UALink 2.0 高速总线，实现跨厂商 Accelerators 的硬件级传输对接。
-  - [ ] **国产算力专属 Page 引擎**：针对华为昇腾 (CANN HCCL)、寒武纪 (MLU Memory)、摩尔线程 (MUSA) 提供特定硬件对齐与内存碎片优化。
-
----
-
-### 阶段 3：Agentic 树状分叉与推测式预读智能中枢 (Phase 3 - 2027 Q2 ~ 2027 Q3)
-
-* **核心目标**：赋能 Agentic AI、MCTS 搜索与投机采样的复杂分叉 Cache 共享与主动推测式预读。
-* **关键里程碑**：
-  - [ ] **Multi-Branch Radix Tree (多分支并发 CoW 树)**：针对 Tree-of-Thought (ToT) 与 MCTS 搜索，实现 Copy-on-Write (CoW) 零开销多分支状态共享。
-  - [ ] **Speculative Agent Prefetcher (推测式 Agent 预读引擎)**：根据 Agent 动作语义拓扑图，在后台提前 2~3 个 Step 将潜在冷 Cache 异步加载至 Host DRAM / Device HBM。
-  - [ ] **动态算力-传输开销出价机制 (Dynamic Trade-off Bidding Optimizer)**：根据物理网络实时拥塞状态与 GPU 实时算力利用率，自动出价决策“直接网络搬运 Cache”还是“触发本地 GPU 重新 Compute”。
+- [x] **Grafana & 可观测性面板**：提供预设仪表盘 `grafana-dashboard.json`，实时监控命中率、传输带宽 (GB/s) 与 Fail-Open 事件。
+- [x] **PyPI Wheel 自动化构建**：配置 `.github/workflows/release.yml`，支持多平台 Maturin 自动化二进制构建。
+- [x] **Speculative Intent 预取引擎**：实现 Decode 前的 Token Prefix 意图异步流水线预加载 (`prefetch.py`)。
+- [ ] **DeepSeek-V3 / MLA 原生状态重映射**：针对 DeepSeek-V3 的 MLA ($c_t^{KV} + k_t^R$) 512 维低秩潜向量进行层间 KV 压缩与量化 Scale 标度对齐。
 
 ---
 
-### 阶段 4：自愈自治与机密计算安全网络 (Phase 4 - 2027 Q4+)
+### 2026 Q3：无锁并发前缀树、C++ Client SDK 与 Consistent Hashing
 
-* **核心目标**：打造千卡以上超大规模集群零人工干预的自治高可用网络与机密计算保护。
-* **关键里程碑**：
-  - [ ] **TEE 机密内存加密传输 (Confidential KV Fabric)**：结合 Intel TDX / AMD SEV / NVIDIA Confidential Compute，为 HBM/DRAM 共享池中的 KV Tensor 提供硬件级写入加密。
-  - [ ] **零中断状态热迁移 (Zero-Downtime Live Migration)**：当某一 GPU 节点发生 ECC 报错或硬件故障时，控制面毫秒级完成 HBM 状态至热备节点的平滑迁移。
-  - [ ] **基于缓存热度的 PD 节点弹性伸缩 (Cache-Aware Auto-Scaler)**：根据全局前缀树热点变化，自动动态调整 PD 分离集群中 Prefill 与 Decode 节点的物理 GPU 数量比例。
+- [ ] **Lock-Free Concurrent Radix Tree**：在 `nxradixtree-core` 中演进 RCU (Read-Copy-Update) 节点指针更新，大幅降低百核并发查找争用。
+- [ ] **Header-Only C++ Client SDK**：为 TensorRT-LLM、LMDeploy 及 C++ 自研推理网关提供轻量级 C++ 原生客户端库 (`nexuskv_client.h`)。
+- [ ] **Consistent Hash Ring 节点自愈**：在 Go 控制面增加虚拟节点一致性哈希环，应对 Worker 节点动态扩缩容时的状态路由抖动。
+
+---
+
+### 2026 Q4：CXL 3.0 柜级内存池与 NIXL 硬件零拷贝
+
+- [ ] **CXL 3.0 柜级共享内存池**：集成 CXL 3.0 TraCT，支持共享内存 Load/Store 直接挂载，实现跨机 0-Hop 零网络开销传输。
+- [ ] **NVIDIA NIXL 原生传输引擎**：集成 NIXL P2P 驱动，实现跨卡跨机 GPU 内存硬件级传输。
+- [ ] **Agentic 多分支 CoW Radix 树**：针对 ToT / MCTS 搜索，实现 Copy-on-Write 零开销多分支状态共享。

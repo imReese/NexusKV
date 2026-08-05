@@ -199,4 +199,4 @@ For global developers and teams, NexusKV provides a **100% 1-to-1 paired English
 
 ## 📄 License
 
-NexusKV is licensed under the [MIT License](LICENSE).
+NexusKV is licensed under the [Apache License 2.0](LICENSE).

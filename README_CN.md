@@ -201,4 +201,4 @@ make bench   # 运行双维度与多 Payload 阶梯性能 Benchmark 看板
 
 ## 📄 开源许可证
 
-NexusKV 采用 [MIT 许可证](LICENSE) 开源。
+NexusKV 采用 [Apache License 2.0](LICENSE) 开源。
