@@ -18,11 +18,13 @@
 
 ## 💡 什么是 NexusKV？
 
-**NexusKV** 是专为前沿大语言模型推理平台（原生支持 **vLLM V2 引擎 (Model Runner V2 / Workflow Defined Engine)** 与 **SGLang (Unified Radix Cache / HiCache)**）设计的下一代**模型状态智能层（Model State Intelligence Layer）**。
+**NexusKV** 是专为大语言模型推理平台设计的下一代**通用模型状态智能与分布式内存基础设施层（Universal Model State Intelligence & Memory Fabric）**。
 
-随着 LLM 推理全面迈向 **Prefill-Decode (PD) 分离架构**、**Sliding Window Attention (SWA)**、**Mamba 状态卸载** 以及 **DeepSeek MLA / DSA 新型 Attention**，传统将 KV Cache 视为盲目命中驱动（Hit-Driven）的存储方案暴露出了严重的缺陷：**网络传输导致 TTFT 恶化、内存碎片化以及缺乏物理算力感知**。
+NexusKV 的核心原则是**引擎无关 (Engine-Agnostic)**、**模型架构无关 (Model-Agnostic)** 以及 **硬件无关 (Hardware-Agnostic)**。无论是主流开源推理引擎（如 vLLM、SGLang、TensorRT-LLM、LMDeploy、TGI）还是企业自研 C++/Rust 推理引擎与网关，均可通过统一 Schema 契约无缝接入。
 
-NexusKV 通过解耦 **Go 分布式控制面 (LeaseManager / EpochTracker)**、**Rust 数据与 Radix 匹配引擎 (`nxradixtree-core` / `nexus-store`)** 以及 **Python 引擎 FFI 拦截器 (`NativeEngineHookInterceptor`)** 解决了这一难题。它提供了基于 **有效收益评估方程 ($G = T_{compute} - T_{cache} > 0$)** 的智能决策引擎，支持 **Quota 主动反压**，并提供 **<1ms 极速 Fail-Open 平滑降级保障**。
+随着 LLM 推理全面迈向 **Prefill-Decode (PD) 分离架构**、**Sliding Window Attention (SWA)**、**线性/递归状态卸载 (Recurrent State)** 以及 **低秩 Latent/稀疏 Attention**，传统将 KV Cache 视为盲目命中驱动（Hit-Driven）的存储方案暴露出了严重的缺陷：**网络传输导致 TTFT 恶化、内存碎片化以及缺乏物理算力感知**。
+
+NexusKV 通过解耦 **Go 分布式控制面 (LeaseManager / EpochTracker)**、**Rust 数据与 Radix 匹配引擎 (`nxradixtree-core` / `nexus-store`)** 以及 **通用 C-FFI / Python 挂载协议** 解决了这一难题。它提供了基于 **有效收益评估方程 ($G = T_{compute} - T_{cache} > 0$)** 的智能决策引擎，支持 **Quota 主动反压**，并提供 **<1ms 极速 Fail-Open 平滑降级保障**。
 
 ---
 
