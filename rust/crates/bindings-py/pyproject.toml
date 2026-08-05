@@ -19,4 +19,3 @@ classifiers = [
 [tool.maturin]
 module-name = "nexuskv_planner_native"
 features = ["pyo3/extension-module"]
-python-source = "python"
