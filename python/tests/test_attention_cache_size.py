@@ -23,7 +23,7 @@ class TestAttentionCacheSize(unittest.TestCase):
         self.assertEqual(llama3_70b.bytes_per_token(2), 327680)
 
     def test_mla_deepseek_v3_bytes_per_token(self) -> None:
-        deepseek_v3 = ATTENTION_PROFILES[3]
+        deepseek_v3 = ATTENTION_PROFILES[2]
         # 61 * (512 + 64) * 2 = 70,272 bytes/token
         self.assertEqual(deepseek_v3.bytes_per_token(2), 70272)
         # 32k context footprint = 2196.0 MB = 2.14 GB
