@@ -1,47 +1,57 @@
 #!/usr/bin/env python3
-"""
-NexusKV Dual-Dimension Benchmark & Cluster Stress Test Utility
+"""NexusKV Benchmark & Stress Test Runner.
 
-Dimensions Evaluated:
-1. Decision Intelligence Dimension: QPS (Requests/sec) & Microsecond Latency
-2. Byte Payload Dimension          : GB Saved & Transfer Bandwidth (GB/sec)
+Executes dual-dimension performance profiling (QPS/RPS & GB Saved),
+hardware device & architecture detection, multi-size KV Tensor payload matrix,
+and high-concurrency cluster stress testing.
 """
+
+from __future__ import annotations
 
 import sys
 import time
 from pathlib import Path
 
-# Add python directory to PYTHONPATH
-ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / "python"))
+# Add python directory to sys.path
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "python"))
 
-from nexuskv.benchmarks.trace import BenchmarkTraceGenerator
 from nexuskv.benchmarks.runner import BenchmarkStrategyRunner, BenchmarkStrategy
 from nexuskv.benchmarks.stress import ClusterStressTestRunner
+from nexuskv.benchmarks.trace import BenchmarkTraceGenerator
+from nexuskv.benchmarks.system_info import get_system_hardware_info
 
 
-def main():
-    print("=" * 65)
-    print("      NexusKV Dual-Dimension Benchmark & Stress Test Runner")
-    print("=" * 65)
+def main() -> None:
+    print("=" * 70)
+    print("      NexusKV Industrial Dual-Dimension Benchmark Suite")
+    print("=" * 70)
 
-    # 1. Trace Generation & 3-Way Strategy Benchmark Comparison
-    print("\n[1/2] Generating Workload Trace & Evaluating Dual-Dimension Performance...")
+    # 1. Hardware Device & Memory Architecture Detection
+    sys_info = get_system_hardware_info()
+    print("\n[Hardware & System Environment Info]")
+    print(f"• Operating System       : {sys_info['os']}")
+    print(f"• Python Runtime         : Python {sys_info['python_version']}")
+    print(f"• CPU Hardware           : {sys_info['cpu']}")
+    print(f"• Host RAM Capacity      : {sys_info['ram_gb']}")
+    print(f"• Accelerator Device     : {sys_info['device_class']}")
+    print(f"• Memory Architecture    : {sys_info['memory_architecture']}")
+
+    # 2. Workload Trace & Single-Trace Dual-Dimension Evaluation
+    print("\n[1/3] Evaluating Standard Workload Trace & Decision Latency...")
     generator = BenchmarkTraceGenerator(seed=2026)
-    trace = generator.generate_synthetic_trace(num_requests=30)
+    standard_trace = generator.generate_synthetic_trace(num_requests=30)
     runner = BenchmarkStrategyRunner()
 
     start = time.perf_counter()
-    recompute_report = runner.run_trace(trace, BenchmarkStrategy.PURE_RECOMPUTE)
-    hit_report = runner.run_trace(trace, BenchmarkStrategy.HIT_DRIVEN)
-    nexus_report = runner.run_trace(trace, BenchmarkStrategy.NEXUSKV_COST_BASED)
+    recompute_report = runner.run_trace(standard_trace, BenchmarkStrategy.PURE_RECOMPUTE)
+    hit_report = runner.run_trace(standard_trace, BenchmarkStrategy.HIT_DRIVEN)
+    nexus_report = runner.run_trace(standard_trace, BenchmarkStrategy.NEXUSKV_COST_BASED)
     duration = time.perf_counter() - start
 
-    # Calculate Total Payload Bytes (assuming ~256 bytes per token for FP16 KV tensor states)
-    total_bytes_saved = sum(len(r.tokens) * 256 for r in trace.requests)
+    total_bytes_saved = sum(len(r.tokens) * 256 for r in standard_trace.requests)
     total_gb_saved = total_bytes_saved / (1024 ** 3)
 
-    print(f"\n--- Strategy Comparison Results ({len(trace)} Requests) ---")
+    print(f"\n--- Strategy Comparison Results ({len(standard_trace)} Requests) ---")
     print(f"1. Pure Recompute         : Recomputes={recompute_report.recomputations}, Effective Gain={recompute_report.aggregate_effective_gain_ms:.2f}ms")
     print(f"2. Hit-Driven Reuse       : Hits={hit_report.total_hits}, Useful Reuses={hit_report.useful_reuses}, Gain={hit_report.aggregate_effective_gain_ms:.2f}ms")
     print(f"3. NexusKV Cost-Based     : Hits={nexus_report.total_hits}, Useful Reuses={nexus_report.useful_reuses}, Rejected Unprofitable={nexus_report.rejected_unprofitable_hits}, Gain={nexus_report.aggregate_effective_gain_ms:.2f}ms")
@@ -60,8 +70,25 @@ def main():
     print(f"• Payload Capacity Saved   : {total_gb_saved:.3f} GB KV Tensors ({total_bytes_saved / (1024**2):.2f} MB)")
     print(f"• Effective Bandwidth Gain : {total_gb_saved / duration:.2f} GB/sec equivalent compute offload")
 
-    # 2. Cluster Stress Test & Memory Leak Check
-    print("\n[2/2] Running High-Concurrency Cluster Stress Test & Memory Leak Check...")
+    # 3. Multi-Size KV Tensor Payload Matrix Benchmark
+    print("\n[2/3] Evaluating Multi-Size KV Tensor Payload Bandwidth Matrix...")
+    matrix_traces = generator.generate_multi_size_matrix_traces()
+    print("-" * 70)
+    print(f"{'Payload Tier':<40} | {'Hits':<5} | {'Gain (ms)':<10} | {'Throughput (GB/s)':<18}")
+    print("-" * 70)
+
+    for label, matrix_trace in matrix_traces.items():
+        t_start = time.perf_counter()
+        rpt = runner.run_trace(matrix_trace, BenchmarkStrategy.NEXUSKV_COST_BASED)
+        t_dur = time.perf_counter() - t_start
+        bytes_saved = sum(len(r.tokens) * 256 for r in matrix_trace.requests)
+        gb_saved = bytes_saved / (1024 ** 3)
+        bw_gbs = gb_saved / t_dur if t_dur > 0 else 0.0
+        print(f"{label:<40} | {rpt.useful_reuses:<5} | {rpt.aggregate_effective_gain_ms:<10.2f} | {bw_gbs:<18.2f}")
+    print("-" * 70)
+
+    # 4. Cluster Stress Test & Memory Leak Check
+    print("\n[3/3] Running High-Concurrency Cluster Stress Test & Memory Leak Check...")
     stress_runner = ClusterStressTestRunner(num_iterations=20, concurrency=4)
     stress_report = stress_runner.run_stress_test()
 
@@ -74,9 +101,9 @@ def main():
     print(f"Zero Memory Leak Verdict: {stress_report.zero_memory_leak}")
     print(f"Zero Crash Verdict      : {stress_report.zero_crash}")
 
-    print("\n" + "=" * 65)
-    print("             NexusKV Benchmark Execution Complete!")
-    print("=" * 65)
+    print("\n" + "=" * 70)
+    print("             NexusKV Industrial Benchmark Execution Complete!")
+    print("=" * 70)
 
 
 if __name__ == "__main__":

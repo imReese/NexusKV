@@ -79,3 +79,19 @@ class BenchmarkTraceGenerator:
             requests.append(req)
 
         return WorkloadTrace(name=name, requests=requests)
+
+    def generate_multi_size_matrix_traces(self) -> dict[str, WorkloadTrace]:
+        """Generate specialized workload traces across Small, Medium, and Large KV Tensor Payload sizes."""
+        tiers = {
+            "Small (512 - 2,048 Tokens / 128KB - 512KB)": (512, 1024, 2048),
+            "Medium (4,096 - 16,384 Tokens / 1MB - 4MB)": (4096, 8192, 16384),
+            "Large (32,768 - 131,072 Tokens / 8MB - 32MB)": (32768, 65536, 131072),
+        }
+        result = {}
+        for label, lengths in tiers.items():
+            result[label] = self.generate_synthetic_trace(
+                name=f"trace_{label.split()[0].lower()}",
+                num_requests=20,
+                context_lengths=lengths,
+            )
+        return result
