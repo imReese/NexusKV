@@ -25,9 +25,15 @@ cd "${REPO_ROOT}/go"
 GOTOOLCHAIN=go1.25.9 go build -o "${BIN_DIR}/nexuskv-controlplane" ./cmd/nexuskv-controlplane
 echo "    ✔ Built Go binary: ${BIN_DIR}/nexuskv-controlplane"
 
-# 3. Build Rust Core Engine & PyO3 Dynamic Extension
+# 3. Build Rust Core Engine & PyO3 Native Bindings
 echo "==> [3/3] Building Rust Core Engine & PyO3 Native Bindings..."
 cd "${REPO_ROOT}/rust"
+
+# On macOS, PyO3 extension modules require dynamic lookup for Python C-API symbols
+if [ "$(uname -s)" = "Darwin" ]; then
+    export RUSTFLAGS="-C link-arg=-undefined -C link-arg=dynamic_lookup ${RUSTFLAGS:-}"
+fi
+
 cargo build --release -p bindings-py
 
 # Determine OS dynamic library extension
