@@ -21,6 +21,9 @@ class RequestMetricRecord:
     effective_gain_ms: float
     t_compute_ms: float
     t_cache_ms: float
+    real_wall_clock_us: float = 0.0
+    real_lookup_us: float = 0.0
+    real_materialize_us: float = 0.0
     fallback_reason: str | None = None
 
 
@@ -38,6 +41,16 @@ class BenchmarkReport:
     aggregate_effective_gain_ms: float
     avg_ttft_ms: float
     p95_ttft_ms: float
+    # Real Wall-Clock Latency Breakdown & Percentiles (Microseconds)
+    p50_e2e_us: float = 0.0
+    p90_e2e_us: float = 0.0
+    p99_e2e_us: float = 0.0
+    p50_lookup_us: float = 0.0
+    p99_lookup_us: float = 0.0
+    p50_materialize_us: float = 0.0
+    p99_materialize_us: float = 0.0
+    tokens_per_sec: float = 0.0
+    payload_mb_per_sec: float = 0.0
     records: list[RequestMetricRecord] = field(default_factory=list)
 
     def to_dict(self) -> dict:
@@ -54,6 +67,11 @@ class BenchmarkReport:
             "aggregate_effective_gain_ms": round(self.aggregate_effective_gain_ms, 3),
             "avg_ttft_ms": round(self.avg_ttft_ms, 3),
             "p95_ttft_ms": round(self.p95_ttft_ms, 3),
+            "p50_e2e_us": round(self.p50_e2e_us, 2),
+            "p90_e2e_us": round(self.p90_e2e_us, 2),
+            "p99_e2e_us": round(self.p99_e2e_us, 2),
+            "tokens_per_sec": round(self.tokens_per_sec, 1),
+            "payload_mb_per_sec": round(self.payload_mb_per_sec, 1),
         }
 
     def to_json(self) -> str:
@@ -96,8 +114,28 @@ class BenchmarkMetricsCollector:
         ttfts = [r.t_cache_ms if r.decision == "MATERIALIZE" else r.t_compute_ms for r in self.records]
         avg_ttft = sum(ttfts) / total
         sorted_ttfts = sorted(ttfts)
-        p95_index = int(0.95 * total)
-        p95_ttft = sorted_ttfts[min(p95_index, total - 1)]
+        p95_index = min(int(0.95 * total), total - 1)
+        p95_ttft = sorted_ttfts[p95_index]
+
+        # Calculate percentiles for real wall-clock latencies
+        wall_times = sorted([r.real_wall_clock_us for r in self.records if r.real_wall_clock_us > 0] or [0.0])
+        lookups = sorted([r.real_lookup_us for r in self.records if r.real_lookup_us > 0] or [0.0])
+        mats = sorted([r.real_materialize_us for r in self.records if r.real_materialize_us > 0] or [0.0])
+
+        p50_e2e = wall_times[min(int(0.50 * len(wall_times)), len(wall_times) - 1)]
+        p90_e2e = wall_times[min(int(0.90 * len(wall_times)), len(wall_times) - 1)]
+        p99_e2e = wall_times[min(int(0.99 * len(wall_times)), len(wall_times) - 1)]
+
+        p50_lookup = lookups[min(int(0.50 * len(lookups)), len(lookups) - 1)]
+        p99_lookup = lookups[min(int(0.99 * len(lookups)), len(lookups) - 1)]
+
+        p50_mat = mats[min(int(0.50 * len(mats)), len(mats) - 1)]
+        p99_mat = mats[min(int(0.99 * len(mats)), len(mats) - 1)]
+
+        total_tokens = sum(r.context_length for r in self.records)
+        total_wall_sec = sum(r.real_wall_clock_us for r in self.records) / 1e6
+        tokens_per_sec = total_tokens / total_wall_sec if total_wall_sec > 0 else 0.0
+        payload_mb_per_sec = (total_tokens * 256 / (1024 * 1024)) / total_wall_sec if total_wall_sec > 0 else 0.0
 
         return BenchmarkReport(
             trace_name=self.trace_name,
@@ -107,10 +145,19 @@ class BenchmarkMetricsCollector:
             useful_reuses=useful,
             rejected_unprofitable_hits=rejected,
             recomputations=recomputes,
-            hit_rate=hits / total if total > 0 else 0.0,
-            useful_reuse_rate=useful / total if total > 0 else 0.0,
+            hit_rate=hits / total,
+            useful_reuse_rate=useful / total,
             aggregate_effective_gain_ms=agg_gain,
             avg_ttft_ms=avg_ttft,
             p95_ttft_ms=p95_ttft,
+            p50_e2e_us=p50_e2e,
+            p90_e2e_us=p90_e2e,
+            p99_e2e_us=p99_e2e,
+            p50_lookup_us=p50_lookup,
+            p99_lookup_us=p99_lookup,
+            p50_materialize_us=p50_mat,
+            p99_materialize_us=p99_mat,
+            tokens_per_sec=tokens_per_sec,
+            payload_mb_per_sec=payload_mb_per_sec,
             records=self.records,
         )

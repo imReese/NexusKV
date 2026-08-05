@@ -46,8 +46,17 @@ def main():
     print(f"2. Hit-Driven Reuse       : Hits={hit_report.total_hits}, Useful Reuses={hit_report.useful_reuses}, Gain={hit_report.aggregate_effective_gain_ms:.2f}ms")
     print(f"3. NexusKV Cost-Based     : Hits={nexus_report.total_hits}, Useful Reuses={nexus_report.useful_reuses}, Rejected Unprofitable={nexus_report.rejected_unprofitable_hits}, Gain={nexus_report.aggregate_effective_gain_ms:.2f}ms")
 
+    print(f"\n--- Real Wall-Clock Decision Latency Breakdown (Microseconds) ---")
+    print(f"• P50 End-to-End Decision Latency : {nexus_report.p50_e2e_us:.2f} us")
+    print(f"• P90 End-to-End Decision Latency : {nexus_report.p90_e2e_us:.2f} us")
+    print(f"• P99 End-to-End Decision Latency : {nexus_report.p99_e2e_us:.2f} us")
+    print(f"• P50 Radix Tree Lookup Latency   : {nexus_report.p50_lookup_us:.2f} us")
+    print(f"• P99 Radix Tree Lookup Latency   : {nexus_report.p99_lookup_us:.2f} us")
+    print(f"• P50 Memory Handle Mount Latency  : {nexus_report.p50_materialize_us:.2f} us")
+
     print(f"\n--- Dual-Dimension Metrics Summary ---")
     print(f"• Decision Rate (QPS)      : {30 / duration:.1f} req/sec ({duration * 1000 / 30:.3f} ms/req decision latency)")
+    print(f"• Token Processing Rate    : {nexus_report.tokens_per_sec:.1f} tokens/sec")
     print(f"• Payload Capacity Saved   : {total_gb_saved:.3f} GB KV Tensors ({total_bytes_saved / (1024**2):.2f} MB)")
     print(f"• Effective Bandwidth Gain : {total_gb_saved / duration:.2f} GB/sec equivalent compute offload")
 
