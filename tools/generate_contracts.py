@@ -146,7 +146,16 @@ def main() -> int:
 
     if not args.check:
         import subprocess
-        subprocess.run(["ruff", "format", str(PYTHON_OUT)], check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+        try:
+            subprocess.run(
+                ["ruff", "format", str(PYTHON_OUT)],
+                check=False,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+        except FileNotFoundError:
+            pass
 
     if args.check and not ok:
         print("generated contracts are out of date")
