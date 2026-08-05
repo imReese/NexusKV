@@ -24,10 +24,6 @@ theme:
       toggle:
         icon: material/brightness-4
         name: 切换至 Catppuccin Latte (亮色)
-
-extra_css:
-  - stylesheets/catppuccin.css
-
   features:
     - navigation.tabs
     - navigation.tabs.sticky
@@ -38,6 +34,9 @@ extra_css:
     - search.highlight
     - content.code.copy
     - content.code.annotate
+
+extra_css:
+  - stylesheets/catppuccin.css
 
 markdown_extensions:
   - pymdownx.highlight:
