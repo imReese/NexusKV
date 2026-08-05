@@ -1,59 +1,186 @@
-/* Catppuccin Palette for Material for MkDocs */
+@import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap');
 
-/* Catppuccin Latte (Light Mode) */
+/* ==========================================================================
+   Catppuccin Palette & High-Performance Modern Theme Overrides for MkDocs
+   ========================================================================== */
+
+:root {
+  --md-font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --md-font-mono: 'Fira Code', monospace;
+}
+
+/* --------------------------------------------------------------------------
+   Catppuccin Latte (Light Mode)
+   -------------------------------------------------------------------------- */
 [data-md-color-scheme="default"] {
-  --md-primary-fg-color: #8839ef;       /* Mauve */
-  --md-primary-fg-color--light: #9a5cf7;
-  --md-primary-fg-color--dark: #722bd3;
-  --md-primary-bg-color: #eff1f5;       /* Latte Base */
-  --md-primary-bg-color--light: #e6e9ef;
-  --md-accent-fg-color: #1e66f5;        /* Blue */
-  --md-accent-bg-color: #dce0e8;
-
-  --md-default-bg-color: #eff1f5;        /* Latte Base */
+  --md-default-bg-color: #eff1f5;
   --md-default-bg-color--light: #e6e9ef;
   --md-default-bg-color--lighter: #dce0e8;
 
-  --md-default-fg-color: #4c4f69;        /* Latte Text */
-  --md-default-fg-color--light: #6c6f85; /* Subtext 0 */
+  --md-default-fg-color: #4c4f69;
+  --md-default-fg-color--light: #6c6f85;
   --md-default-fg-color--lighter: #7c7f93;
   --md-default-fg-color--lightest: #9ca0b0;
 
-  --md-code-bg-color: #e6e9ef;           /* Mantle */
+  --md-primary-fg-color: #4c4f69;
+  --md-primary-fg-color--light: #6c6f85;
+  --md-primary-fg-color--dark: #383a4c;
+  --md-primary-bg-color: #eff1f5;
+  --md-primary-bg-color--light: #e6e9ef;
+
+  --md-accent-fg-color: #1e66f5;
+  --md-accent-bg-color: #dce0e8;
+
+  --md-code-bg-color: #e6e9ef;
   --md-code-fg-color: #4c4f69;
 
   --md-typeset-color: #4c4f69;
-  --md-typeset-a-color: #1e66f5;         /* Blue link */
+  --md-typeset-a-color: #1e66f5;
 
   --md-footer-bg-color: #e6e9ef;
   --md-footer-bg-color--dark: #dce0e8;
 }
 
-/* Catppuccin Mocha (Dark Mode) */
+/* --------------------------------------------------------------------------
+   Catppuccin Mocha (Dark Mode)
+   -------------------------------------------------------------------------- */
 [data-md-color-scheme="slate"] {
-  --md-primary-fg-color: #cba6f7;       /* Mauve */
-  --md-primary-fg-color--light: #dcbbf9;
-  --md-primary-fg-color--dark: #b48ead;
-  --md-primary-bg-color: #1e1e2e;       /* Mocha Base */
+  --md-default-bg-color: #1e1e2e;
+  --md-default-bg-color--light: #181825;
+  --md-default-bg-color--lighter: #11111b;
+
+  --md-default-fg-color: #cdd6f4;
+  --md-default-fg-color--light: #a6adc8;
+  --md-default-fg-color--lighter: #bac2de;
+  --md-default-fg-color--lightest: #45475a;
+
+  --md-primary-fg-color: #1e1e2e;
+  --md-primary-fg-color--light: #313244;
+  --md-primary-fg-color--dark: #181825;
+  --md-primary-bg-color: #1e1e2e;
   --md-primary-bg-color--light: #181825;
-  --md-accent-fg-color: #89b4fa;        /* Blue */
+
+  --md-accent-fg-color: #cba6f7;
   --md-accent-bg-color: #313244;
 
-  --md-default-bg-color: #1e1e2e;        /* Mocha Base */
-  --md-default-bg-color--light: #181825; /* Mantle */
-  --md-default-bg-color--lighter: #11111b;/* Crust */
-
-  --md-default-fg-color: #cdd6f4;        /* Mocha Text */
-  --md-default-fg-color--light: #a6adc8; /* Subtext 0 */
-  --md-default-fg-color--lighter: #bac2de;
-  --md-default-fg-color--lightest: #45475a;/* Surface 1 */
-
-  --md-code-bg-color: #181825;           /* Mantle */
+  --md-code-bg-color: #11111b;
   --md-code-fg-color: #cdd6f4;
 
   --md-typeset-color: #cdd6f4;
-  --md-typeset-a-color: #89b4fa;         /* Blue link */
+  --md-typeset-a-color: #89b4fa;
 
   --md-footer-bg-color: #181825;
   --md-footer-bg-color--dark: #11111b;
+}
+
+/* ==========================================================================
+   Header & Navigation Styling (Glassmorphism & Clean Alignment)
+   ========================================================================== */
+
+.md-header {
+  background-color: var(--md-default-bg-color) !important;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: none !important;
+  transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+
+[data-md-color-scheme="default"] .md-header {
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.md-header__title {
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--md-default-fg-color) !important;
+}
+
+.md-tabs {
+  background-color: var(--md-default-bg-color) !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+[data-md-color-scheme="default"] .md-tabs {
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.md-tabs__link {
+  font-weight: 500;
+  opacity: 0.8;
+  transition: opacity 0.2s ease, color 0.2s ease;
+}
+
+.md-tabs__link:hover,
+.md-tabs__link--active {
+  opacity: 1;
+  color: var(--md-accent-fg-color) !important;
+}
+
+/* Search Bar High Contrast Fix */
+.md-search__form {
+  background-color: var(--md-default-bg-color--light) !important;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+[data-md-color-scheme="default"] .md-search__form {
+  border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.md-search__input {
+  color: var(--md-default-fg-color) !important;
+}
+
+.md-search__input::placeholder {
+  color: var(--md-default-fg-color--light) !important;
+}
+
+/* ==========================================================================
+   Content & Card Enhancements
+   ========================================================================== */
+
+.md-typeset h1 {
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  background: linear-gradient(135deg, #cba6f7 0%, #89b4fa 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  margin-bottom: 1rem;
+}
+
+[data-md-color-scheme="default"] .md-typeset h1 {
+  background: linear-gradient(135deg, #8839ef 0%, #1e66f5 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.md-typeset code {
+  border-radius: 6px;
+  padding: 0.15em 0.4em;
+  font-family: var(--md-font-mono);
+  background-color: var(--md-code-bg-color) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+[data-md-color-scheme="default"] .md-typeset code {
+  border: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.md-typeset pre > code {
+  border-radius: 10px;
+  padding: 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Admonitions (Alerts) Modern Styling */
+.md-typeset .admonition {
+  border-radius: 10px;
+  box-shadow: none;
+  border-left-width: 4px;
+}
+
+/* Smooth micro-animations */
+a, button, .md-nav__link {
+  transition: color 0.15s ease, background-color 0.15s ease, border-color 0.15s ease;
 }

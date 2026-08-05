@@ -11,16 +11,16 @@ theme:
     # Palette toggle for Catppuccin Latte (Light)
     - media: "(prefers-color-scheme: light)"
       scheme: default
-      primary: custom
-      accent: custom
+      primary: slate
+      accent: indigo
       toggle:
         icon: material/brightness-7
         name: 切换至 Catppuccin Mocha (暗黑)
     # Palette toggle for Catppuccin Mocha (Dark)
     - media: "(prefers-color-scheme: dark)"
       scheme: slate
-      primary: custom
-      accent: custom
+      primary: slate
+      accent: indigo
       toggle:
         icon: material/brightness-4
         name: 切换至 Catppuccin Latte (亮色)
