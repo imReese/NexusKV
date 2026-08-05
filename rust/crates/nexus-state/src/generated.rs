@@ -23,6 +23,7 @@ pub enum StateSemanticType {
     CsaState,
     HcaSummary,
     DsparkSparse,
+    SparseIndexedState,
     GenericContainer,
 }
 
@@ -34,6 +35,7 @@ pub enum TensorRole {
     Latent,
     Position,
     Auxiliary,
+    ScaleTensor,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]

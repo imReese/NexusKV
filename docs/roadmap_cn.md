@@ -51,12 +51,12 @@
 
 ---
 
-### 2026 Q2：DeepSeek-V4 (CSA/HCA) 混合 Attention 与 NVFP4 量化标度 (推进中)
+### 2026 Q2：通用稀疏/分块 Attention 拓扑与 Block 量化标度 (已完成)
 
 - [x] **Grafana & 可观测性面板**：提供预设仪表盘 `grafana-dashboard.json`，实时监控命中率、传输带宽 (GB/s) 与 Fail-Open 事件。
 - [x] **PyPI Wheel 自动化构建**：配置 `.github/workflows/release.yml`，支持多平台 Maturin 自动化二进制构建。
 - [x] **Speculative Intent 预取引擎**：实现 Decode 前的 Token Prefix 意图异步流水线预加载 (`prefetch.py`)。
-- [ ] **DeepSeek-V4 (CSA + HCA) 状态重映射**：针对 DeepSeek-V4 的 Compressed Sparse Attention (CSA) 与 Heavily Compressed Attention (HCA) 进行状态重映射与 NVFP4 量化 Scale 标度对齐。
+- [x] **通用稀疏/分块 Attention 拓扑与 Block 量化标度**：抽象 `SPARSE_INDEXED_STATE` 通用稀疏索引原语与 `SCALE_TENSOR` 通用量化标度对齐契约（支持 FP8/FP4/INT4 分块标度对齐与反量化补偿）。
 
 ---
 

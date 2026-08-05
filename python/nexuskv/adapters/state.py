@@ -395,6 +395,65 @@ def create_mamba_descriptor(
     )
 
 
+def create_sparse_indexed_descriptor(
+    descriptor_id: str,
+    quant_bits: int = 4,
+    group_size: int = 32,
+    engine_family: EngineFamily = EngineFamily.VLLM,
+) -> AttentionStateDescriptor:
+    """Universal Sparse Indexed Attention Topology & Quantization Scale Primitive."""
+    return AttentionStateDescriptor(
+        schema_version=SCHEMA_VERSION,
+        descriptor_id=descriptor_id,
+        engine_family=engine_family,
+        semantic_type=StateSemanticType.SPARSE_INDEXED_STATE,
+        granularity=Granularity.BLOCK,
+        tensor_specs=[
+            TensorSpec(
+                name="compressed_kv",
+                role=TensorRole.LATENT,
+                dtype="fp4" if quant_bits == 4 else "fp8",
+                shape=["num_blocks", "block_size", "dim"],
+            ),
+            TensorSpec(
+                name="sparse_indices",
+                role=TensorRole.AUXILIARY,
+                dtype="int32",
+                shape=["num_blocks", "active_indices"],
+            ),
+            TensorSpec(
+                name="quant_scales",
+                role=TensorRole.SCALE_TENSOR,
+                dtype="float32",
+                shape=["num_blocks", f"dim/{group_size}"],
+            ),
+        ],
+        quantization=QuantizationMetadata(
+            scheme="block_scale", bits=quant_bits, group_size=group_size
+        ),
+        layout=LayoutMetadata(
+            layout="sparse_indexed_block", page_tokens=0, block_tokens=16, packed=True
+        ),
+        compatibility_flags=[CompatibilityFlag.EXACT_REUSE, CompatibilityFlag.BLOCK_REUSE],
+        transfer_paths=[
+            TransferPath(
+                backend=TransferBackend.ZERO_COPY,
+                capabilities=[TransferCapability.ASYNC, TransferCapability.ZERO_COPY_CANDIDATE],
+            )
+        ],
+        materialization=MaterializationProfile(
+            capabilities=[MaterializationCapability.FULL, MaterializationCapability.PARTIAL],
+            tier_kinds=[TierKind.DEVICE, TierKind.HOST_DRAM],
+            device_classes=[DeviceClass.CUDA],
+            buffer_kinds=[BufferKind.DEVICE, BufferKind.HOST_PINNED],
+        ),
+        layout_metadata={
+            "topology_primitive": "SPARSE_INDEXED",
+            "quantization_primitive": "BLOCK_SCALE",
+        },
+    )
+
+
 __all__ = [
     "AttentionStateDescriptor",
     "BufferKind",
@@ -423,6 +482,7 @@ __all__ = [
     "create_kda_descriptor",
     "create_mamba_descriptor",
     "create_mla_descriptor",
+    "create_sparse_indexed_descriptor",
     "supports_partial_materialization",
     "validate_descriptor",
 ]

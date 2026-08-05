@@ -51,12 +51,12 @@ In 2026, the LLM inference ecosystem is undergoing rapid evolution led by **Deep
 
 ---
 
-### 2026 Q2: DeepSeek-V4 (CSA/HCA) Hybrid Attention & NVFP4 Alignment (In Progress)
+### 2026 Q2: Universal Sparse/Block Attention Topology & Quantization Scale (Completed)
 
 - [x] **Grafana & Observability Panel**: Pre-configured `grafana-dashboard.json` for hit rates, GB/s bandwidth, and Fail-Open events.
 - [x] **PyPI Wheel Automated Build**: `.github/workflows/release.yml` with cross-platform Maturin binaries.
 - [x] **Speculative Intent Prefetch Engine**: Asynchronous pipeline preloading before decode phase (`prefetch.py`).
-- [ ] **DeepSeek-V4 (CSA + HCA) State Mapping**: Layer-wise state mapping and NVFP4 quantization scale alignment for DeepSeek-V4.
+- [x] **Universal Sparse/Block Attention & Quantization Scale Primitives**: Abstracted `SPARSE_INDEXED_STATE` generic topology primitive and `SCALE_TENSOR` quantization alignment contracts (supporting FP8/FP4/INT4 block scale tensors and compensation).
 
 ---
 

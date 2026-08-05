@@ -22,6 +22,7 @@ class StateSemanticType(StrEnum):
     CSA_STATE = "csa_state"
     HCA_SUMMARY = "hca_summary"
     DSPARK_SPARSE = "dspark_sparse"
+    SPARSE_INDEXED_STATE = "sparse_indexed_state"
     GENERIC_CONTAINER = "generic_container"
 
 
@@ -31,6 +32,7 @@ class TensorRole(StrEnum):
     LATENT = "latent"
     POSITION = "position"
     AUXILIARY = "auxiliary"
+    SCALE_TENSOR = "scale_tensor"
 
 
 class Granularity(StrEnum):
