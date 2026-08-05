@@ -19,8 +19,13 @@ test:
 bench:
 	python3 tools/run_benchmarks.py
 
+wheel: contract
+	pip install maturin
+	maturin build --release --manifest-path rust/crates/bindings-py/Cargo.toml --out dist/
+
 clean:
 	rm -rf bin/
+	rm -rf dist/
 	rm -rf rust/target/
 	find . -type f -name "*.pyc" -delete
 	find . -type d -name "__pycache__" -delete

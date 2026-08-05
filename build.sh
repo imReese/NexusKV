@@ -53,6 +53,15 @@ if [ -f "${TARGET_DYLIB}" ]; then
     echo "    ✔ Copied PyO3 native module to: ${PYTHON_NATIVE_DIR}/nexuskv_planner_native.${DYLIB_EXT}"
 fi
 
+# 4. Build Python Wheel (.whl) package using Maturin (if installed)
+if command -v maturin &> /dev/null; then
+    echo "==> [4/4] Building Python Wheel (.whl) package with Maturin..."
+    maturin build --release --manifest-path "${REPO_ROOT}/rust/crates/bindings-py/Cargo.toml" --out "${REPO_ROOT}/dist"
+    echo "    ✔ Built Python wheel package in: ${REPO_ROOT}/dist/"
+else
+    echo "==> [Note] 'maturin' CLI not installed. To build .whl packages, run: pip install maturin && ./build.sh"
+fi
+
 echo "======================================================================"
 echo "             NexusKV Build Complete! All binaries ready."
 echo "======================================================================"
