@@ -110,6 +110,11 @@ ehthumbs_vista.db
 *.iml
 *.iws
 
+# Local AI Assistants & Tool Caches
+.claude/
+.gemini/
+!.agents/
+
 # Vim / Emacs
 *~
 *.swp
