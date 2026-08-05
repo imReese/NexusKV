@@ -5,6 +5,8 @@
 //! must keep the provider and its allocation alive for the whole registration and
 //! transfer lifetime.
 
+pub mod cxl;
+pub mod nixl;
 pub mod shm;
 
 use std::error::Error;
@@ -20,6 +22,7 @@ pub enum KvCacheMemoryLocation {
     Xpu { device_id: usize },
     Npu { device_id: usize },
     Hpu { device_id: usize },
+    Cxl { fabric_id: usize },
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
