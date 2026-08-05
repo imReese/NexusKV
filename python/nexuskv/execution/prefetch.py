@@ -1,11 +1,11 @@
 from __future__ import annotations
 
+import threading
 import time
 from dataclasses import dataclass, field
 from enum import StrEnum
-import threading
 
-from nexuskv.execution.types import MaterializationRequest, MaterializationDecision, FallbackReason
+from nexuskv.execution.types import FallbackReason, MaterializationDecision, MaterializationRequest
 
 
 class PrefetchJobStatus(StrEnum):
@@ -29,7 +29,11 @@ class PrefetchJob:
 
     @property
     def is_expired(self) -> bool:
-        if self.status in {PrefetchJobStatus.COMPLETED, PrefetchJobStatus.CANCELLED, PrefetchJobStatus.EXPIRED}:
+        if self.status in {
+            PrefetchJobStatus.COMPLETED,
+            PrefetchJobStatus.CANCELLED,
+            PrefetchJobStatus.EXPIRED,
+        }:
             return False
         return time.time() > self.deadline_sec
 
@@ -53,7 +57,11 @@ class PrefetchScheduler:
             # Purge expired jobs
             self._purge_expired_locked()
 
-            active_count = sum(1 for j in self._jobs.values() if j.status in {PrefetchJobStatus.PENDING, PrefetchJobStatus.IN_PROGRESS})
+            active_count = sum(
+                1
+                for j in self._jobs.values()
+                if j.status in {PrefetchJobStatus.PENDING, PrefetchJobStatus.IN_PROGRESS}
+            )
             if active_count >= self.max_concurrent_prefetches:
                 return None, FallbackReason.ENGINE_POLICY
 
@@ -86,7 +94,11 @@ class PrefetchScheduler:
     def cancel_job(self, job_id: str) -> bool:
         with self._lock:
             job = self._jobs.get(job_id)
-            if job is None or job.status in {PrefetchJobStatus.COMPLETED, PrefetchJobStatus.CANCELLED, PrefetchJobStatus.EXPIRED}:
+            if job is None or job.status in {
+                PrefetchJobStatus.COMPLETED,
+                PrefetchJobStatus.CANCELLED,
+                PrefetchJobStatus.EXPIRED,
+            }:
                 return False
             job.status = PrefetchJobStatus.CANCELLED
             return True
@@ -100,7 +112,10 @@ class PrefetchScheduler:
     def _purge_expired_locked(self) -> None:
         now = time.time()
         for job in list(self._jobs.values()):
-            if job.status in {PrefetchJobStatus.PENDING, PrefetchJobStatus.IN_PROGRESS} and now > job.deadline_sec:
+            if (
+                job.status in {PrefetchJobStatus.PENDING, PrefetchJobStatus.IN_PROGRESS}
+                and now > job.deadline_sec
+            ):
                 job.status = PrefetchJobStatus.EXPIRED
 
     def reset(self) -> None:

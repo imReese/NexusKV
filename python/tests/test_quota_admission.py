@@ -1,6 +1,6 @@
 import unittest
 
-from nexuskv.execution.policy import ExecutionPolicy, QuotaAdmissionPolicy, PlaceholderMode
+from nexuskv.execution.policy import PlaceholderMode, QuotaAdmissionPolicy
 from nexuskv.execution.quota import QuotaTracker
 
 

@@ -1,15 +1,13 @@
 from __future__ import annotations
 
-import time
-from typing import Any
-from nexuskv.planner.router import CacheAwareRouter, WorkerNodeState, RoutingDecision
 from nexuskv.execution.cluster_sync import GlobalRadixSyncManager
-from nexuskv.execution.transport_engine import PhysicalTransportEngine, PhysicalTransferResult
+from nexuskv.execution.transport_engine import PhysicalTransferResult, PhysicalTransportEngine
+from nexuskv.planner.router import CacheAwareRouter, RoutingDecision, WorkerNodeState
 
 
 class NexusKVCacheAwareMiddleware:
     """Production Turnkey Middleware for vLLM & SGLang Inference Engines.
-    
+
     Provides 2-line out-of-the-box integration:
     - Performs Cache-Aware Cluster Routing
     - Synchronizes Global Radix Cache Pool Deltas
@@ -31,11 +29,11 @@ class NexusKVCacheAwareMiddleware:
         prompt_tokens: list[int],
         request_id: str = "req_001",
     ) -> tuple[RoutingDecision, PhysicalTransferResult | None]:
-        t0 = time.perf_counter_ns()
-
         if not self.candidate_workers:
             # Fallback to default local worker
-            self.candidate_workers = [WorkerNodeState(node_id="local-gpu-0", address="127.0.0.1:8080")]
+            self.candidate_workers = [
+                WorkerNodeState(node_id="local-gpu-0", address="127.0.0.1:8080")
+            ]
 
         # 1. Cache-Aware Cluster Routing Decision
         decision = self.router.select_best_worker(prompt_tokens, self.candidate_workers)
@@ -51,7 +49,7 @@ class NexusKVCacheAwareMiddleware:
                 payload_bytes=payload_bytes,
             )
             # Sync to global cluster registry
-            prefix_key = f"prefix_{hash(tuple(prompt_tokens[:decision.shared_prefix_len]))}"
+            prefix_key = f"prefix_{hash(tuple(prompt_tokens[: decision.shared_prefix_len]))}"
             self.sync_manager.report_cache_acquired(
                 node_id=decision.selected_node_id,
                 prefix_key=prefix_key,

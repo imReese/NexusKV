@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import asdict, fields, is_dataclass
+from dataclasses import fields, is_dataclass
 from enum import Enum
 from typing import Any, get_args, get_origin, get_type_hints
 
@@ -26,7 +26,10 @@ def from_primitive(type_hint: Any, value: Any) -> Any:
 
     if origin is dict:
         key_type, item_type = args
-        return {from_primitive(key_type, key): from_primitive(item_type, item) for key, item in value.items()}
+        return {
+            from_primitive(key_type, key): from_primitive(item_type, item)
+            for key, item in value.items()
+        }
 
     if origin is None and isinstance(type_hint, type) and issubclass(type_hint, Enum):
         return type_hint(value)

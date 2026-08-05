@@ -12,7 +12,6 @@ from nexuskv.execution.policy import ExecutionPolicy
 from nexuskv.execution.runner import BaselineExecutionRunner
 from nexuskv.execution.types import ExecutionDisposition, FallbackReason, TransferStatus
 
-
 ROOT = Path(__file__).resolve().parents[2]
 
 
@@ -59,7 +58,9 @@ class RustPlannerIntegrationTest(unittest.TestCase):
         self.assertEqual(decision.materialization_result.executed_kind.value, "materialize")
         self.assertEqual(backend.calls[0].request.kind.value, "materialize")
         self.assertIsNotNone(decision.materialization_result.payload_handle)
-        self.assertEqual(decision.materialization_result.transfer_session.result.status, TransferStatus.COMPLETED)
+        self.assertEqual(
+            decision.materialization_result.transfer_session.result.status, TransferStatus.COMPLETED
+        )
 
     def test_python_can_plan_partial_hit_via_rust(self) -> None:
         from nexuskv.planner.rust_backend import RustPlanner
@@ -106,8 +107,13 @@ class RustPlannerIntegrationTest(unittest.TestCase):
         self.assertEqual(decision.lookup.partial_plan.remaining.tokens, [24, 25])
         self.assertEqual(decision.prefetch.disposition, ExecutionDisposition.PREFETCH)
         self.assertEqual(decision.prefetch_result.executed_kind.value, "prefetch")
-        self.assertEqual([call.request.kind.value for call in backend.calls[:3]], ["materialize", "prefetch", "store"])
-        self.assertEqual(decision.prefetch_result.transfer_session.result.status, TransferStatus.REGISTERED)
+        self.assertEqual(
+            [call.request.kind.value for call in backend.calls[:3]],
+            ["materialize", "prefetch", "store"],
+        )
+        self.assertEqual(
+            decision.prefetch_result.transfer_session.result.status, TransferStatus.REGISTERED
+        )
 
     def test_identity_isolation_is_preserved_through_rust_planner(self) -> None:
         from nexuskv.planner.rust_backend import RustPlanner
@@ -186,9 +192,13 @@ class RustPlannerIntegrationTest(unittest.TestCase):
         decision = connector.on_extend(query, planner)
         self.assertEqual(decision.lookup.status, LookupStatus.PARTIAL)
         self.assertEqual(decision.materialization.disposition, ExecutionDisposition.RECOMPUTE)
-        self.assertEqual(decision.materialization.fallback_reason, FallbackReason.UNSUPPORTED_CAPABILITY)
+        self.assertEqual(
+            decision.materialization.fallback_reason, FallbackReason.UNSUPPORTED_CAPABILITY
+        )
         self.assertEqual(decision.materialization_result.executed_kind.value, "recompute")
-        self.assertEqual(decision.materialization_result.transfer_session.result.status, TransferStatus.FALLBACK)
+        self.assertEqual(
+            decision.materialization_result.transfer_session.result.status, TransferStatus.FALLBACK
+        )
 
     def test_default_runner_uses_catalog_backends_with_real_planner(self) -> None:
         from nexuskv.planner.rust_backend import RustPlanner
@@ -235,7 +245,9 @@ class RustPlannerIntegrationTest(unittest.TestCase):
         self.assertEqual(decision.store_result.backend_name, "remote-shared-store-backend")
         self.assertIsNotNone(decision.materialization_result.payload_handle)
         self.assertIsNotNone(decision.store_result.payload_handle)
-        self.assertIsNotNone(decision.materialization_result.transfer_session.result.intermediate_handle)
+        self.assertIsNotNone(
+            decision.materialization_result.transfer_session.result.intermediate_handle
+        )
 
     def test_connector_execution_remains_stable_under_policy_change(self) -> None:
         from nexuskv.planner.rust_backend import RustPlanner
@@ -248,7 +260,9 @@ class RustPlannerIntegrationTest(unittest.TestCase):
             }
         )
         backend = BaselineExecutionBackend(supported_backends=(TransferBackend.STAGED_COPY,))
-        connector = VLLMConnector(execution_runner=BaselineExecutionRunner(backend=backend, policy=policy))
+        connector = VLLMConnector(
+            execution_runner=BaselineExecutionRunner(backend=backend, policy=policy)
+        )
         planner = RustPlanner()
         base = VLLMLifecycleContext(
             tenant="tenant-a",
@@ -278,7 +292,9 @@ class RustPlannerIntegrationTest(unittest.TestCase):
         self.assertEqual(decision.lookup.status, LookupStatus.HIT)
         self.assertEqual(decision.materialization_result.status.value, "succeeded")
         self.assertEqual(decision.materialization_result.target.tier, TierKind.HOST_DRAM)
-        self.assertEqual(decision.materialization_result.payload_handle.location.tier, TierKind.HOST_DRAM)
+        self.assertEqual(
+            decision.materialization_result.payload_handle.location.tier, TierKind.HOST_DRAM
+        )
 
 
 if __name__ == "__main__":

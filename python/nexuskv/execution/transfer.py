@@ -1,8 +1,8 @@
 from __future__ import annotations
 
+import threading
 import time
 from dataclasses import dataclass, field
-import threading
 
 from nexuskv.contracts.generated import TransferBackend
 from nexuskv.execution.types import TransferStatus
@@ -41,7 +41,7 @@ class TransferSessionTracker:
         source_locator: str,
         target_locator: str,
         total_bytes: int,
-        estimated_bw_bps: float = 1.0e10, # 10GB/s default
+        estimated_bw_bps: float = 1.0e10,  # 10GB/s default
     ) -> ActiveTransferSession:
         now = time.time()
         duration = total_bytes / estimated_bw_bps if estimated_bw_bps > 0 else 0.001

@@ -17,7 +17,12 @@ from nexuskv.execution import (
 from nexuskv.execution.backend import StagedCopyExecutionBackend
 from nexuskv.execution.catalog import BackendCatalog
 from nexuskv.execution.policy import SCHEMA_VERSION
-from nexuskv.execution.types import BackendActionKind, BackendActionStatus, FallbackReason, MaterializationRequest
+from nexuskv.execution.types import (
+    BackendActionKind,
+    BackendActionStatus,
+    FallbackReason,
+    MaterializationRequest,
+)
 from nexuskv.testsupport.matches import make_lookup_outcome
 
 
@@ -87,7 +92,7 @@ class ExecutionPolicyTest(unittest.TestCase):
             path.write_text(ExecutionPolicy.default().to_json(), encoding="utf-8")
             provider = FileExecutionPolicyProvider(policy_path=path)
 
-            path.write_text("{\"schema_version\":\"bad\"}", encoding="utf-8")
+            path.write_text('{"schema_version":"bad"}', encoding="utf-8")
             status = provider.reload()
 
         self.assertFalse(status.last_reload_succeeded)
@@ -338,7 +343,9 @@ class ExecutionPolicyTest(unittest.TestCase):
 
     def test_overlay_disables_backend(self) -> None:
         policy = ExecutionPolicy.default()
-        policy.backend_overlays[TransferBackend.STAGED_COPY] = BackendCapabilityOverlay(enabled=False)
+        policy.backend_overlays[TransferBackend.STAGED_COPY] = BackendCapabilityOverlay(
+            enabled=False
+        )
         catalog = BackendCatalog(policy=policy)
         baseline = BaselineExecutionBackend()
         staged = StagedCopyExecutionBackend()
@@ -413,8 +420,12 @@ class ExecutionPolicyTest(unittest.TestCase):
 
     def test_overlay_changes_priority_deterministically(self) -> None:
         policy = ExecutionPolicy.default()
-        policy.backend_overlays[TransferBackend.BASELINE_TRANSPORT] = BackendCapabilityOverlay(priority_override=0)
-        policy.backend_overlays[TransferBackend.STAGED_COPY] = BackendCapabilityOverlay(priority_override=10)
+        policy.backend_overlays[TransferBackend.BASELINE_TRANSPORT] = BackendCapabilityOverlay(
+            priority_override=0
+        )
+        policy.backend_overlays[TransferBackend.STAGED_COPY] = BackendCapabilityOverlay(
+            priority_override=10
+        )
         catalog = BackendCatalog(policy=policy)
         baseline = BaselineExecutionBackend()
         staged = StagedCopyExecutionBackend()

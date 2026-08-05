@@ -181,9 +181,9 @@ class MaterializationDecision:
 
 @dataclass(slots=True)
 class MaterializationOutcome:
-    primary: "ExecutionStepOutcome"
-    prefetch: "ExecutionStepOutcome | None"
-    store: "ExecutionStepOutcome"
+    primary: ExecutionStepOutcome
+    prefetch: ExecutionStepOutcome | None
+    store: ExecutionStepOutcome
 
 
 @dataclass(slots=True)

@@ -1,11 +1,11 @@
 import unittest
 
 from nexuskv.adapters.state import (
-    create_csa_descriptor,
-    create_hca_descriptor,
-    create_dspark_descriptor,
-    validate_descriptor,
     StateSemanticType,
+    create_csa_descriptor,
+    create_dspark_descriptor,
+    create_hca_descriptor,
+    validate_descriptor,
 )
 from nexuskv.execution.recurrent_cascade import RecurrentStateCascadeEngine
 

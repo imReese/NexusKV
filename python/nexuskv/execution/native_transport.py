@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 import ctypes
-from dataclasses import dataclass, field
 import threading
+from dataclasses import dataclass, field
 
 
 @dataclass(slots=True)
@@ -87,7 +87,9 @@ class MooncakeTransferEngineAdapter:
     engine_name: str = "MooncakeTransferEngine"
     manager: NativeTransportManager = field(default_factory=NativeTransportManager)
 
-    def register_rdma_pool(self, pool_id: str, base_addr: int, size_bytes: int) -> ZeroCopyRegistration:
+    def register_rdma_pool(
+        self, pool_id: str, base_addr: int, size_bytes: int
+    ) -> ZeroCopyRegistration:
         return self.manager.register_zero_copy_region(
             handle_id=f"mooncake_pool_{pool_id}",
             base_addr=base_addr,
@@ -102,7 +104,9 @@ class NIXLDriverAdapter:
     driver_name: str = "NVIDIA_NIXL_Driver"
     manager: NativeTransportManager = field(default_factory=NativeTransportManager)
 
-    def register_nvlink_region(self, region_id: str, base_addr: int, size_bytes: int) -> ZeroCopyRegistration:
+    def register_nvlink_region(
+        self, region_id: str, base_addr: int, size_bytes: int
+    ) -> ZeroCopyRegistration:
         return self.manager.register_zero_copy_region(
             handle_id=f"nixl_nvlink_{region_id}",
             base_addr=base_addr,
@@ -116,7 +120,9 @@ class CudaIpcHandleAdapter:
 
     manager: NativeTransportManager = field(default_factory=NativeTransportManager)
 
-    def register_cuda_ipc_handle(self, handle_id: str, ipc_bytes: bytes, uva_ptr: int, size_bytes: int) -> ZeroCopyRegistration:
+    def register_cuda_ipc_handle(
+        self, handle_id: str, ipc_bytes: bytes, uva_ptr: int, size_bytes: int
+    ) -> ZeroCopyRegistration:
         return self.manager.register_zero_copy_region(
             handle_id=f"cuda_ipc_{handle_id}",
             base_addr=uva_ptr,
@@ -130,7 +136,9 @@ class AmdRocmHipIpcAdapter:
 
     manager: NativeTransportManager = field(default_factory=NativeTransportManager)
 
-    def register_hip_ipc_handle(self, handle_id: str, hip_ptr: int, size_bytes: int) -> ZeroCopyRegistration:
+    def register_hip_ipc_handle(
+        self, handle_id: str, hip_ptr: int, size_bytes: int
+    ) -> ZeroCopyRegistration:
         return self.manager.register_zero_copy_region(
             handle_id=f"hip_ipc_{handle_id}",
             base_addr=hip_ptr,
@@ -144,7 +152,9 @@ class GoogleTpuXlaAdapter:
 
     manager: NativeTransportManager = field(default_factory=NativeTransportManager)
 
-    def register_tpu_buffer(self, buffer_id: str, tpu_ptr: int, size_bytes: int) -> ZeroCopyRegistration:
+    def register_tpu_buffer(
+        self, buffer_id: str, tpu_ptr: int, size_bytes: int
+    ) -> ZeroCopyRegistration:
         return self.manager.register_zero_copy_region(
             handle_id=f"tpu_xla_{buffer_id}",
             base_addr=tpu_ptr,
@@ -158,7 +168,9 @@ class HuaweiAscendCannAdapter:
 
     manager: NativeTransportManager = field(default_factory=NativeTransportManager)
 
-    def register_ascend_ipc_handle(self, handle_id: str, acl_ptr: int, size_bytes: int) -> ZeroCopyRegistration:
+    def register_ascend_ipc_handle(
+        self, handle_id: str, acl_ptr: int, size_bytes: int
+    ) -> ZeroCopyRegistration:
         return self.manager.register_zero_copy_region(
             handle_id=f"ascend_cann_{handle_id}",
             base_addr=acl_ptr,
@@ -172,7 +184,9 @@ class AppleMetalUmaAdapter:
 
     manager: NativeTransportManager = field(default_factory=NativeTransportManager)
 
-    def register_metal_uma_buffer(self, buffer_id: str, host_dram_ptr: int, size_bytes: int) -> ZeroCopyRegistration:
+    def register_metal_uma_buffer(
+        self, buffer_id: str, host_dram_ptr: int, size_bytes: int
+    ) -> ZeroCopyRegistration:
         # Zero-copy native pointer sharing on Apple Silicon UMA (CPU and GPU share identical DRAM address)
         return self.manager.register_zero_copy_region(
             handle_id=f"apple_metal_uma_{buffer_id}",
@@ -187,7 +201,9 @@ class IntelGaudiLevelZeroAdapter:
 
     manager: NativeTransportManager = field(default_factory=NativeTransportManager)
 
-    def register_level_zero_ipc_handle(self, handle_id: str, ze_ptr: int, size_bytes: int) -> ZeroCopyRegistration:
+    def register_level_zero_ipc_handle(
+        self, handle_id: str, ze_ptr: int, size_bytes: int
+    ) -> ZeroCopyRegistration:
         return self.manager.register_zero_copy_region(
             handle_id=f"intel_ze_{handle_id}",
             base_addr=ze_ptr,
@@ -201,7 +217,9 @@ class CambriconMluAdapter:
 
     manager: NativeTransportManager = field(default_factory=NativeTransportManager)
 
-    def register_mlu_ipc_handle(self, handle_id: str, mlu_ptr: int, size_bytes: int) -> ZeroCopyRegistration:
+    def register_mlu_ipc_handle(
+        self, handle_id: str, mlu_ptr: int, size_bytes: int
+    ) -> ZeroCopyRegistration:
         return self.manager.register_zero_copy_region(
             handle_id=f"cambricon_mlu_{handle_id}",
             base_addr=mlu_ptr,
@@ -215,7 +233,9 @@ class MooreThreadsMusaAdapter:
 
     manager: NativeTransportManager = field(default_factory=NativeTransportManager)
 
-    def register_musa_ipc_handle(self, handle_id: str, musa_ptr: int, size_bytes: int) -> ZeroCopyRegistration:
+    def register_musa_ipc_handle(
+        self, handle_id: str, musa_ptr: int, size_bytes: int
+    ) -> ZeroCopyRegistration:
         return self.manager.register_zero_copy_region(
             handle_id=f"moore_musa_{handle_id}",
             base_addr=musa_ptr,
@@ -229,7 +249,9 @@ class BirenBr100Adapter:
 
     manager: NativeTransportManager = field(default_factory=NativeTransportManager)
 
-    def register_biren_buffer(self, buffer_id: str, biren_ptr: int, size_bytes: int) -> ZeroCopyRegistration:
+    def register_biren_buffer(
+        self, buffer_id: str, biren_ptr: int, size_bytes: int
+    ) -> ZeroCopyRegistration:
         return self.manager.register_zero_copy_region(
             handle_id=f"biren_br100_{buffer_id}",
             base_addr=biren_ptr,

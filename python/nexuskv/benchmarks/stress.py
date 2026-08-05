@@ -2,11 +2,11 @@ from __future__ import annotations
 
 import json
 import os
-import time
-from dataclasses import dataclass, field
 import threading
+import time
+from dataclasses import dataclass
 
-from nexuskv.benchmarks.runner import BenchmarkStrategyRunner, BenchmarkStrategy
+from nexuskv.benchmarks.runner import BenchmarkStrategy, BenchmarkStrategyRunner
 from nexuskv.benchmarks.trace import BenchmarkTraceGenerator
 
 
@@ -49,7 +49,7 @@ class ClusterStressTestRunner:
         self,
         num_iterations: int = 50,
         concurrency: int = 4,
-        max_allowed_growth_bytes: int = 50 * 1024 * 1024, # 50MB RSS threshold
+        max_allowed_growth_bytes: int = 50 * 1024 * 1024,  # 50MB RSS threshold
     ) -> None:
         self.num_iterations = num_iterations
         self.concurrency = concurrency
@@ -58,6 +58,7 @@ class ClusterStressTestRunner:
     def _get_process_rss(self) -> int:
         try:
             import psutil
+
             return psutil.Process(os.getpid()).memory_info().rss
         except Exception:
             return 0  # Fallback if psutil is unavailable

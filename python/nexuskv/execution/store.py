@@ -56,5 +56,9 @@ class InMemoryEntryStore:
     def get_identity(self, identity: KeyIdentity) -> StoreRecord | None:
         return self.entries.get(identity_tuple(identity))
 
-    def record_prefetch(self, query: QueryKey, locator: str | None, payload_handle: PayloadHandle | None) -> None:
-        self.prefetch_intents.append(PrefetchIntent(query=query, locator=locator, payload_handle=payload_handle))
+    def record_prefetch(
+        self, query: QueryKey, locator: str | None, payload_handle: PayloadHandle | None
+    ) -> None:
+        self.prefetch_intents.append(
+            PrefetchIntent(query=query, locator=locator, payload_handle=payload_handle)
+        )

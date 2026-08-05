@@ -24,6 +24,7 @@ from nexuskv.execution.backend import (
 )
 from nexuskv.execution.catalog import BackendCatalog, BackendRegistration
 from nexuskv.execution.policy import ExecutionPolicy, ExecutionPolicyProvider
+from nexuskv.execution.quota import QuotaTracker
 from nexuskv.execution.store import InMemoryEntryStore
 from nexuskv.execution.types import (
     BackendActionKind,
@@ -32,8 +33,8 @@ from nexuskv.execution.types import (
     BackendActionStatus,
     BackendSelection,
     CapabilityCheckResult,
-    ExecutionStepOutcome,
     ExecutionDisposition,
+    ExecutionStepOutcome,
     FallbackReason,
     MaterializationDecision,
     MaterializationOutcome,
@@ -45,13 +46,9 @@ from nexuskv.execution.types import (
     SourceTier,
     StateSliceDescriptor,
     TargetTier,
-    TransferRequest,
-    TransferStatus,
     TransferMode,
+    TransferRequest,
 )
-
-
-from nexuskv.execution.quota import QuotaTracker
 from nexuskv.planner.cost import CostEstimator
 
 
@@ -73,7 +70,9 @@ class BaselineExecutionRunner:
 
         primary = self._execute_step(request, self._decide_primary(request))
         prefetch_decision = self._decide_prefetch(request)
-        prefetch = None if prefetch_decision is None else self._execute_step(request, prefetch_decision)
+        prefetch = (
+            None if prefetch_decision is None else self._execute_step(request, prefetch_decision)
+        )
         store = self._execute_step(request, self._decide_store(request))
         return MaterializationOutcome(primary=primary, prefetch=prefetch, store=store)
 
@@ -113,7 +112,9 @@ class BaselineExecutionRunner:
 
         if request.lookup.status == LookupStatus.MISS:
             return self._decision(
-                self._fallback_disposition(request.context.descriptor, FallbackReason.CACHE_MISS, primary=True),
+                self._fallback_disposition(
+                    request.context.descriptor, FallbackReason.CACHE_MISS, primary=True
+                ),
                 target=target,
                 fallback_reason=FallbackReason.CACHE_MISS,
             )
@@ -126,7 +127,9 @@ class BaselineExecutionRunner:
             denial_reason = self._check_quota_and_cost(request, source.tier, target)
             if denial_reason is not None:
                 return self._decision(
-                    self._fallback_disposition(request.context.descriptor, denial_reason, primary=True),
+                    self._fallback_disposition(
+                        request.context.descriptor, denial_reason, primary=True
+                    ),
                     target=target,
                     fallback_reason=denial_reason,
                 )
@@ -138,7 +141,10 @@ class BaselineExecutionRunner:
                 disposition=ExecutionDisposition.MATERIALIZE,
             )
 
-        if request.lookup.status == LookupStatus.PARTIAL and request.lookup.partial_plan is not None:
+        if (
+            request.lookup.status == LookupStatus.PARTIAL
+            and request.lookup.partial_plan is not None
+        ):
             source = SourceTier(
                 tier=request.lookup.partial_plan.entry.location.tier,
                 locator=request.lookup.partial_plan.entry.location.locator,
@@ -146,7 +152,9 @@ class BaselineExecutionRunner:
             denial_reason = self._check_quota_and_cost(request, source.tier, target)
             if denial_reason is not None:
                 return self._decision(
-                    self._fallback_disposition(request.context.descriptor, denial_reason, primary=True),
+                    self._fallback_disposition(
+                        request.context.descriptor, denial_reason, primary=True
+                    ),
                     target=target,
                     fallback_reason=denial_reason,
                 )
@@ -159,7 +167,9 @@ class BaselineExecutionRunner:
             )
 
         return self._decision(
-            self._fallback_disposition(request.context.descriptor, FallbackReason.CACHE_MISS, primary=True),
+            self._fallback_disposition(
+                request.context.descriptor, FallbackReason.CACHE_MISS, primary=True
+            ),
             target=target,
             fallback_reason=FallbackReason.CACHE_MISS,
         )
@@ -218,7 +228,9 @@ class BaselineExecutionRunner:
         source_tier: TierKind | None,
         target_tier: TargetTier,
     ) -> FallbackReason | None:
-        payload_bytes = self._byte_size_hint(request.context.descriptor.granularity, len(request.context.tokens))
+        payload_bytes = self._byte_size_hint(
+            request.context.descriptor.granularity, len(request.context.tokens)
+        )
         if self.quota_tracker is not None and self.policy is not None:
             allowed, _ = self.quota_tracker.check_admission(
                 self.policy,
@@ -233,7 +245,9 @@ class BaselineExecutionRunner:
                 payload_bytes=payload_bytes,
                 source_tier=source_tier,
                 target_tier=target_tier.tier,
-                concurrent_transfers=self.quota_tracker.active_transfers if self.quota_tracker else 0,
+                concurrent_transfers=self.quota_tracker.active_transfers
+                if self.quota_tracker
+                else 0,
             )
             if not estimate.is_profitable:
                 return FallbackReason.ENGINE_POLICY
@@ -282,7 +296,9 @@ class BaselineExecutionRunner:
         descriptor = request.context.descriptor
         if required_capability not in descriptor.materialization.capabilities:
             fallback_reason = FallbackReason.UNSUPPORTED_CAPABILITY
-            fallback_disposition = self._fallback_disposition(descriptor, fallback_reason, primary=True)
+            fallback_disposition = self._fallback_disposition(
+                descriptor, fallback_reason, primary=True
+            )
             return MaterializationDecision(
                 disposition=fallback_disposition,
                 source=source,
@@ -332,20 +348,33 @@ class BaselineExecutionRunner:
             if self.policy is None or self.policy.allows_transfer_backend(path.backend)
         )
         if self.policy is not None:
-            available = tuple(sorted(available, key=lambda backend: self.policy.priority_for(backend, 100)))
+            available = tuple(
+                sorted(available, key=lambda backend: self.policy.priority_for(backend, 100))
+            )
         if not available:
-            reason = FallbackReason.ENGINE_POLICY if descriptor.transfer_paths else FallbackReason.NO_TRANSFER_PATH
+            reason = (
+                FallbackReason.ENGINE_POLICY
+                if descriptor.transfer_paths
+                else FallbackReason.NO_TRANSFER_PATH
+            )
             return None, False, reason
         if preferred_backend is None:
             return available[0], False, None
         if preferred_backend in available:
             return preferred_backend, False, None
-        if self.policy is not None and not self.policy.allows_degraded_backend_selection(available[0]):
+        if self.policy is not None and not self.policy.allows_degraded_backend_selection(
+            available[0]
+        ):
             return None, False, FallbackReason.ENGINE_POLICY
-        return available[0], True, (
-            FallbackReason.ENGINE_POLICY
-            if self.policy is not None and not self.policy.allows_transfer_backend(preferred_backend)
-            else FallbackReason.PREFERRED_BACKEND_UNAVAILABLE
+        return (
+            available[0],
+            True,
+            (
+                FallbackReason.ENGINE_POLICY
+                if self.policy is not None
+                and not self.policy.allows_transfer_backend(preferred_backend)
+                else FallbackReason.PREFERRED_BACKEND_UNAVAILABLE
+            ),
         )
 
     def _select_target_tier(self, descriptor) -> TargetTier:
@@ -375,7 +404,8 @@ class BaselineExecutionRunner:
             target=target,
             transfer=TransferMode(selected_backend=None),
             capability_check=CapabilityCheckResult(
-                supported=disposition not in {ExecutionDisposition.SKIP, ExecutionDisposition.RECOMPUTE},
+                supported=disposition
+                not in {ExecutionDisposition.SKIP, ExecutionDisposition.RECOMPUTE},
                 degraded=False,
                 required_capability=None,
                 fallback_reason=fallback_reason,
@@ -393,13 +423,10 @@ class BaselineExecutionRunner:
         selection: tuple[ExecutionBackend, BackendSelection] | None,
     ) -> BackendActionResult:
         if selection is None:
-            fallback_reason = (
-                request.decision.fallback_reason
-                or (
-                    FallbackReason.ENGINE_POLICY
-                    if self.policy is not None and not self._request_allowed(request)
-                    else FallbackReason.NO_TRANSFER_PATH
-                )
+            fallback_reason = request.decision.fallback_reason or (
+                FallbackReason.ENGINE_POLICY
+                if self.policy is not None and not self._request_allowed(request)
+                else FallbackReason.NO_TRANSFER_PATH
             )
             return BackendActionResult(
                 requested_kind=request.kind,
@@ -433,7 +460,11 @@ class BaselineExecutionRunner:
         request: BackendActionRequest,
         rejected: BackendActionResult,
     ) -> BackendActionResult:
-        fallback_reason = request.decision.fallback_reason or rejected.fallback_reason or FallbackReason.NO_TRANSFER_PATH
+        fallback_reason = (
+            request.decision.fallback_reason
+            or rejected.fallback_reason
+            or FallbackReason.NO_TRANSFER_PATH
+        )
         fallback_kind = BackendActionKind(
             self._fallback_disposition(
                 request.context.descriptor,
@@ -487,28 +518,35 @@ class BaselineExecutionRunner:
 
         _, selected = selection
         effective_decision = request.decision
-        if selected.transfer_backend != request.decision.transfer.selected_backend or selected.degraded:
+        if (
+            selected.transfer_backend != request.decision.transfer.selected_backend
+            or selected.degraded
+        ):
             effective_decision = replace(
                 request.decision,
                 transfer=TransferMode(
                     selected_backend=selected.transfer_backend,
                     degraded_from=(
                         request.decision.transfer.selected_backend
-                        if selected.degraded and selected.transfer_backend != request.decision.transfer.selected_backend
+                        if selected.degraded
+                        and selected.transfer_backend != request.decision.transfer.selected_backend
                         else request.decision.transfer.degraded_from
                     ),
                 ),
                 capability_check=replace(
                     request.decision.capability_check,
                     degraded=request.decision.capability_check.degraded or selected.degraded,
-                    fallback_reason=selected.fallback_reason or request.decision.capability_check.fallback_reason,
+                    fallback_reason=selected.fallback_reason
+                    or request.decision.capability_check.fallback_reason,
                     selected_backend=selected.transfer_backend,
                 ),
                 fallback_reason=selected.fallback_reason or request.decision.fallback_reason,
             )
         return replace(request, decision=effective_decision), selection
 
-    def _policy_fallback_request(self, request: BackendActionRequest) -> BackendActionRequest | None:
+    def _policy_fallback_request(
+        self, request: BackendActionRequest
+    ) -> BackendActionRequest | None:
         if self.policy is None:
             return None
         if self._request_allowed(request):
@@ -516,7 +554,9 @@ class BaselineExecutionRunner:
 
         fallback_reason = FallbackReason.ENGINE_POLICY
         primary = request.kind == BackendActionKind.MATERIALIZE
-        fallback_disposition = self._fallback_disposition(request.context.descriptor, fallback_reason, primary=primary)
+        fallback_disposition = self._fallback_disposition(
+            request.context.descriptor, fallback_reason, primary=primary
+        )
         fallback_kind = BackendActionKind(fallback_disposition.value)
         fallback_decision = MaterializationDecision(
             disposition=fallback_disposition,
@@ -579,7 +619,11 @@ class BaselineExecutionRunner:
                 name=baseline.backend_name,
                 backend=baseline,
                 transfer_backend=TransferBackend.BASELINE_TRANSPORT,
-                action_kinds=(BackendActionKind.MATERIALIZE, BackendActionKind.PREFETCH, BackendActionKind.STORE),
+                action_kinds=(
+                    BackendActionKind.MATERIALIZE,
+                    BackendActionKind.PREFETCH,
+                    BackendActionKind.STORE,
+                ),
                 source_tiers=(TierKind.HOST_DRAM, TierKind.REMOTE_SHARED),
                 target_tiers=(TierKind.HOST_DRAM, TierKind.REMOTE_SHARED),
                 materialization_capabilities=(
@@ -650,14 +694,22 @@ class BaselineExecutionRunner:
             )
             candidates.append(TargetTier(tier=TierKind.HOST_DRAM, buffer_kind=buffer_kind))
         if TierKind.LOCAL_SSD in tiers:
-            candidates.append(TargetTier(tier=TierKind.LOCAL_SSD, buffer_kind=BufferKind.FILE_BACKED))
+            candidates.append(
+                TargetTier(tier=TierKind.LOCAL_SSD, buffer_kind=BufferKind.FILE_BACKED)
+            )
         if TierKind.REMOTE_SHARED in tiers:
-            candidates.append(TargetTier(tier=TierKind.REMOTE_SHARED, buffer_kind=BufferKind.REMOTE))
+            candidates.append(
+                TargetTier(tier=TierKind.REMOTE_SHARED, buffer_kind=BufferKind.REMOTE)
+            )
         return candidates
 
     def _request_allowed(self, request: BackendActionRequest) -> bool:
         assert self.policy is not None
-        if request.kind in {BackendActionKind.MATERIALIZE, BackendActionKind.PREFETCH, BackendActionKind.STORE}:
+        if request.kind in {
+            BackendActionKind.MATERIALIZE,
+            BackendActionKind.PREFETCH,
+            BackendActionKind.STORE,
+        }:
             if request.decision.target.tier is None:
                 return False
         return (
@@ -683,10 +735,16 @@ class BaselineExecutionRunner:
         primary: bool,
     ) -> ExecutionDisposition:
         if self.policy is None:
-            if primary and MaterializationCapability.FALLBACK_RECOMPUTE in descriptor.materialization.capabilities:
+            if (
+                primary
+                and MaterializationCapability.FALLBACK_RECOMPUTE
+                in descriptor.materialization.capabilities
+            ):
                 return ExecutionDisposition.RECOMPUTE
             return ExecutionDisposition.SKIP
-        return self.policy.fallback_disposition(descriptor, fallback_reason, action_is_primary=primary)
+        return self.policy.fallback_disposition(
+            descriptor, fallback_reason, action_is_primary=primary
+        )
 
     def _active_policy(self) -> ExecutionPolicy:
         if self.policy_provider is not None:
@@ -741,7 +799,9 @@ class BaselineExecutionRunner:
             source = self._select_target_tier(request.context.descriptor)
             return PayloadHandle(
                 handle_id=f"runtime:{request.hook}:{request.context.tenant}:{request.context.namespace}:{request.context.model}",
-                location=self._payload_location_from_target(source, locator="runtime://engine-state", handle_kind="runtime_state"),
+                location=self._payload_location_from_target(
+                    source, locator="runtime://engine-state", handle_kind="runtime_state"
+                ),
                 descriptor=descriptor,
                 ownership=PayloadOwnership.BORROWED,
                 opaque_ref="runtime-engine-state",
@@ -750,7 +810,10 @@ class BaselineExecutionRunner:
         if request.lookup.match is not None:
             return PayloadHandle(
                 handle_id=f"source:{request.lookup.match.entry.identity.entry_id}",
-                location=self._payload_location_from_source(request.lookup.match.entry.location.tier, request.lookup.match.entry.location.locator),
+                location=self._payload_location_from_source(
+                    request.lookup.match.entry.location.tier,
+                    request.lookup.match.entry.location.locator,
+                ),
                 descriptor=descriptor,
                 ownership=PayloadOwnership.CACHED,
                 opaque_ref=request.lookup.match.entry.location.locator,
@@ -802,14 +865,22 @@ class BaselineExecutionRunner:
                 block_id=request.context.block_id,
                 page_id=request.context.page_id,
             ),
-            byte_size_hint=self._byte_size_hint(request.context.descriptor.granularity, len(request.context.tokens)),
+            byte_size_hint=self._byte_size_hint(
+                request.context.descriptor.granularity, len(request.context.tokens)
+            ),
         )
 
-    def _payload_location_from_source(self, tier: TierKind | None, locator: str | None) -> PayloadLocation:
+    def _payload_location_from_source(
+        self, tier: TierKind | None, locator: str | None
+    ) -> PayloadLocation:
         return PayloadLocation(
             tier=tier,
             buffer_kind=self._buffer_kind_for_tier(tier),
-            device_class=DeviceClass.CPU if tier == TierKind.HOST_DRAM else DeviceClass.CUDA if tier == TierKind.DEVICE else None,
+            device_class=DeviceClass.CPU
+            if tier == TierKind.HOST_DRAM
+            else DeviceClass.CUDA
+            if tier == TierKind.DEVICE
+            else None,
             locator=locator,
             handle_kind="source_payload",
         )
@@ -841,5 +912,11 @@ class BaselineExecutionRunner:
         return None
 
     def _byte_size_hint(self, granularity: Granularity, token_count: int) -> int:
-        unit = 4096 if granularity == Granularity.PAGE else 1024 if granularity == Granularity.BLOCK else 256
+        unit = (
+            4096
+            if granularity == Granularity.PAGE
+            else 1024
+            if granularity == Granularity.BLOCK
+            else 256
+        )
         return token_count * unit

@@ -1,10 +1,9 @@
 from __future__ import annotations
 
 import unittest
+
 from nexuskv.benchmarks.attention_cache_size import (
     ATTENTION_PROFILES,
-    AttentionCacheConfig,
-    StateSemanticType,
 )
 
 

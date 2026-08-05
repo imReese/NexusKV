@@ -2,6 +2,8 @@ from .backend import BackendInvocation, BaselineExecutionBackend, ExecutionBacke
 from .catalog import BackendCatalog, BackendRegistration
 from .policy import (
     SCHEMA_VERSION as EXECUTION_POLICY_SCHEMA_VERSION,
+)
+from .policy import (
     BackendCapabilityOverlay,
     ExecutionPolicy,
     ExecutionPolicyProvider,
@@ -22,8 +24,8 @@ from .types import (
     BackendActionStatus,
     BackendSelection,
     CapabilityCheckResult,
-    ExecutionStepOutcome,
     ExecutionDisposition,
+    ExecutionStepOutcome,
     FallbackReason,
     MaterializationDecision,
     MaterializationOutcome,
@@ -35,11 +37,11 @@ from .types import (
     SourceTier,
     StateSliceDescriptor,
     TargetTier,
+    TransferMode,
     TransferRequest,
     TransferResult,
     TransferSession,
     TransferStatus,
-    TransferMode,
 )
 
 __all__ = [

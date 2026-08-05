@@ -1,7 +1,7 @@
 import unittest
 
-from nexuskv.contracts.generated import TierKind, TransferBackend
-from nexuskv.planner.cost import CostEstimator, BandwidthConfig
+from nexuskv.contracts.generated import TierKind
+from nexuskv.planner.cost import CostEstimator
 
 
 class TestCostEstimator(unittest.TestCase):

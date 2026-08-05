@@ -5,8 +5,10 @@ from nexuskv.execution.hbm import HbmBlockAllocator
 
 class TestHbmAllocator(unittest.TestCase):
     def test_hbm_allocation_and_pin_lifecycle(self):
-        allocator = HbmBlockAllocator(total_capacity_bytes=64 * 1024 * 1024, block_size_bytes=16 * 1024 * 1024)
-        
+        allocator = HbmBlockAllocator(
+            total_capacity_bytes=64 * 1024 * 1024, block_size_bytes=16 * 1024 * 1024
+        )
+
         # Allocate 2 blocks
         b1 = allocator.allocate_block()
         b2 = allocator.allocate_block()

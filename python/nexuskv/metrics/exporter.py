@@ -1,8 +1,7 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
 import threading
-import time
+from dataclasses import dataclass, field
 
 
 @dataclass(slots=True)
@@ -25,7 +24,7 @@ class NexusMetricsSnapshot:
 @dataclass(slots=True)
 class NexusMetricsCollector:
     """Thread-safe OpenTelemetry / Prometheus metric aggregator for NexusKV execution."""
-    
+
     _hits: int = field(default=0, init=False)
     _misses: int = field(default=0, init=False)
     _fail_open: int = field(default=0, init=False)

@@ -12,7 +12,10 @@ fmt:
 	@echo "==> Formatting Rust code..."
 	(cd rust && cargo fmt)
 	@echo "==> Formatting Go code..."
-	gofmt -s -w $(shell find go pkg cmd -name "*.go" 2>/dev/null)
+	GOTOOLCHAIN=go1.25.9 go fmt ./...
+	@echo "==> Formatting Python code..."
+	ruff format python/
+	ruff check --fix python/
 
 setup-hooks:
 	@echo "==> Installing Git Pre-Commit Hook..."

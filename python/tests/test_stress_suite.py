@@ -1,6 +1,6 @@
 import unittest
 
-from nexuskv.benchmarks.stress import ClusterStressTestRunner, StressTestReport
+from nexuskv.benchmarks.stress import ClusterStressTestRunner
 
 
 class TestStressSuite(unittest.TestCase):

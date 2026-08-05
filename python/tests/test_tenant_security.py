@@ -1,7 +1,7 @@
 import unittest
 
-from nexuskv.execution.policy import ExecutionPolicy, TenantNamespacePolicy, PlaceholderMode
-from nexuskv.security.tenant import TenantNamespaceAuthorizer, TenantAuthorizationError
+from nexuskv.execution.policy import ExecutionPolicy, PlaceholderMode, TenantNamespacePolicy
+from nexuskv.security.tenant import TenantAuthorizationError, TenantNamespaceAuthorizer
 
 
 class TestTenantSecurity(unittest.TestCase):
@@ -19,7 +19,9 @@ class TestTenantSecurity(unittest.TestCase):
         self.assertTrue(authorizer.authorize_request(policy_advisory, "tenant1", "ns1"))
 
         # Unauthorized tenant under advisory returns False without exception
-        self.assertFalse(authorizer.authorize_request(policy_advisory, "unauthorized_tenant", "ns1"))
+        self.assertFalse(
+            authorizer.authorize_request(policy_advisory, "unauthorized_tenant", "ns1")
+        )
 
         policy_enforced = ExecutionPolicy.default()
         policy_enforced.tenant_namespace_policy = TenantNamespacePolicy(

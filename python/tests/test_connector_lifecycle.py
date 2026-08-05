@@ -19,10 +19,8 @@ from nexuskv.contracts.generated import (
     MatchExtent,
     MatchResult,
     PartialHitPlan,
-    PlanDisposition,
     QueryKey,
     RemainingWork,
-    ReusableSlice,
     ReuseKey,
     TierKind,
 )
@@ -30,7 +28,9 @@ from nexuskv.execution.types import ExecutionDisposition, FallbackReason
 
 
 class FakePlanner:
-    def __init__(self, match: MatchResult | None = None, plan: PartialHitPlan | None = None) -> None:
+    def __init__(
+        self, match: MatchResult | None = None, plan: PartialHitPlan | None = None
+    ) -> None:
         self.match = match
         self.plan = plan
         self.queries: list[QueryKey] = []
@@ -44,7 +44,9 @@ class FakePlanner:
         return self.plan
 
 
-def make_match(connector, tokens: list[int], remaining: list[int], *, page_id: int | None = None) -> MatchResult:
+def make_match(
+    connector, tokens: list[int], remaining: list[int], *, page_id: int | None = None
+) -> MatchResult:
     descriptor = connector.default_descriptor()
     key = KeyIdentity(
         tenant="tenant-a",
@@ -134,7 +136,9 @@ class ConnectorLifecycleTest(unittest.TestCase):
 
         self.assertEqual(decision.lookup.status, LookupStatus.HIT)
         self.assertEqual(decision.materialization.disposition, ExecutionDisposition.MATERIALIZE)
-        self.assertEqual(decision.materialization.transfer.selected_backend, TransferBackend.BASELINE_TRANSPORT)
+        self.assertEqual(
+            decision.materialization.transfer.selected_backend, TransferBackend.BASELINE_TRANSPORT
+        )
         self.assertFalse(decision.should_store_after_stage)
 
     def test_sglang_extend_degrades_partial_hit_to_recompute(self) -> None:
@@ -154,7 +158,9 @@ class ConnectorLifecycleTest(unittest.TestCase):
 
         self.assertEqual(decision.lookup.status, LookupStatus.PARTIAL)
         self.assertEqual(decision.materialization.disposition, ExecutionDisposition.RECOMPUTE)
-        self.assertEqual(decision.materialization.fallback_reason, FallbackReason.UNSUPPORTED_CAPABILITY)
+        self.assertEqual(
+            decision.materialization.fallback_reason, FallbackReason.UNSUPPORTED_CAPABILITY
+        )
         self.assertTrue(decision.should_store_after_stage)
 
     def test_vllm_request_start_uses_partial_plan_and_prefetch(self) -> None:
@@ -174,7 +180,9 @@ class ConnectorLifecycleTest(unittest.TestCase):
         decision = connector.on_request_start(context, planner)
 
         self.assertEqual(decision.lookup.status, LookupStatus.PARTIAL)
-        self.assertEqual(decision.materialization.transfer.selected_backend, TransferBackend.STAGED_COPY)
+        self.assertEqual(
+            decision.materialization.transfer.selected_backend, TransferBackend.STAGED_COPY
+        )
         self.assertEqual(decision.prefetch.disposition, ExecutionDisposition.PREFETCH)
         self.assertTrue(decision.should_store_after_stage)
 
@@ -196,8 +204,12 @@ class ConnectorLifecycleTest(unittest.TestCase):
 
         self.assertEqual(decision.lookup.status, LookupStatus.HIT)
         self.assertTrue(decision.materialization.capability_check.degraded)
-        self.assertEqual(decision.materialization.transfer.selected_backend, TransferBackend.STAGED_COPY)
-        self.assertEqual(decision.materialization.fallback_reason, FallbackReason.PREFERRED_BACKEND_UNAVAILABLE)
+        self.assertEqual(
+            decision.materialization.transfer.selected_backend, TransferBackend.STAGED_COPY
+        )
+        self.assertEqual(
+            decision.materialization.fallback_reason, FallbackReason.PREFERRED_BACKEND_UNAVAILABLE
+        )
 
     def test_prepare_store_uses_generated_reuse_key_boundary(self) -> None:
         connector = VLLMConnector()
@@ -218,7 +230,9 @@ class ConnectorLifecycleTest(unittest.TestCase):
         )
 
         self.assertEqual(store.reuse_key.identity.page_id, 4)
-        self.assertEqual(store.entry.descriptor.engine_family, connector.default_descriptor().engine_family)
+        self.assertEqual(
+            store.entry.descriptor.engine_family, connector.default_descriptor().engine_family
+        )
 
 
 if __name__ == "__main__":

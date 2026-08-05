@@ -2,8 +2,9 @@ from __future__ import annotations
 
 import time
 from dataclasses import dataclass
-from nexuskv.execution.native_transport import NativeTransportManager
+
 from nexuskv.execution.hbm import HbmBlockAllocator
+from nexuskv.execution.native_transport import NativeTransportManager
 
 
 @dataclass(slots=True)
@@ -39,7 +40,7 @@ class PhysicalTransportBenchmarkSuite:
         dur_sec = (t1 - t0) / 1e9
         dur_ms = dur_sec * 1000.0
         dur_us = dur_ms * 1000.0
-        bw_gbs = (size_bytes / (1024 ** 3)) / dur_sec if dur_sec > 0 else 0.0
+        bw_gbs = (size_bytes / (1024**3)) / dur_sec if dur_sec > 0 else 0.0
 
         return PhysicalTransportMetric(
             operation="Host-to-Device (H2D) Physical Copy",
@@ -63,7 +64,7 @@ class PhysicalTransportBenchmarkSuite:
         dur_sec = (t1 - t0) / 1e9
         dur_ms = dur_sec * 1000.0
         dur_us = dur_ms * 1000.0
-        bw_gbs = (size_bytes / (1024 ** 3)) / dur_sec if dur_sec > 0 else 0.0
+        bw_gbs = (size_bytes / (1024**3)) / dur_sec if dur_sec > 0 else 0.0
 
         return PhysicalTransportMetric(
             operation="Device-to-Host (D2H) Physical Copy",
@@ -80,7 +81,7 @@ class PhysicalTransportBenchmarkSuite:
         buffer = bytearray(size_bytes)
 
         t0 = time.perf_counter_ns()
-        reg = self.transport_mgr.register_zero_copy_region(
+        _ = self.transport_mgr.register_zero_copy_region(
             handle_id=f"shm_{size_mb}mb",
             base_addr=id(buffer),
             size_bytes=size_bytes,
@@ -102,10 +103,8 @@ class PhysicalTransportBenchmarkSuite:
 
     def benchmark_pooled_store_materialization(self, size_mb: int = 64) -> PhysicalTransportMetric:
         """Measure Pooled HBM Block Descriptor Materialization Latency."""
-        size_bytes = size_mb * 1024 * 1024
-
         t0 = time.perf_counter_ns()
-        block = self.hbm_allocator.allocate_block()
+        _ = self.hbm_allocator.allocate_block()
         t1 = time.perf_counter_ns()
 
         dur_sec = (t1 - t0) / 1e9

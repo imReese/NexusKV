@@ -1,6 +1,11 @@
 from __future__ import annotations
 
-from nexuskv.connectors.base import LookupOutcome, LookupStatus, SGLangLifecycleContext, VLLMLifecycleContext
+from nexuskv.connectors.base import (
+    LookupOutcome,
+    LookupStatus,
+    SGLangLifecycleContext,
+    VLLMLifecycleContext,
+)
 from nexuskv.contracts.generated import (
     CacheEntry,
     CompatibilitySignal,
@@ -17,7 +22,9 @@ from nexuskv.contracts.generated import (
 )
 
 
-def make_match(connector, tokens: list[int], remaining: list[int], *, page_id: int | None = None) -> MatchResult:
+def make_match(
+    connector, tokens: list[int], remaining: list[int], *, page_id: int | None = None
+) -> MatchResult:
     descriptor = connector.default_descriptor()
     key = KeyIdentity(
         tenant="tenant-a",
@@ -101,7 +108,9 @@ def make_match(connector, tokens: list[int], remaining: list[int], *, page_id: i
     )
 
 
-def make_lookup_outcome(connector, tokens: list[int], remaining: list[int], *, page_id: int | None = None) -> LookupOutcome:
+def make_lookup_outcome(
+    connector, tokens: list[int], remaining: list[int], *, page_id: int | None = None
+) -> LookupOutcome:
     match = make_match(connector, tokens, remaining, page_id=page_id)
     partial_plan = connector.partial_plan_from_match(match) if remaining else None
     requested_context = (

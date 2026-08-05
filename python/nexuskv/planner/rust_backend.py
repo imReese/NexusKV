@@ -2,17 +2,14 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import shutil
 from pathlib import Path
 
 from nexuskv.connectors.base import ReusePlanner
-from nexuskv.contracts.generated import MatchResult, PartialHitPlan, QueryKey, ReuseKey, CacheEntry
+from nexuskv.contracts.generated import CacheEntry, MatchResult, PartialHitPlan, QueryKey, ReuseKey
 from nexuskv.contracts.serde import from_primitive, to_primitive
 
-
 ROOT = Path(__file__).resolve().parents[3]
-
-
-import shutil
 
 
 def _load_native_module():
@@ -32,23 +29,29 @@ def _load_native_module():
 
     candidate_filenames = [
         "libnexuskv_planner_native.so",
-        "libnexuskv_planner_native.pyd",
         "libnexuskv_planner_native.dylib",
         "nexuskv_planner_native.so",
-        "nexuskv_planner_native.pyd",
+        "nexuskv_planner_native.dylib",
     ]
 
-    for target_dir in target_dirs:
-        for filename in candidate_filenames:
-            candidate = target_dir / filename
-            if candidate.exists():
-                spec = importlib.util.spec_from_file_location("nexuskv_planner_native", candidate)
-                if spec is None or spec.loader is None:
-                    continue
-                module = importlib.util.module_from_spec(spec)
-                spec.loader.exec_module(module)
-                return module
-    raise ModuleNotFoundError("nexuskv_planner_native extension module not found; build bindings-py first")
+    # Search local directory first, then Rust build output directories
+    search_dirs = [Path(__file__).parent] + target_dirs
+    for sdir in search_dirs:
+        for cname in candidate_filenames:
+            cpath = sdir / cname
+            if cpath.exists():
+                spec = importlib.util.spec_from_file_location("nexuskv_planner_native", cpath)
+                if spec is not None and spec.loader is not None:
+                    module = importlib.util.module_from_spec(spec)
+                    spec.loader.exec_module(module)
+                    return module
+
+    try:
+        import nexuskv.planner.nexuskv_planner_native as native
+
+        return native
+    except ImportError as err:
+        raise RuntimeError("Rust native module 'nexuskv_planner_native' not found.") from err
 
 
 class RustPlanner(ReusePlanner):

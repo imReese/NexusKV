@@ -1,8 +1,7 @@
 from __future__ import annotations
 
-import ctypes
-from dataclasses import dataclass, field
 import threading
+from dataclasses import dataclass, field
 
 
 @dataclass(slots=True)
@@ -17,7 +16,7 @@ class HbmBlockHandle:
 @dataclass(slots=True)
 class HbmBlockAllocator:
     total_capacity_bytes: int = 16 * 1024 * 1024 * 1024  # 16 GB HBM Pool
-    block_size_bytes: int = 16 * 1024 * 1024           # 16 MB Block Size
+    block_size_bytes: int = 16 * 1024 * 1024  # 16 MB Block Size
     _lock: threading.Lock = field(default_factory=threading.Lock, init=False)
     _allocated_bytes: int = field(default=0, init=False)
     _pinned_bytes: int = field(default=0, init=False)

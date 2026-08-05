@@ -14,7 +14,9 @@ class TenantAuthorizationError(PermissionError):
 @dataclass(slots=True)
 class TenantNamespaceAuthorizer:
     secret_salt: bytes = b"nexuskv_default_salt_2026"
-    allowed_tenants: set[str] = field(default_factory=lambda: {"default", "default_tenant", "tenant-a", "tenant-b"})
+    allowed_tenants: set[str] = field(
+        default_factory=lambda: {"default", "default_tenant", "tenant-a", "tenant-b"}
+    )
 
     def authorize_request(
         self,

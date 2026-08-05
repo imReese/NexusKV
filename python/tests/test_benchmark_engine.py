@@ -1,8 +1,7 @@
 import unittest
 
+from nexuskv.benchmarks.runner import BenchmarkStrategy, BenchmarkStrategyRunner
 from nexuskv.benchmarks.trace import BenchmarkTraceGenerator
-from nexuskv.benchmarks.runner import BenchmarkStrategyRunner, BenchmarkStrategy
-from nexuskv.planner.cost import CostEstimator
 
 
 class TestBenchmarkEngine(unittest.TestCase):

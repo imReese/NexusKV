@@ -15,11 +15,11 @@ class CostProfilePreset(StrEnum):
 @dataclass(slots=True)
 class BandwidthConfig:
     # Bandwidth in Bytes / second
-    device_hbm_bw: float = 3.35e12    # 3.35 TB/s (H100 HBM3)
-    host_dram_bw: float = 2.0e11     # 200 GB/s (PCIe Gen5 x16)
-    local_ssd_bw: float = 7.0e9      # 7 GB/s (NVMe Gen4)
-    remote_shared_bw: float = 5.0e10 # 50 GB/s (400Gbps RDMA)
-    object_store_bw: float = 1.0e9   # 1 GB/s (S3 / MinIO)
+    device_hbm_bw: float = 3.35e12  # 3.35 TB/s (H100 HBM3)
+    host_dram_bw: float = 2.0e11  # 200 GB/s (PCIe Gen5 x16)
+    local_ssd_bw: float = 7.0e9  # 7 GB/s (NVMe Gen4)
+    remote_shared_bw: float = 5.0e10  # 50 GB/s (400Gbps RDMA)
+    object_store_bw: float = 1.0e9  # 1 GB/s (S3 / MinIO)
 
     def bandwidth_for_tier(self, tier: TierKind | None) -> float:
         if tier == TierKind.DEVICE:
@@ -80,7 +80,7 @@ class CostEstimator:
         t_transfer = payload_bytes / effective_bw if payload_bytes > 0 else 0.0
         t_lookup = self.lookup_overhead_sec
         t_restore = self.restore_overhead_sec
-        
+
         # Interference cost scales with concurrency
         t_interference = 5.0e-5 * concurrent_transfers
 

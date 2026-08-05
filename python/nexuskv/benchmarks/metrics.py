@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass, field
-from pathlib import Path
 
 from nexuskv.contracts.generated import TierKind
 
@@ -111,16 +110,22 @@ class BenchmarkMetricsCollector:
         recomputes = sum(1 for r in self.records if r.decision == "RECOMPUTE")
         agg_gain = sum(r.effective_gain_ms for r in self.records if r.is_useful_reuse)
 
-        ttfts = [r.t_cache_ms if r.decision == "MATERIALIZE" else r.t_compute_ms for r in self.records]
+        ttfts = [
+            r.t_cache_ms if r.decision == "MATERIALIZE" else r.t_compute_ms for r in self.records
+        ]
         avg_ttft = sum(ttfts) / total
         sorted_ttfts = sorted(ttfts)
         p95_index = min(int(0.95 * total), total - 1)
         p95_ttft = sorted_ttfts[p95_index]
 
         # Calculate percentiles for real wall-clock latencies
-        wall_times = sorted([r.real_wall_clock_us for r in self.records if r.real_wall_clock_us > 0] or [0.0])
+        wall_times = sorted(
+            [r.real_wall_clock_us for r in self.records if r.real_wall_clock_us > 0] or [0.0]
+        )
         lookups = sorted([r.real_lookup_us for r in self.records if r.real_lookup_us > 0] or [0.0])
-        mats = sorted([r.real_materialize_us for r in self.records if r.real_materialize_us > 0] or [0.0])
+        mats = sorted(
+            [r.real_materialize_us for r in self.records if r.real_materialize_us > 0] or [0.0]
+        )
 
         p50_e2e = wall_times[min(int(0.50 * len(wall_times)), len(wall_times) - 1)]
         p90_e2e = wall_times[min(int(0.90 * len(wall_times)), len(wall_times) - 1)]
@@ -135,7 +140,9 @@ class BenchmarkMetricsCollector:
         total_tokens = sum(r.context_length for r in self.records)
         total_wall_sec = sum(r.real_wall_clock_us for r in self.records) / 1e6
         tokens_per_sec = total_tokens / total_wall_sec if total_wall_sec > 0 else 0.0
-        payload_mb_per_sec = (total_tokens * 256 / (1024 * 1024)) / total_wall_sec if total_wall_sec > 0 else 0.0
+        payload_mb_per_sec = (
+            (total_tokens * 256 / (1024 * 1024)) / total_wall_sec if total_wall_sec > 0 else 0.0
+        )
 
         return BenchmarkReport(
             trace_name=self.trace_name,

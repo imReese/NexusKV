@@ -2,10 +2,14 @@ from __future__ import annotations
 
 from enum import StrEnum
 
-from nexuskv.benchmarks.metrics import BenchmarkMetricsCollector, BenchmarkReport, RequestMetricRecord
+from nexuskv.benchmarks.metrics import (
+    BenchmarkMetricsCollector,
+    BenchmarkReport,
+    RequestMetricRecord,
+)
 from nexuskv.benchmarks.trace import WorkloadTrace
 from nexuskv.contracts.generated import TierKind
-from nexuskv.execution.policy import ExecutionPolicy, QuotaAdmissionPolicy, PlaceholderMode
+from nexuskv.execution.policy import ExecutionPolicy
 from nexuskv.execution.quota import QuotaTracker
 from nexuskv.planner.cost import CostEstimator
 
@@ -42,7 +46,7 @@ class BenchmarkStrategyRunner:
         for req in trace.requests:
             t0 = time.perf_counter_ns()
             is_hit = req.shared_prefix_len > 0
-            
+
             t_lookup_start = time.perf_counter_ns()
             cost_res = self.cost_estimator.estimate(
                 token_count=req.context_length,

@@ -2,10 +2,11 @@ from __future__ import annotations
 
 import time
 from dataclasses import dataclass
-from nexuskv.execution.native_transport import NativeTransportManager
+
+from nexuskv.contracts.generated import TransferBackend
 from nexuskv.execution.hbm import HbmBlockAllocator, HbmBlockHandle
+from nexuskv.execution.native_transport import NativeTransportManager
 from nexuskv.planner.router import RoutingDecision
-from nexuskv.contracts.generated import DeviceClass, TransferBackend
 
 
 @dataclass(slots=True)
@@ -22,7 +23,7 @@ class PhysicalTransferResult:
 
 class PhysicalTransportEngine:
     """Production-grade Physical Payload Transport & Zero-Copy Mounting Engine.
-    
+
     Executes actual inter-node (RDMA/NVLink) or intra-node (CUDA IPC / POSIX SHM / Metal UMA)
     data transfers and registers destination HBM block allocations.
     """
@@ -63,7 +64,9 @@ class PhysicalTransportEngine:
             source_node_id=source_node_id,
             target_node_id=target_node_id,
             payload_bytes=payload_bytes,
-            physical_latency_us=round(dur_us + 12.5, 2),  # Real physical handle registration latency (~12us)
+            physical_latency_us=round(
+                dur_us + 12.5, 2
+            ),  # Real physical handle registration latency (~12us)
             backend_used=backend,
             hbm_block_id=hbm_block.block_id if hbm_block else None,
             is_success=True,

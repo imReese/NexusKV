@@ -1,8 +1,7 @@
 from __future__ import annotations
 
-import time
-from dataclasses import dataclass, field
 import threading
+from dataclasses import dataclass, field
 
 from nexuskv.contracts.generated import TierKind
 from nexuskv.planner.cost import CostEstimator
@@ -30,7 +29,9 @@ class DynamicCostProfiler:
             self.cost_estimator.time_per_token_prefill_sec = avg_t
         return avg_t
 
-    def record_bandwidth_sample(self, tier: TierKind, payload_bytes: int, duration_sec: float) -> float:
+    def record_bandwidth_sample(
+        self, tier: TierKind, payload_bytes: int, duration_sec: float
+    ) -> float:
         if payload_bytes <= 0 or duration_sec <= 0:
             return self.cost_estimator.bandwidth_config.bandwidth_for_tier(tier)
 

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import unittest
+
 from nexuskv.integrations.vllm_integration import NexusKVCacheAwareMiddleware
 from nexuskv.planner.router import WorkerNodeState
 
@@ -28,7 +29,7 @@ class TestNexusKVCacheAwareMiddleware(unittest.TestCase):
         self.assertEqual(decision.selected_node_id, "gpu-node-02")
         self.assertEqual(decision.shared_prefix_len, 8)
         self.assertTrue(decision.is_cache_hit)
-        
+
         self.assertIsNotNone(transfer_res)
         if transfer_res:
             self.assertTrue(transfer_res.is_success)

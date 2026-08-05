@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
 import threading
+from dataclasses import dataclass, field
 
 
 @dataclass(slots=True)
@@ -23,7 +23,7 @@ class TenantQuotaState:
 @dataclass(slots=True)
 class TenantQuotaManager:
     """Thread-safe multi-tenant quota manager with hard limits and active backpressure."""
-    
+
     default_limit: TenantQuotaLimit = field(default_factory=TenantQuotaLimit)
     _tenant_limits: dict[str, TenantQuotaLimit] = field(default_factory=dict, init=False)
     _tenant_states: dict[str, TenantQuotaState] = field(default_factory=dict, init=False)
@@ -60,13 +60,22 @@ class TenantQuotaManager:
             state = self._tenant_states.setdefault(tenant_id, TenantQuotaState())
 
             if state.active_payload_bytes + requested_payload_bytes > limit.max_payload_bytes:
-                return False, f"Tenant '{tenant_id}' payload quota exceeded: {state.active_payload_bytes + requested_payload_bytes} > {limit.max_payload_bytes}"
-            
+                return (
+                    False,
+                    f"Tenant '{tenant_id}' payload quota exceeded: {state.active_payload_bytes + requested_payload_bytes} > {limit.max_payload_bytes}",
+                )
+
             if state.active_entries + 1 > limit.max_entries:
-                return False, f"Tenant '{tenant_id}' entries quota exceeded: {state.active_entries + 1} > {limit.max_entries}"
+                return (
+                    False,
+                    f"Tenant '{tenant_id}' entries quota exceeded: {state.active_entries + 1} > {limit.max_entries}",
+                )
 
             if state.active_pinned_bytes + requested_pinned_bytes > limit.max_pinned_bytes:
-                return False, f"Tenant '{tenant_id}' pinned quota exceeded: {state.active_pinned_bytes + requested_pinned_bytes} > {limit.max_pinned_bytes}"
+                return (
+                    False,
+                    f"Tenant '{tenant_id}' pinned quota exceeded: {state.active_pinned_bytes + requested_pinned_bytes} > {limit.max_pinned_bytes}",
+                )
 
             # Reserve
             state.active_entries += 1

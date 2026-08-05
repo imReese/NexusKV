@@ -5,10 +5,12 @@ from enum import StrEnum
 
 SCHEMA_VERSION = "nexuskv.contract.v1"
 
+
 class EngineFamily(StrEnum):
     UNKNOWN = "unknown"
     SGLANG = "sglang"
     VLLM = "vllm"
+
 
 class StateSemanticType(StrEnum):
     MHA_KV = "mha_kv"
@@ -22,6 +24,7 @@ class StateSemanticType(StrEnum):
     DSPARK_SPARSE = "dspark_sparse"
     GENERIC_CONTAINER = "generic_container"
 
+
 class TensorRole(StrEnum):
     KEY = "key"
     VALUE = "value"
@@ -29,11 +32,13 @@ class TensorRole(StrEnum):
     POSITION = "position"
     AUXILIARY = "auxiliary"
 
+
 class Granularity(StrEnum):
     TOKEN = "token"
     BLOCK = "block"
     PAGE = "page"
     SEGMENT = "segment"
+
 
 class CompatibilityFlag(StrEnum):
     EXACT_REUSE = "exact_reuse"
@@ -42,6 +47,7 @@ class CompatibilityFlag(StrEnum):
     BLOCK_REUSE = "block_reuse"
     WARM_START = "warm_start"
     POST_EVICTION_RELOAD = "post_eviction_reload"
+
 
 class DeviceClass(StrEnum):
     CPU = "cpu"
@@ -55,6 +61,7 @@ class DeviceClass(StrEnum):
     BIREN = "biren"
     OTHER = "other"
 
+
 class BufferKind(StrEnum):
     DEVICE = "device"
     HOST_PINNED = "host_pinned"
@@ -62,11 +69,13 @@ class BufferKind(StrEnum):
     REMOTE = "remote"
     FILE_BACKED = "file_backed"
 
+
 class TransferBackend(StrEnum):
     BASELINE_TRANSPORT = "baseline_transport"
     STAGED_COPY = "staged_copy"
     RDMA = "rdma"
     ZERO_COPY = "zero_copy"
+
 
 class TransferCapability(StrEnum):
     HOST_TO_DEVICE = "host_to_device"
@@ -76,12 +85,14 @@ class TransferCapability(StrEnum):
     ASYNC = "async"
     ZERO_COPY_CANDIDATE = "zero_copy_candidate"
 
+
 class TierKind(StrEnum):
     DEVICE = "device"
     HOST_DRAM = "host_dram"
     LOCAL_SSD = "local_ssd"
     REMOTE_SHARED = "remote_shared"
     OBJECT_STORE = "object_store"
+
 
 class MaterializationCapability(StrEnum):
     FULL = "full"
@@ -90,15 +101,18 @@ class MaterializationCapability(StrEnum):
     ASYNC_FETCH = "async_fetch"
     FALLBACK_RECOMPUTE = "fallback_recompute"
 
+
 class MatchClassification(StrEnum):
     EXACT = "exact"
     PREFIX = "prefix"
     PARTIAL = "partial"
 
+
 class PlanDisposition(StrEnum):
     FULL_REUSE = "full_reuse"
     PARTIAL_REUSE = "partial_reuse"
     RECOMPUTE = "recompute"
+
 
 @dataclass(slots=True)
 class TensorSpec:
@@ -107,11 +121,13 @@ class TensorSpec:
     dtype: str
     shape: list[str]
 
+
 @dataclass(slots=True)
 class QuantizationMetadata:
     scheme: str
     bits: int
     group_size: int
+
 
 @dataclass(slots=True)
 class LayoutMetadata:
@@ -120,10 +136,12 @@ class LayoutMetadata:
     block_tokens: int
     packed: bool
 
+
 @dataclass(slots=True)
 class TransferPath:
     backend: TransferBackend
     capabilities: list[TransferCapability]
+
 
 @dataclass(slots=True)
 class MaterializationProfile:
@@ -131,6 +149,7 @@ class MaterializationProfile:
     tier_kinds: list[TierKind]
     device_classes: list[DeviceClass]
     buffer_kinds: list[BufferKind]
+
 
 @dataclass(slots=True)
 class AttentionStateDescriptor:
@@ -147,6 +166,7 @@ class AttentionStateDescriptor:
     materialization: MaterializationProfile
     layout_metadata: dict[str, str]
 
+
 @dataclass(slots=True)
 class KeyIdentity:
     tenant: str
@@ -158,23 +178,28 @@ class KeyIdentity:
     block_id: int | None
     page_id: int | None
 
+
 @dataclass(slots=True)
 class ReuseKey:
     identity: KeyIdentity
 
+
 @dataclass(slots=True)
 class QueryKey:
     identity: KeyIdentity
+
 
 @dataclass(slots=True)
 class EntryVersion:
     generation: int
     lineage: str
 
+
 @dataclass(slots=True)
 class EntryLocation:
     tier: TierKind
     locator: str
+
 
 @dataclass(slots=True)
 class PolicyHint:
@@ -182,11 +207,13 @@ class PolicyHint:
     admission_hint: str
     eviction_hint: str
 
+
 @dataclass(slots=True)
 class EntryIdentity:
     key: KeyIdentity
     entry_id: str
     version: EntryVersion
+
 
 @dataclass(slots=True)
 class CacheEntry:
@@ -195,10 +222,12 @@ class CacheEntry:
     location: EntryLocation
     policy_hint: PolicyHint
 
+
 @dataclass(slots=True)
 class MatchExtent:
     units: int
     granularity: Granularity
+
 
 @dataclass(slots=True)
 class RemainingWork:
@@ -206,11 +235,13 @@ class RemainingWork:
     fetch_required: bool
     recompute_required: bool
 
+
 @dataclass(slots=True)
 class CompatibilitySignal:
     reusable: bool
     fallback_to_recompute: bool
     reason: str
+
 
 @dataclass(slots=True)
 class MatchResult:
@@ -222,10 +253,12 @@ class MatchResult:
     remaining: RemainingWork
     compatibility: CompatibilitySignal
 
+
 @dataclass(slots=True)
 class ReusableSlice:
     tokens: list[int]
     source_tier: TierKind
+
 
 @dataclass(slots=True)
 class PartialHitPlan:
@@ -233,6 +266,7 @@ class PartialHitPlan:
     reusable: ReusableSlice
     remaining: RemainingWork
     entry: CacheEntry
+
 
 __all__ = [
     "SCHEMA_VERSION",

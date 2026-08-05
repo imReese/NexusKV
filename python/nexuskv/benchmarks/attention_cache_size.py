@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+
 from nexuskv.contracts.generated import StateSemanticType
 
 
@@ -12,10 +13,10 @@ class AttentionCacheConfig:
     num_heads: int
     num_kv_heads: int
     head_dim: int
-    latent_dim: int = 0      # For MLA (DeepSeek-V2/V3/R1 & Kimi K3)
-    rope_dim: int = 0        # For MLA RoPE
+    latent_dim: int = 0  # For MLA (DeepSeek-V2/V3/R1 & Kimi K3)
+    rope_dim: int = 0  # For MLA RoPE
     sparsity_ratio: float = 1.0  # For DSA / CSA / HCA
-    kda_fixed_state_dim: int = 0 # For Kimi K3 KDA linear recurrent layers
+    kda_fixed_state_dim: int = 0  # For Kimi K3 KDA linear recurrent layers
 
     def bytes_per_token(self, bytes_per_elem: int = 2) -> int:
         if self.semantic_type == StateSemanticType.MHA_KV:

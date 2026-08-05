@@ -1,15 +1,19 @@
 from __future__ import annotations
 
-import time
-from dataclasses import dataclass, field
 import threading
+import time
+from dataclasses import dataclass
 
-from nexuskv.connectors.base import EngineConnector, EngineRequestContext, LifecycleDecision, ReusePlanner
-from nexuskv.planner import RustPlanner
+from nexuskv.connectors.base import (
+    EngineConnector,
+    EngineRequestContext,
+    LifecycleDecision,
+    ReusePlanner,
+)
 from nexuskv.execution.runner import BaselineExecutionRunner
 from nexuskv.execution.types import (
-    BackendActionResult,
     BackendActionKind,
+    BackendActionResult,
     BackendActionStatus,
     CapabilityCheckResult,
     ExecutionDisposition,
@@ -20,6 +24,7 @@ from nexuskv.execution.types import (
     TargetTier,
     TransferMode,
 )
+from nexuskv.planner import RustPlanner
 
 
 @dataclass(slots=True)
@@ -60,12 +65,16 @@ class NativeEngineHookInterceptor:
                 decision = self.connector.on_request_start(context, self.planner)
             else:
                 lookup = self.connector.lookup(context, self.planner)
-                decision = self.connector.execute_lifecycle(hook=hook, context=context, lookup=lookup)
+                decision = self.connector.execute_lifecycle(
+                    hook=hook, context=context, lookup=lookup
+                )
 
             elapsed_ms = (time.perf_counter() - t0) * 1000.0
 
             if elapsed_ms > self.max_hook_timeout_ms:
-                return self._build_fail_open_decision(context, hook, f"hook_timeout_{elapsed_ms:.2f}ms")
+                return self._build_fail_open_decision(
+                    context, hook, f"hook_timeout_{elapsed_ms:.2f}ms"
+                )
 
             with self._lock:
                 self.stats.total_calls += 1

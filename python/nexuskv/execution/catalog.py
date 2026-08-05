@@ -2,10 +2,21 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from nexuskv.contracts.generated import BufferKind, DeviceClass, MaterializationCapability, TierKind, TransferBackend
+from nexuskv.contracts.generated import (
+    BufferKind,
+    DeviceClass,
+    MaterializationCapability,
+    TierKind,
+    TransferBackend,
+)
 from nexuskv.execution.backend import ExecutionBackend
 from nexuskv.execution.policy import ExecutionPolicy
-from nexuskv.execution.types import BackendActionKind, BackendActionRequest, BackendSelection, FallbackReason
+from nexuskv.execution.types import (
+    BackendActionKind,
+    BackendActionRequest,
+    BackendSelection,
+    FallbackReason,
+)
 
 
 @dataclass(slots=True)
@@ -39,14 +50,20 @@ class BackendRegistration:
     def _matches_tier(self, value: TierKind | None, supported: tuple[TierKind, ...]) -> bool:
         return not supported or value is None or value in supported
 
-    def _matches_device(self, value: DeviceClass | None, supported: tuple[DeviceClass, ...]) -> bool:
+    def _matches_device(
+        self, value: DeviceClass | None, supported: tuple[DeviceClass, ...]
+    ) -> bool:
         return not supported or value is None or value in supported
 
     def _matches_buffer(self, value: BufferKind | None, supported: tuple[BufferKind, ...]) -> bool:
         return not supported or value is None or value in supported
 
     def _matches_capability(self, value: MaterializationCapability | None) -> bool:
-        return not self.materialization_capabilities or value is None or value in self.materialization_capabilities
+        return (
+            not self.materialization_capabilities
+            or value is None
+            or value in self.materialization_capabilities
+        )
 
 
 @dataclass(slots=True)
@@ -60,7 +77,9 @@ class BackendCatalog:
         self._next_order += 1
         self.registrations.append(registration)
 
-    def select(self, request: BackendActionRequest) -> tuple[ExecutionBackend, BackendSelection] | None:
+    def select(
+        self, request: BackendActionRequest
+    ) -> tuple[ExecutionBackend, BackendSelection] | None:
         desired_backend = request.decision.transfer.selected_backend
         required_capability = self._required_capability(request)
         if self.policy is not None and not self._request_allowed_by_policy(request):
@@ -92,7 +111,10 @@ class BackendCatalog:
                 reg
                 for reg in common
                 if reg.transfer_backend is not None
-                and (self.policy is None or self.policy.allows_degraded_backend_selection(reg.transfer_backend))
+                and (
+                    self.policy is None
+                    or self.policy.allows_degraded_backend_selection(reg.transfer_backend)
+                )
             ]
             if degraded:
                 chosen = degraded[0]
@@ -114,7 +136,9 @@ class BackendCatalog:
             required_capability=required_capability,
         )
 
-    def _required_capability(self, request: BackendActionRequest) -> MaterializationCapability | None:
+    def _required_capability(
+        self, request: BackendActionRequest
+    ) -> MaterializationCapability | None:
         raw = request.decision.capability_check.required_capability
         if raw is None:
             return None
@@ -142,11 +166,21 @@ class BackendCatalog:
             return True
         return (
             self.policy.allows_transfer_backend(registration.transfer_backend)
-            and self.policy.allows_source_tier(request.decision.source.tier, registration.transfer_backend)
-            and self.policy.allows_target_tier(request.decision.target.tier, registration.transfer_backend)
-            and self.policy.allows_device_class(request.decision.target.device_class, registration.transfer_backend)
-            and self.policy.allows_buffer_kind(request.decision.target.buffer_kind, registration.transfer_backend)
-            and self.policy.allows_materialization_capability(required_capability, registration.transfer_backend)
+            and self.policy.allows_source_tier(
+                request.decision.source.tier, registration.transfer_backend
+            )
+            and self.policy.allows_target_tier(
+                request.decision.target.tier, registration.transfer_backend
+            )
+            and self.policy.allows_device_class(
+                request.decision.target.device_class, registration.transfer_backend
+            )
+            and self.policy.allows_buffer_kind(
+                request.decision.target.buffer_kind, registration.transfer_backend
+            )
+            and self.policy.allows_materialization_capability(
+                required_capability, registration.transfer_backend
+            )
         )
 
     def _effective_priority(self, registration: BackendRegistration) -> int:

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from nexuskv.adapters.state import (
+    SCHEMA_VERSION,
     AttentionStateDescriptor,
     CompatibilityFlag,
     EngineFamily,
@@ -9,7 +10,6 @@ from nexuskv.adapters.state import (
     MaterializationCapability,
     MaterializationProfile,
     QuantizationMetadata,
-    SCHEMA_VERSION,
     StateSemanticType,
     TensorRole,
     TensorSpec,
@@ -79,7 +79,9 @@ class SGLangConnector(EngineConnector):
             layout_metadata={"engine_layout": "token_major"},
         )
 
-    def probe_capabilities(self, descriptor: AttentionStateDescriptor | None = None) -> ConnectorCapabilities:
+    def probe_capabilities(
+        self, descriptor: AttentionStateDescriptor | None = None
+    ) -> ConnectorCapabilities:
         descriptor = descriptor or self.default_descriptor()
         return ConnectorCapabilities(
             exact_reuse=True,
@@ -92,7 +94,9 @@ class SGLangConnector(EngineConnector):
             compatibility_flags=tuple(descriptor.compatibility_flags),
         )
 
-    def on_prefill(self, context: SGLangLifecycleContext, planner: ReusePlanner) -> LifecycleDecision:
+    def on_prefill(
+        self, context: SGLangLifecycleContext, planner: ReusePlanner
+    ) -> LifecycleDecision:
         lookup = self.lookup(context, planner)
         return self.execute_lifecycle(
             hook="prefill",
@@ -102,7 +106,9 @@ class SGLangConnector(EngineConnector):
             enable_prefetch=False,
         )
 
-    def on_extend(self, context: SGLangLifecycleContext, planner: ReusePlanner) -> LifecycleDecision:
+    def on_extend(
+        self, context: SGLangLifecycleContext, planner: ReusePlanner
+    ) -> LifecycleDecision:
         lookup = self.lookup(context, planner)
         return self.execute_lifecycle(
             hook="extend",
@@ -112,7 +118,9 @@ class SGLangConnector(EngineConnector):
             enable_prefetch=False,
         )
 
-    def on_decode(self, context: SGLangLifecycleContext, planner: ReusePlanner) -> LifecycleDecision:
+    def on_decode(
+        self, context: SGLangLifecycleContext, planner: ReusePlanner
+    ) -> LifecycleDecision:
         lookup = self.unsupported_lookup(
             context,
             "sglang decode stays on local state and does not issue planner lookups in v1",

@@ -116,7 +116,9 @@ class RecordingExecutionBackend:
             return self._reject(request, "decision did not provide a supported backend path")
 
         if self.supported_backends is not None and selected_backend not in self.supported_backends:
-            return self._reject(request, f"backend {selected_backend} is unsupported by {self.backend_name}")
+            return self._reject(
+                request, f"backend {selected_backend} is unsupported by {self.backend_name}"
+            )
 
         return self._record(
             request,
@@ -173,7 +175,9 @@ class RecordingExecutionBackend:
             ),
         )
 
-    def _record(self, request: BackendActionRequest, result: BackendActionResult) -> BackendActionResult:
+    def _record(
+        self, request: BackendActionRequest, result: BackendActionResult
+    ) -> BackendActionResult:
         self.calls.append(BackendInvocation(request=request, result=result))
         return result
 
@@ -193,7 +197,9 @@ class RecordingExecutionBackend:
                 tier=request.decision.target.tier,
                 buffer_kind=request.decision.target.buffer_kind,
                 device_class=request.decision.target.device_class,
-                locator=request.decision.target.tier.value if request.decision.target.tier is not None else None,
+                locator=request.decision.target.tier.value
+                if request.decision.target.tier is not None
+                else None,
                 handle_kind="implicit_target",
             ),
             transfer_backend=request.decision.transfer.selected_backend,
@@ -219,11 +225,15 @@ class BaselineExecutionBackend(RecordingExecutionBackend):
     def __init__(
         self,
         *,
-        supported_backends: tuple[TransferBackend, ...] | None = (TransferBackend.BASELINE_TRANSPORT,),
+        supported_backends: tuple[TransferBackend, ...] | None = (
+            TransferBackend.BASELINE_TRANSPORT,
+        ),
         backend_name: str = "baseline-execution-backend",
         store: InMemoryEntryStore | None = None,
     ) -> None:
-        RecordingExecutionBackend.__init__(self, backend_name=backend_name, supported_backends=supported_backends)
+        RecordingExecutionBackend.__init__(
+            self, backend_name=backend_name, supported_backends=supported_backends
+        )
         self.state = InMemoryEntryStore() if store is None else store
 
     def materialize(self, request: BackendActionRequest) -> BackendActionResult:
@@ -303,7 +313,11 @@ class BaselineExecutionBackend(RecordingExecutionBackend):
             return validation
 
         locator = request.decision.source.locator
-        if locator is not None and locator.startswith("memory://") and self.state.get(request.lookup.query) is None:
+        if (
+            locator is not None
+            and locator.startswith("memory://")
+            and self.state.get(request.lookup.query) is None
+        ):
             return self._reject(
                 request,
                 "prefetch source is missing from the in-memory store",
@@ -383,22 +397,31 @@ class BaselineExecutionBackend(RecordingExecutionBackend):
         if not request.decision.capability_check.supported or selected_backend is None:
             return self._reject(request, "decision did not provide a supported backend path")
         if self.supported_backends is not None and selected_backend not in self.supported_backends:
-            return self._reject(request, f"backend {selected_backend} is unsupported by {self.backend_name}")
+            return self._reject(
+                request, f"backend {selected_backend} is unsupported by {self.backend_name}"
+            )
         return None
 
     def _result_handle_for_materialize(self, request: BackendActionRequest) -> PayloadHandle:
         source_handle = (
             request.transfer_request.source_handle
-            if request.transfer_request is not None and request.transfer_request.source_handle is not None
+            if request.transfer_request is not None
+            and request.transfer_request.source_handle is not None
             else request.payload_handle
         )
         assert source_handle is not None
-        target = request.transfer_request.desired_target if request.transfer_request is not None else PayloadLocation(
-            tier=request.decision.target.tier,
-            buffer_kind=request.decision.target.buffer_kind,
-            device_class=request.decision.target.device_class,
-            locator=request.decision.target.tier.value if request.decision.target.tier is not None else None,
-            handle_kind="materialized_target",
+        target = (
+            request.transfer_request.desired_target
+            if request.transfer_request is not None
+            else PayloadLocation(
+                tier=request.decision.target.tier,
+                buffer_kind=request.decision.target.buffer_kind,
+                device_class=request.decision.target.device_class,
+                locator=request.decision.target.tier.value
+                if request.decision.target.tier is not None
+                else None,
+                handle_kind="materialized_target",
+            )
         )
         return PayloadHandle(
             handle_id=f"materialized:{request.hook}:{request.kind}:{request.lookup.query.identity.tenant}:{request.lookup.query.identity.namespace}:{request.lookup.query.identity.model}",
@@ -422,7 +445,11 @@ class StagedCopyExecutionBackend(RecordingExecutionBackend):
         result = self._transfer_action(request)
         if result.status != BackendActionStatus.SUCCEEDED:
             return result
-        source = request.transfer_request.source_handle if request.transfer_request is not None else request.payload_handle
+        source = (
+            request.transfer_request.source_handle
+            if request.transfer_request is not None
+            else request.payload_handle
+        )
         result_handle = self._materialized_target_handle(request, ownership=PayloadOwnership.OWNED)
         intermediate = self._intermediate_host_handle(request, source)
         result.payload_handle = result_handle
@@ -440,8 +467,14 @@ class StagedCopyExecutionBackend(RecordingExecutionBackend):
         result = self._transfer_action(request)
         if result.status != BackendActionStatus.SUCCEEDED:
             return result
-        source = request.transfer_request.source_handle if request.transfer_request is not None else request.payload_handle
-        result_handle = self._materialized_target_handle(request, ownership=PayloadOwnership.EPHEMERAL)
+        source = (
+            request.transfer_request.source_handle
+            if request.transfer_request is not None
+            else request.payload_handle
+        )
+        result_handle = self._materialized_target_handle(
+            request, ownership=PayloadOwnership.EPHEMERAL
+        )
         intermediate = self._intermediate_host_handle(request, source)
         result.payload_handle = result_handle
         result.transfer_session = self._transfer_session(
@@ -460,14 +493,24 @@ class StagedCopyExecutionBackend(RecordingExecutionBackend):
         *,
         ownership: PayloadOwnership,
     ) -> PayloadHandle:
-        source = request.transfer_request.source_handle if request.transfer_request is not None else request.payload_handle
+        source = (
+            request.transfer_request.source_handle
+            if request.transfer_request is not None
+            else request.payload_handle
+        )
         assert source is not None
-        target = request.transfer_request.desired_target if request.transfer_request is not None else PayloadLocation(
-            tier=request.decision.target.tier,
-            buffer_kind=request.decision.target.buffer_kind,
-            device_class=request.decision.target.device_class,
-            locator=request.decision.target.tier.value if request.decision.target.tier is not None else None,
-            handle_kind="staged_target",
+        target = (
+            request.transfer_request.desired_target
+            if request.transfer_request is not None
+            else PayloadLocation(
+                tier=request.decision.target.tier,
+                buffer_kind=request.decision.target.buffer_kind,
+                device_class=request.decision.target.device_class,
+                locator=request.decision.target.tier.value
+                if request.decision.target.tier is not None
+                else None,
+                handle_kind="staged_target",
+            )
         )
         return PayloadHandle(
             handle_id=f"staged:{request.hook}:{request.kind}:{len(self.calls) + 1}",
@@ -518,7 +561,9 @@ class RemoteSharedStoreExecutionBackend(RecordingExecutionBackend):
                 "remote store request did not include a cache entry",
                 fallback_reason=FallbackReason.ENGINE_POLICY,
             )
-        source = request.payload_handle or (request.transfer_request.source_handle if request.transfer_request is not None else None)
+        source = request.payload_handle or (
+            request.transfer_request.source_handle if request.transfer_request is not None else None
+        )
         assert source is not None
         result_handle = PayloadHandle(
             handle_id=f"remote:{request.store_entry.identity.entry_id}",

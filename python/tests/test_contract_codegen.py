@@ -5,6 +5,7 @@ import unittest
 from pathlib import Path
 
 from nexuskv.contracts.generated import (
+    SCHEMA_VERSION,
     AttentionStateDescriptor,
     BufferKind,
     DeviceClass,
@@ -14,7 +15,6 @@ from nexuskv.contracts.generated import (
     MaterializationCapability,
     MaterializationProfile,
     QuantizationMetadata,
-    SCHEMA_VERSION,
     StateSemanticType,
     TensorRole,
     TensorSpec,
@@ -23,7 +23,6 @@ from nexuskv.contracts.generated import (
     TransferCapability,
     TransferPath,
 )
-
 
 ROOT = Path(__file__).resolve().parents[2]
 SCHEMA_PATH = ROOT / "schema" / "nexuskv_contract.json"
@@ -74,7 +73,10 @@ class ContractCodegenTest(unittest.TestCase):
                 )
             ],
             materialization=MaterializationProfile(
-                capabilities=[MaterializationCapability.PARTIAL, MaterializationCapability.PREFETCH],
+                capabilities=[
+                    MaterializationCapability.PARTIAL,
+                    MaterializationCapability.PREFETCH,
+                ],
                 tier_kinds=[TierKind.DEVICE, TierKind.HOST_DRAM, TierKind.REMOTE_SHARED],
                 device_classes=[DeviceClass.CUDA, DeviceClass.CPU],
                 buffer_kinds=[BufferKind.DEVICE, BufferKind.HOST_PINNED],

@@ -1,14 +1,16 @@
 import unittest
 
-from nexuskv.execution.tenant_quota import TenantQuotaManager, TenantQuotaLimit
+from nexuskv.execution.tenant_quota import TenantQuotaLimit, TenantQuotaManager
 
 
 class TestTenantQuotaManager(unittest.TestCase):
     def test_tenant_isolation_and_reservation(self):
         manager = TenantQuotaManager()
-        
+
         # Set custom limit for tenant_A (1MB)
-        manager.set_tenant_limit("tenant_A", TenantQuotaLimit(max_payload_bytes=1024 * 1024, max_entries=10))
+        manager.set_tenant_limit(
+            "tenant_A", TenantQuotaLimit(max_payload_bytes=1024 * 1024, max_entries=10)
+        )
 
         # Tenant A reserve 500KB - should succeed
         ok, reason = manager.check_and_reserve("tenant_A", requested_payload_bytes=500 * 1024)

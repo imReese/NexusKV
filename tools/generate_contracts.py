@@ -61,6 +61,7 @@ def generate_python(schema: dict) -> str:
         "",
         f'SCHEMA_VERSION = "{schema["schema_version"]}"',
         "",
+        "",
     ]
 
     for enum_name, values in schema["enums"].items():
@@ -68,12 +69,14 @@ def generate_python(schema: dict) -> str:
         for value in values:
             lines.append(f'    {value} = "{snake_wire(value)}"')
         lines.append("")
+        lines.append("")
 
     for object_name, spec in schema["objects"].items():
         lines.append("@dataclass(slots=True)")
         lines.append(f"class {object_name}:")
         for field in spec["fields"]:
             lines.append(f'    {field["name"]}: {py_type(field["type"])}')
+        lines.append("")
         lines.append("")
 
     exported = ["SCHEMA_VERSION", *schema["enums"].keys(), *schema["objects"].keys()]
@@ -140,6 +143,10 @@ def main() -> int:
     ok = True
     ok &= write_or_check(PYTHON_OUT, python_content, args.check)
     ok &= write_or_check(RUST_OUT, rust_content, args.check)
+
+    if not args.check:
+        import subprocess
+        subprocess.run(["ruff", "format", str(PYTHON_OUT)], check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
     if args.check and not ok:
         print("generated contracts are out of date")

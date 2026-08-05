@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import unittest
+
 from nexuskv.planner.router import CacheAwareRouter, WorkerNodeState
 
 
@@ -39,7 +40,7 @@ class TestCacheAwareRouter(unittest.TestCase):
         worker2 = WorkerNodeState(
             node_id="worker-idle-02",
             address="192.168.1.2:8080",
-            active_transfers=0,   # Idle worker
+            active_transfers=0,  # Idle worker
             cached_prefix_tokens=self.common_prefix,
         )
 

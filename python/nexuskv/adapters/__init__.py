@@ -1,4 +1,5 @@
 from .state import (
+    SCHEMA_VERSION,
     AttentionStateDescriptor,
     BufferKind,
     CompatibilityFlag,
@@ -9,7 +10,6 @@ from .state import (
     MaterializationCapability,
     MaterializationProfile,
     QuantizationMetadata,
-    SCHEMA_VERSION,
     StateSemanticType,
     TensorRole,
     TensorSpec,

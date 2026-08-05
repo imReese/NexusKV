@@ -11,6 +11,10 @@ echo "==> [Pre-Commit Hook] Checking Rust Format & Clippy Lints..."
 echo "==> [Pre-Commit Hook] Checking Go Format..."
 GOTOOLCHAIN=go1.25.9 go fmt ./...
 
+echo "==> [Pre-Commit Hook] Checking Python Format & Ruff Lints..."
+ruff format --check python/
+ruff check python/
+
 echo "==> [Pre-Commit Hook] Running Fast Test Suite..."
 make test
 

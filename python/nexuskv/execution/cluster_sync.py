@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import time
 from dataclasses import dataclass, field
-from typing import Any
 
 
 @dataclass(slots=True)
@@ -18,7 +17,7 @@ class CacheDeltaEvent:
 
 class GlobalRadixSyncManager:
     """Production-grade Distributed Global Radix Sync & Cache Pooling Registry.
-    
+
     Synchronizes cache block lifecycle events (Acquire, Evict, Pin, Unpin) across
     all GPU worker nodes in real time to maintain a coherent cluster-wide cache map.
     """
@@ -28,7 +27,9 @@ class GlobalRadixSyncManager:
         self._pending_deltas: list[CacheDeltaEvent] = []
         self._epoch: int = 1
 
-    def report_cache_acquired(self, node_id: str, prefix_key: str, token_count: int, payload_bytes: int) -> None:
+    def report_cache_acquired(
+        self, node_id: str, prefix_key: str, token_count: int, payload_bytes: int
+    ) -> None:
         if node_id not in self._node_caches:
             self._node_caches[node_id] = {}
         self._node_caches[node_id][prefix_key] = token_count

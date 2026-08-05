@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 import json
+import os
 from dataclasses import dataclass
 from enum import StrEnum
-import os
 from pathlib import Path
 from typing import Protocol
 
@@ -16,7 +16,6 @@ from nexuskv.contracts.generated import (
     TransferBackend,
 )
 from nexuskv.execution.types import ExecutionDisposition, FallbackReason
-
 
 SCHEMA_VERSION = "nexuskv.execution_policy.v1"
 POLICY_PATH_ENV = "NEXUSKV_EXECUTION_POLICY_PATH"
@@ -66,24 +65,32 @@ class QuotaAdmissionPolicy:
     ) -> tuple[bool, str | None]:
         if self.mode == PlaceholderMode.DISABLED:
             return True, None
-        
+
         reasons: list[str] = []
         if self.max_payload_bytes > 0 and payload_bytes > self.max_payload_bytes:
-            reasons.append(f"payload_bytes ({payload_bytes}) > max_payload_bytes ({self.max_payload_bytes})")
+            reasons.append(
+                f"payload_bytes ({payload_bytes}) > max_payload_bytes ({self.max_payload_bytes})"
+            )
         if self.max_entries > 0 and current_entries >= self.max_entries:
-            reasons.append(f"current_entries ({current_entries}) >= max_entries ({self.max_entries})")
+            reasons.append(
+                f"current_entries ({current_entries}) >= max_entries ({self.max_entries})"
+            )
         if self.max_concurrent_transfers > 0 and current_transfers >= self.max_concurrent_transfers:
-            reasons.append(f"current_transfers ({current_transfers}) >= max_concurrent_transfers ({self.max_concurrent_transfers})")
+            reasons.append(
+                f"current_transfers ({current_transfers}) >= max_concurrent_transfers ({self.max_concurrent_transfers})"
+            )
         if self.max_pinned_dram_bytes > 0 and current_pinned_bytes >= self.max_pinned_dram_bytes:
-            reasons.append(f"current_pinned_bytes ({current_pinned_bytes}) >= max_pinned_dram_bytes ({self.max_pinned_dram_bytes})")
-        
+            reasons.append(
+                f"current_pinned_bytes ({current_pinned_bytes}) >= max_pinned_dram_bytes ({self.max_pinned_dram_bytes})"
+            )
+
         if reasons:
             detail = "; ".join(reasons)
             if self.mode == PlaceholderMode.ENFORCED:
                 return False, detail
             # Advisory mode allows but logs/notes detail
             return True, f"advisory quota limit reached: {detail}"
-        
+
         return True, None
 
 
@@ -111,7 +118,7 @@ class PolicyReloadStatus:
 
 
 class ExecutionPolicyProvider(Protocol):
-    def active_policy(self) -> "ExecutionPolicy":
+    def active_policy(self) -> ExecutionPolicy:
         raise NotImplementedError
 
     def status(self) -> PolicyReloadStatus:
@@ -137,7 +144,7 @@ class ExecutionPolicy:
     backend_overlays: dict[TransferBackend, BackendCapabilityOverlay]
 
     @classmethod
-    def default(cls) -> "ExecutionPolicy":
+    def default(cls) -> ExecutionPolicy:
         return cls(
             schema_version=SCHEMA_VERSION,
             enabled_transfer_backends=(
@@ -200,30 +207,48 @@ class ExecutionPolicy:
         )
 
     @classmethod
-    def from_file(cls, path: str | Path) -> "ExecutionPolicy":
+    def from_file(cls, path: str | Path) -> ExecutionPolicy:
         return cls.from_json(Path(path).read_text(encoding="utf-8"))
 
     @classmethod
-    def from_env(cls, env_var: str = POLICY_PATH_ENV) -> "ExecutionPolicy":
+    def from_env(cls, env_var: str = POLICY_PATH_ENV) -> ExecutionPolicy:
         raw = os.getenv(env_var)
         if not raw:
             raise FileNotFoundError(f"{env_var} is not set")
         return cls.from_file(raw)
 
     @classmethod
-    def from_json(cls, raw: str) -> "ExecutionPolicy":
+    def from_json(cls, raw: str) -> ExecutionPolicy:
         return cls.from_dict(json.loads(raw))
 
     @classmethod
-    def from_dict(cls, data: dict) -> "ExecutionPolicy":
+    def from_dict(cls, data: dict) -> ExecutionPolicy:
         policy = cls(
             schema_version=data["schema_version"],
-            enabled_transfer_backends=tuple(_unique_enum_list(data["enabled_transfer_backends"], TransferBackend, "enabled_transfer_backends")),
-            backend_priority_order=tuple(_unique_enum_list(data["backend_priority_order"], TransferBackend, "backend_priority_order")),
-            allowed_source_tiers=tuple(_unique_enum_list(data["allowed_source_tiers"], TierKind, "allowed_source_tiers")),
-            allowed_target_tiers=tuple(_unique_enum_list(data["allowed_target_tiers"], TierKind, "allowed_target_tiers")),
-            allowed_device_classes=tuple(_unique_enum_list(data["allowed_device_classes"], DeviceClass, "allowed_device_classes")),
-            allowed_buffer_kinds=tuple(_unique_enum_list(data["allowed_buffer_kinds"], BufferKind, "allowed_buffer_kinds")),
+            enabled_transfer_backends=tuple(
+                _unique_enum_list(
+                    data["enabled_transfer_backends"], TransferBackend, "enabled_transfer_backends"
+                )
+            ),
+            backend_priority_order=tuple(
+                _unique_enum_list(
+                    data["backend_priority_order"], TransferBackend, "backend_priority_order"
+                )
+            ),
+            allowed_source_tiers=tuple(
+                _unique_enum_list(data["allowed_source_tiers"], TierKind, "allowed_source_tiers")
+            ),
+            allowed_target_tiers=tuple(
+                _unique_enum_list(data["allowed_target_tiers"], TierKind, "allowed_target_tiers")
+            ),
+            allowed_device_classes=tuple(
+                _unique_enum_list(
+                    data["allowed_device_classes"], DeviceClass, "allowed_device_classes"
+                )
+            ),
+            allowed_buffer_kinds=tuple(
+                _unique_enum_list(data["allowed_buffer_kinds"], BufferKind, "allowed_buffer_kinds")
+            ),
             default_fallback_behavior=FallbackBehavior(data["default_fallback_behavior"]),
             recompute_fallback_policy=RecomputeFallbackPolicy(**data["recompute_fallback_policy"]),
             tenant_namespace_policy=TenantNamespacePolicy(
@@ -235,26 +260,48 @@ class ExecutionPolicy:
                 mode=PlaceholderMode(data["quota_admission_policy"]["mode"]),
                 max_payload_bytes=int(data["quota_admission_policy"]["max_payload_bytes"]),
                 max_entries=int(data["quota_admission_policy"]["max_entries"]),
-                max_concurrent_transfers=int(data["quota_admission_policy"].get("max_concurrent_transfers", 0)),
-                max_pinned_dram_bytes=int(data["quota_admission_policy"].get("max_pinned_dram_bytes", 0)),
+                max_concurrent_transfers=int(
+                    data["quota_admission_policy"].get("max_concurrent_transfers", 0)
+                ),
+                max_pinned_dram_bytes=int(
+                    data["quota_admission_policy"].get("max_pinned_dram_bytes", 0)
+                ),
             ),
             backend_overlays={
                 TransferBackend(name): BackendCapabilityOverlay(
                     enabled=overlay.get("enabled"),
                     priority_override=(
-                        None if overlay.get("priority_override") is None else int(overlay["priority_override"])
+                        None
+                        if overlay.get("priority_override") is None
+                        else int(overlay["priority_override"])
                     ),
                     allowed_source_tiers=tuple(
-                        _unique_enum_list(overlay.get("allowed_source_tiers", []), TierKind, f"backend_overlays.{name}.allowed_source_tiers")
+                        _unique_enum_list(
+                            overlay.get("allowed_source_tiers", []),
+                            TierKind,
+                            f"backend_overlays.{name}.allowed_source_tiers",
+                        )
                     ),
                     allowed_target_tiers=tuple(
-                        _unique_enum_list(overlay.get("allowed_target_tiers", []), TierKind, f"backend_overlays.{name}.allowed_target_tiers")
+                        _unique_enum_list(
+                            overlay.get("allowed_target_tiers", []),
+                            TierKind,
+                            f"backend_overlays.{name}.allowed_target_tiers",
+                        )
                     ),
                     allowed_device_classes=tuple(
-                        _unique_enum_list(overlay.get("allowed_device_classes", []), DeviceClass, f"backend_overlays.{name}.allowed_device_classes")
+                        _unique_enum_list(
+                            overlay.get("allowed_device_classes", []),
+                            DeviceClass,
+                            f"backend_overlays.{name}.allowed_device_classes",
+                        )
                     ),
                     allowed_buffer_kinds=tuple(
-                        _unique_enum_list(overlay.get("allowed_buffer_kinds", []), BufferKind, f"backend_overlays.{name}.allowed_buffer_kinds")
+                        _unique_enum_list(
+                            overlay.get("allowed_buffer_kinds", []),
+                            BufferKind,
+                            f"backend_overlays.{name}.allowed_buffer_kinds",
+                        )
                     ),
                     allowed_materialization_capabilities=tuple(
                         _unique_enum_list(
@@ -274,12 +321,16 @@ class ExecutionPolicy:
     def to_dict(self) -> dict:
         return {
             "schema_version": self.schema_version,
-            "enabled_transfer_backends": [backend.value for backend in self.enabled_transfer_backends],
+            "enabled_transfer_backends": [
+                backend.value for backend in self.enabled_transfer_backends
+            ],
             "backend_priority_order": [backend.value for backend in self.backend_priority_order],
             "allowed_source_tiers": [tier.value for tier in self.allowed_source_tiers],
             "allowed_target_tiers": [tier.value for tier in self.allowed_target_tiers],
             "allowed_device_classes": [device.value for device in self.allowed_device_classes],
-            "allowed_buffer_kinds": [buffer_kind.value for buffer_kind in self.allowed_buffer_kinds],
+            "allowed_buffer_kinds": [
+                buffer_kind.value for buffer_kind in self.allowed_buffer_kinds
+            ],
             "default_fallback_behavior": self.default_fallback_behavior.value,
             "recompute_fallback_policy": {
                 "on_cache_miss": self.recompute_fallback_policy.on_cache_miss,
@@ -305,12 +356,21 @@ class ExecutionPolicy:
                     for key, value in {
                         "enabled": overlay.enabled,
                         "priority_override": overlay.priority_override,
-                        "allowed_source_tiers": [tier.value for tier in overlay.allowed_source_tiers],
-                        "allowed_target_tiers": [tier.value for tier in overlay.allowed_target_tiers],
-                        "allowed_device_classes": [device.value for device in overlay.allowed_device_classes],
-                        "allowed_buffer_kinds": [buffer_kind.value for buffer_kind in overlay.allowed_buffer_kinds],
+                        "allowed_source_tiers": [
+                            tier.value for tier in overlay.allowed_source_tiers
+                        ],
+                        "allowed_target_tiers": [
+                            tier.value for tier in overlay.allowed_target_tiers
+                        ],
+                        "allowed_device_classes": [
+                            device.value for device in overlay.allowed_device_classes
+                        ],
+                        "allowed_buffer_kinds": [
+                            buffer_kind.value for buffer_kind in overlay.allowed_buffer_kinds
+                        ],
                         "allowed_materialization_capabilities": [
-                            capability.value for capability in overlay.allowed_materialization_capabilities
+                            capability.value
+                            for capability in overlay.allowed_materialization_capabilities
                         ],
                         "allow_degraded_selection": overlay.allow_degraded_selection,
                     }.items()
@@ -331,7 +391,9 @@ class ExecutionPolicy:
         if not self.backend_priority_order:
             raise ValueError("backend_priority_order must not be empty")
         if set(self.backend_priority_order) != set(self.enabled_transfer_backends):
-            raise ValueError("backend_priority_order must include every enabled transfer backend exactly once")
+            raise ValueError(
+                "backend_priority_order must include every enabled transfer backend exactly once"
+            )
         if self.quota_admission_policy.max_payload_bytes < 0:
             raise ValueError("quota_admission_policy.max_payload_bytes must be >= 0")
         if self.quota_admission_policy.max_entries < 0:
@@ -352,20 +414,32 @@ class ExecutionPolicy:
         overlay = self.overlay_for(backend)
         return overlay.enabled is not False
 
-    def allows_source_tier(self, tier: TierKind | None, backend: TransferBackend | None = None) -> bool:
-        return self._allows_enum_value(tier, self.allowed_source_tiers, self.overlay_for(backend).allowed_source_tiers)
+    def allows_source_tier(
+        self, tier: TierKind | None, backend: TransferBackend | None = None
+    ) -> bool:
+        return self._allows_enum_value(
+            tier, self.allowed_source_tiers, self.overlay_for(backend).allowed_source_tiers
+        )
 
-    def allows_target_tier(self, tier: TierKind | None, backend: TransferBackend | None = None) -> bool:
-        return self._allows_enum_value(tier, self.allowed_target_tiers, self.overlay_for(backend).allowed_target_tiers)
+    def allows_target_tier(
+        self, tier: TierKind | None, backend: TransferBackend | None = None
+    ) -> bool:
+        return self._allows_enum_value(
+            tier, self.allowed_target_tiers, self.overlay_for(backend).allowed_target_tiers
+        )
 
-    def allows_device_class(self, device_class: DeviceClass | None, backend: TransferBackend | None = None) -> bool:
+    def allows_device_class(
+        self, device_class: DeviceClass | None, backend: TransferBackend | None = None
+    ) -> bool:
         return self._allows_enum_value(
             device_class,
             self.allowed_device_classes,
             self.overlay_for(backend).allowed_device_classes,
         )
 
-    def allows_buffer_kind(self, buffer_kind: BufferKind | None, backend: TransferBackend | None = None) -> bool:
+    def allows_buffer_kind(
+        self, buffer_kind: BufferKind | None, backend: TransferBackend | None = None
+    ) -> bool:
         return self._allows_enum_value(
             buffer_kind,
             self.allowed_buffer_kinds,
@@ -407,7 +481,10 @@ class ExecutionPolicy:
             return ExecutionDisposition.SKIP
         if not self._recompute_allowed(reason):
             return ExecutionDisposition.SKIP
-        if MaterializationCapability.FALLBACK_RECOMPUTE not in descriptor.materialization.capabilities:
+        if (
+            MaterializationCapability.FALLBACK_RECOMPUTE
+            not in descriptor.materialization.capabilities
+        ):
             return ExecutionDisposition.SKIP
         return ExecutionDisposition.RECOMPUTE
 
@@ -426,9 +503,8 @@ class ExecutionPolicy:
         return self.backend_overlays.get(backend, BackendCapabilityOverlay())
 
     def _allows_enum_value(self, value, global_values: tuple, overlay_values: tuple) -> bool:
-        return (
-            (not global_values or value is None or value in global_values)
-            and (not overlay_values or value is None or value in overlay_values)
+        return (not global_values or value is None or value in global_values) and (
+            not overlay_values or value is None or value in overlay_values
         )
 
 

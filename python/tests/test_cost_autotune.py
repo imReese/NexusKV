@@ -2,7 +2,6 @@ import unittest
 
 from nexuskv.contracts.generated import TierKind
 from nexuskv.planner.autotune import DynamicCostProfiler
-from nexuskv.execution.native_transport import MooncakeTransferEngineAdapter, NIXLDriverAdapter
 
 
 class TestCostAutotune(unittest.TestCase):
@@ -16,20 +15,24 @@ class TestCostAutotune(unittest.TestCase):
         self.assertLess(new_prefill_time, initial_prefill_time)
 
         # Record higher bandwidth sample
-        profiler.record_bandwidth_sample(TierKind.HOST_DRAM, payload_bytes=1000000, duration_sec=0.0001)  # 10GB/s
+        profiler.record_bandwidth_sample(
+            TierKind.HOST_DRAM, payload_bytes=1000000, duration_sec=0.0001
+        )  # 10GB/s
         bw = profiler.get_current_bandwidth(TierKind.HOST_DRAM)
         self.assertGreater(bw, 1.0e8)
 
     def test_multi_backend_hardware_adapters(self):
         from nexuskv.execution.native_transport import (
-            CudaIpcHandleAdapter,
             AmdRocmHipIpcAdapter,
+            CudaIpcHandleAdapter,
             GoogleTpuXlaAdapter,
             HuaweiAscendCannAdapter,
         )
 
         cuda_adapter = CudaIpcHandleAdapter()
-        reg_cuda = cuda_adapter.register_cuda_ipc_handle("h1", b"ipc_handle", uva_ptr=0x7FFF0000, size_bytes=4096)
+        reg_cuda = cuda_adapter.register_cuda_ipc_handle(
+            "h1", b"ipc_handle", uva_ptr=0x7FFF0000, size_bytes=4096
+        )
         self.assertTrue(reg_cuda.is_registered)
 
         amd_adapter = AmdRocmHipIpcAdapter()
@@ -41,7 +44,9 @@ class TestCostAutotune(unittest.TestCase):
         self.assertTrue(reg_tpu.is_registered)
 
         ascend_adapter = HuaweiAscendCannAdapter()
-        reg_ascend = ascend_adapter.register_ascend_ipc_handle("h1", acl_ptr=0x7FFF3000, size_bytes=4096)
+        reg_ascend = ascend_adapter.register_ascend_ipc_handle(
+            "h1", acl_ptr=0x7FFF3000, size_bytes=4096
+        )
         self.assertTrue(reg_ascend.is_registered)
 
 

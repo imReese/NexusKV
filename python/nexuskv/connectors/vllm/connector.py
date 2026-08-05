@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from nexuskv.adapters.state import (
+    SCHEMA_VERSION,
     AttentionStateDescriptor,
     BufferKind,
     CompatibilityFlag,
@@ -11,7 +12,6 @@ from nexuskv.adapters.state import (
     MaterializationCapability,
     MaterializationProfile,
     QuantizationMetadata,
-    SCHEMA_VERSION,
     StateSemanticType,
     TensorRole,
     TensorSpec,
@@ -87,7 +87,9 @@ class VLLMConnector(EngineConnector):
             layout_metadata={"engine_layout": "paged_kv"},
         )
 
-    def probe_capabilities(self, descriptor: AttentionStateDescriptor | None = None) -> ConnectorCapabilities:
+    def probe_capabilities(
+        self, descriptor: AttentionStateDescriptor | None = None
+    ) -> ConnectorCapabilities:
         descriptor = descriptor or self.default_descriptor()
         return ConnectorCapabilities(
             exact_reuse=True,
@@ -100,7 +102,9 @@ class VLLMConnector(EngineConnector):
             compatibility_flags=tuple(descriptor.compatibility_flags),
         )
 
-    def on_request_start(self, context: VLLMLifecycleContext, planner: ReusePlanner) -> LifecycleDecision:
+    def on_request_start(
+        self, context: VLLMLifecycleContext, planner: ReusePlanner
+    ) -> LifecycleDecision:
         lookup = self.lookup(context, planner)
         return self.execute_lifecycle(
             hook="request_start",
@@ -110,7 +114,9 @@ class VLLMConnector(EngineConnector):
             enable_prefetch=lookup.status == LookupStatus.PARTIAL,
         )
 
-    def on_block_table_extend(self, context: VLLMLifecycleContext, planner: ReusePlanner) -> LifecycleDecision:
+    def on_block_table_extend(
+        self, context: VLLMLifecycleContext, planner: ReusePlanner
+    ) -> LifecycleDecision:
         lookup = self.lookup(context, planner)
         return self.execute_lifecycle(
             hook="block_table_extend",
@@ -120,7 +126,9 @@ class VLLMConnector(EngineConnector):
             enable_prefetch=True,
         )
 
-    def on_decode_step(self, context: VLLMLifecycleContext, planner: ReusePlanner) -> LifecycleDecision:
+    def on_decode_step(
+        self, context: VLLMLifecycleContext, planner: ReusePlanner
+    ) -> LifecycleDecision:
         lookup = self.lookup(context, planner)
         return self.execute_lifecycle(
             hook="decode_step",

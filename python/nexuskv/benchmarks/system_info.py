@@ -4,6 +4,7 @@ import sys
 
 try:
     import psutil
+
     HAS_PSUTIL = True
 except ImportError:
     HAS_PSUTIL = False
@@ -16,7 +17,7 @@ def get_system_hardware_info() -> dict[str, str]:
     cpu_info = platform.processor() or platform.machine()
     logical_cores = psutil.cpu_count(logical=True) if HAS_PSUTIL else (os.cpu_count() or 1)
     physical_cores = psutil.cpu_count(logical=False) if HAS_PSUTIL else logical_cores
-    ram_gb = f"{round(psutil.virtual_memory().total / (1024 ** 3), 2)} GB" if HAS_PSUTIL else "N/A"
+    ram_gb = f"{round(psutil.virtual_memory().total / (1024**3), 2)} GB" if HAS_PSUTIL else "N/A"
 
     # Detect Accelerator / Platform Memory Architecture
     device_class = "CPU / Host DRAM"
@@ -28,6 +29,7 @@ def get_system_hardware_info() -> dict[str, str]:
     else:
         try:
             import torch
+
             if torch.cuda.is_available():
                 device_class = f"NVIDIA CUDA ({torch.cuda.get_device_name(0)})"
                 arch_type = "High Bandwidth Memory (HBM/NVLink)"

@@ -4,9 +4,6 @@ import unittest
 from nexuskv.connectors.base import LookupOutcome, LookupStatus, VLLMLifecycleContext
 from nexuskv.connectors.vllm.connector import VLLMConnector
 from nexuskv.contracts.generated import (
-    AttentionStateDescriptor,
-    Granularity,
-    MaterializationCapability,
     TierKind,
     TransferBackend,
 )
@@ -38,7 +35,9 @@ class TestAsyncRuntime(unittest.TestCase):
         req = MaterializationRequest(
             hook="prefill",
             context=ctx,
-            lookup=LookupOutcome(query=None, status=LookupStatus.MISS, match=None, partial_plan=None),
+            lookup=LookupOutcome(
+                query=None, status=LookupStatus.MISS, match=None, partial_plan=None
+            ),
             preferred_backend=None,
             allow_store_after_stage=False,
             enable_prefetch=True,

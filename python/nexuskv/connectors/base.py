@@ -25,7 +25,10 @@ from nexuskv.contracts.generated import (
 
 if TYPE_CHECKING:
     from nexuskv.execution.runner import BaselineExecutionRunner
-    from nexuskv.execution.types import BackendActionResult, MaterializationOutcome, MaterializationRequest
+    from nexuskv.execution.types import (
+        BackendActionResult,
+        MaterializationOutcome,
+    )
 
 
 class LookupStatus(StrEnum):
@@ -95,7 +98,7 @@ class StoreIntent:
 class LifecycleDecision:
     hook: str
     lookup: LookupOutcome
-    execution: "MaterializationOutcome"
+    execution: MaterializationOutcome
     should_store_after_stage: bool
 
     @property
@@ -111,15 +114,15 @@ class LifecycleDecision:
         return self.execution.store.decision
 
     @property
-    def materialization_result(self) -> "BackendActionResult":
+    def materialization_result(self) -> BackendActionResult:
         return self.execution.primary.result
 
     @property
-    def prefetch_result(self) -> "BackendActionResult | None":
+    def prefetch_result(self) -> BackendActionResult | None:
         return None if self.execution.prefetch is None else self.execution.prefetch.result
 
     @property
-    def store_result(self) -> "BackendActionResult":
+    def store_result(self) -> BackendActionResult:
         return self.execution.store.result
 
 
@@ -134,7 +137,7 @@ class ReusePlanner(Protocol):
 class EngineConnector(ABC):
     engine_name: str
 
-    def __init__(self, execution_runner: "BaselineExecutionRunner | None" = None) -> None:
+    def __init__(self, execution_runner: BaselineExecutionRunner | None = None) -> None:
         if execution_runner is None:
             from nexuskv.execution.runner import BaselineExecutionRunner
 
@@ -150,7 +153,9 @@ class EngineConnector(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def probe_capabilities(self, descriptor: AttentionStateDescriptor | None = None) -> ConnectorCapabilities:
+    def probe_capabilities(
+        self, descriptor: AttentionStateDescriptor | None = None
+    ) -> ConnectorCapabilities:
         raise NotImplementedError
 
     def build_query_key(self, context: EngineRequestContext) -> QueryKey:
@@ -171,9 +176,13 @@ class EngineConnector(ABC):
         query = self.build_query_key(context)
         match = planner.lookup(query)
         if match is None:
-            return LookupOutcome(query=query, status=LookupStatus.MISS, match=None, partial_plan=None)
+            return LookupOutcome(
+                query=query, status=LookupStatus.MISS, match=None, partial_plan=None
+            )
         if match.classification == MatchClassification.EXACT:
-            return LookupOutcome(query=query, status=LookupStatus.HIT, match=match, partial_plan=None)
+            return LookupOutcome(
+                query=query, status=LookupStatus.HIT, match=match, partial_plan=None
+            )
         return LookupOutcome(
             query=query,
             status=LookupStatus.PARTIAL,
@@ -194,7 +203,9 @@ class EngineConnector(ABC):
         from nexuskv.contracts.generated import PlanDisposition, RemainingWork, ReusableSlice
 
         return PartialHitPlan(
-            disposition=PlanDisposition.FULL_REUSE if not match.remaining.tokens else PlanDisposition.PARTIAL_REUSE,
+            disposition=PlanDisposition.FULL_REUSE
+            if not match.remaining.tokens
+            else PlanDisposition.PARTIAL_REUSE,
             reusable=ReusableSlice(
                 tokens=list(match.requested_key.identity.tokens[: match.matched_extent.units]),
                 source_tier=match.entry.location.tier,

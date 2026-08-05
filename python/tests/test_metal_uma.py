@@ -1,13 +1,12 @@
 import ctypes
 import unittest
 
-from nexuskv.contracts.generated import DeviceClass
 from nexuskv.execution.native_transport import (
     AppleMetalUmaAdapter,
-    IntelGaudiLevelZeroAdapter,
-    CambriconMluAdapter,
-    MooreThreadsMusaAdapter,
     BirenBr100Adapter,
+    CambriconMluAdapter,
+    IntelGaudiLevelZeroAdapter,
+    MooreThreadsMusaAdapter,
 )
 
 
@@ -20,7 +19,9 @@ class TestMetalUmaAndExtendedChips(unittest.TestCase):
         char_array = (ctypes.c_char * len(raw_buffer)).from_buffer(raw_buffer)
         uma_ptr = ctypes.addressof(char_array)
 
-        reg = adapter.register_metal_uma_buffer("metal_buf_1", host_dram_ptr=uma_ptr, size_bytes=len(raw_buffer))
+        reg = adapter.register_metal_uma_buffer(
+            "metal_buf_1", host_dram_ptr=uma_ptr, size_bytes=len(raw_buffer)
+        )
         self.assertTrue(reg.is_registered)
         self.assertEqual(reg.base_addr, uma_ptr)
 

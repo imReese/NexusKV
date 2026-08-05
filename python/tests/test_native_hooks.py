@@ -1,8 +1,8 @@
 import unittest
 
 from nexuskv.connectors.base import VLLMLifecycleContext
-from nexuskv.connectors.vllm.connector import VLLMConnector
 from nexuskv.connectors.native_hooks import NativeEngineHookInterceptor
+from nexuskv.connectors.vllm.connector import VLLMConnector
 from nexuskv.execution.types import BackendActionStatus
 
 
