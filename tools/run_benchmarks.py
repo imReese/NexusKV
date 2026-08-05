@@ -92,8 +92,28 @@ def main() -> None:
         print(f"{label:<35} | {rpt.useful_reuses:<5} | {kv_saved_str:<10} | {rpt.aggregate_effective_gain_ms:<10.2f} | {avg_decision_lat_us:<18.2f}")
     print("-" * 85)
 
-    # 4. Cluster Stress Test & Memory Leak Check
-    print("\n[3/3] Running High-Concurrency Cluster Stress Test & Memory Leak Check...")
+    # 4. Physical Transport & Pooled Memory Microbenchmark (H2D / D2H / SHM Zero-Copy)
+    print("\n[3/4] Running Physical Transport & Memory Microbenchmark (H2D / D2H / SHM)...")
+    from nexuskv.benchmarks.physical_transport_bench import PhysicalTransportBenchmarkSuite
+    phys_suite = PhysicalTransportBenchmarkSuite()
+    phys_results = phys_suite.run_full_physical_suite()
+
+    print("-" * 88)
+    print(f"{'Operation':<36} | {'Payload':<8} | {'Latency':<12} | {'Physical Transfer Rate':<22}")
+    print("-" * 88)
+    for res in phys_results:
+        size_str = f"{res.payload_size_mb:.0f} MB"
+        if res.is_zero_copy:
+            rate_str = f"Zero-Copy ({res.latency_us:.2f} μs)"
+            lat_str = f"{res.latency_us:.2f} μs"
+        else:
+            rate_str = f"{res.bandwidth_gbs:.2f} GB/s"
+            lat_str = f"{res.duration_ms:.2f} ms"
+        print(f"{res.operation:<36} | {size_str:<8} | {lat_str:<12} | {rate_str:<22}")
+    print("-" * 88)
+
+    # 5. Cluster Stress Test & Memory Leak Check
+    print("\n[4/4] Running High-Concurrency Cluster Stress Test & Memory Leak Check...")
     stress_runner = ClusterStressTestRunner(num_iterations=20, concurrency=4)
     stress_report = stress_runner.run_stress_test()
 
