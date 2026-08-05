@@ -1,0 +1,72 @@
+site_name: NexusKV
+site_description: Enterprise Engine-Agnostic Distributed KV Cache & Attention State Fabric
+site_url: https://imReese.github.io/NexusKV/
+repo_url: https://github.com/imReese/NexusKV
+repo_name: imReese/NexusKV
+
+theme:
+  name: material
+  language: zh
+  palette:
+    # Palette toggle for light mode
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: blue
+      toggle:
+        icon: material/brightness-7
+        name: 切换至暗黑模式
+    # Palette toggle for dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: cyan
+      toggle:
+        icon: material/brightness-4
+        name: 切换至亮色模式
+  features:
+    - navigation.tabs
+    - navigation.tabs.sticky
+    - navigation.top
+    - navigation.tracking
+    - navigation.indexes
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - content.code.annotate
+
+markdown_extensions:
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.def_mermaid
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.admonition
+  - pymdownx.details
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  - attr_list
+  - md_in_html
+  - tables
+  - footnotes
+
+nav:
+  - 首页: index.md
+  - 快速开始:
+      - 快速开始 (中文): quickstart_cn.md
+      - Quickstart (English): quickstart.md
+  - 系统架构:
+      - 架构全景指南: architecture_cn.md
+  - 技术白皮书 & 论文:
+      - Beyond KV-Cache (中文白皮书): papers/beyond-kv-cache_cn.md
+      - Beyond KV-Cache (English Paper): papers/beyond-kv-cache.md
+  - 路线图:
+      - 2026-2028 路线图 (中文): roadmap_cn.md
+      - 2026-2028 Roadmap (English): roadmap.md

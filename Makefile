@@ -16,6 +16,10 @@ fmt:
 	@echo "==> Formatting Python code..."
 	ruff format python/
 	ruff check --fix python/
+	@if command -v clang-format >/dev/null 2>&1; then \
+		echo "==> Formatting C++/CUDA code with clang-format..."; \
+		find . \( -name "*.cu" -o -name "*.cuh" -o -name "*.cpp" -o -name "*.hpp" -o -name "*.cc" -o -name "*.h" \) -not -path "*/target/*" -not -path "*/.venv/*" -not -path "*/build/*" 2>/dev/null | xargs clang-format -i 2>/dev/null || true; \
+	fi
 
 setup-hooks:
 	@echo "==> Installing Git Pre-Commit Hook..."

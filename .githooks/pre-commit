@@ -15,6 +15,14 @@ echo "==> [Pre-Commit Hook] Checking Python Format & Ruff Lints..."
 ruff format --check python/
 ruff check python/
 
+if command -v clang-format >/dev/null 2>&1; then
+    echo "==> [Pre-Commit Hook] Checking C++/CUDA Format with clang-format..."
+    CPP_FILES=$(find . \( -name "*.cu" -o -name "*.cuh" -o -name "*.cpp" -o -name "*.hpp" -o -name "*.cc" -o -name "*.h" \) -not -path "*/target/*" -not -path "*/.venv/*" -not -path "*/build/*" 2>/dev/null || true)
+    if [ -n "$CPP_FILES" ]; then
+        clang-format --dry-run --Werror $CPP_FILES
+    fi
+fi
+
 echo "==> [Pre-Commit Hook] Running Fast Test Suite..."
 make test
 
