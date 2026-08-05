@@ -112,8 +112,29 @@ def main() -> None:
         print(f"{res.operation:<36} | {size_str:<8} | {lat_str:<12} | {rate_str:<22}")
     print("-" * 88)
 
-    # 5. Cluster Stress Test & Memory Leak Check
-    print("\n[4/4] Running High-Concurrency Cluster Stress Test & Memory Leak Check...")
+    # 5. Attention Architecture Cache Size Footprint Profiler Matrix (MHA vs GQA vs MLA vs DSA)
+    print("\n[4/5] Evaluating Physical Memory Footprint per Attention Architecture (MHA / GQA / MLA / DSA)...")
+    from nexuskv.benchmarks.attention_cache_size import ATTENTION_PROFILES
+    
+    print("-" * 88)
+    print(f"{'Attention Model Profile':<32} | {'Bytes/Token':<12} | {'4k Context':<12} | {'32k Context':<12} | {'128k Context':<12}")
+    print("-" * 88)
+    for prof in ATTENTION_PROFILES:
+        b_tok = prof.bytes_per_token(bytes_per_elem=2)
+        fp_4k = prof.calculate_footprint(4096, 2)
+        fp_32k = prof.calculate_footprint(32768, 2)
+        fp_128k = prof.calculate_footprint(131072, 2)
+
+        fp_4k_str = f"{fp_4k/1024:.2f} GB" if fp_4k >= 1024 else f"{fp_4k:.1f} MB"
+        fp_32k_str = f"{fp_32k/1024:.2f} GB" if fp_32k >= 1024 else f"{fp_32k:.1f} MB"
+        fp_128k_str = f"{fp_128k/1024:.2f} GB" if fp_128k >= 1024 else f"{fp_128k:.1f} MB"
+
+        b_tok_str = f"{b_tok/1024:.1f} KB" if b_tok >= 1024 else f"{b_tok} B"
+        print(f"{prof.name:<32} | {b_tok_str:<12} | {fp_4k_str:<12} | {fp_32k_str:<12} | {fp_128k_str:<12}")
+    print("-" * 88)
+
+    # 6. Cluster Stress Test & Memory Leak Check
+    print("\n[5/5] Running High-Concurrency Cluster Stress Test & Memory Leak Check...")
     stress_runner = ClusterStressTestRunner(num_iterations=20, concurrency=4)
     stress_report = stress_runner.run_stress_test()
 
