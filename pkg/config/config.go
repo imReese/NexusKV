@@ -30,13 +30,31 @@ type StorageConfig struct {
 	MaxValueSize  int64         `yaml:"max_value_size"`
 }
 
+type CacheRouterConfig struct {
+	Strategy          string  `yaml:"strategy"`
+	LoadPenaltyWeight float64 `yaml:"load_penalty_weight"`
+}
+
+type HbmPoolConfig struct {
+	TotalCapacityBytes uint64 `yaml:"total_capacity_bytes"`
+	BlockSizeBytes     uint64 `yaml:"block_size_bytes"`
+}
+
+type ClusterSyncConfig struct {
+	SyncIntervalMs int `yaml:"sync_interval_ms"`
+	LeaseTtlMs     int `yaml:"lease_ttl_ms"`
+}
+
 type ServerConfig struct {
-	Port          string        `yaml:"port"`
-	DataDir       string        `yaml:"data_dir"`
-	EtcdEndpoints []string      `yaml:"etcd_endpoints"`
-	Log           LogConfig     `yaml:"log"`
-	Raft          RaftConfig    `yaml:"raft"`
-	Storage       StorageConfig `yaml:"storage"`
+	Port          string            `yaml:"port"`
+	DataDir       string            `yaml:"data_dir"`
+	EtcdEndpoints []string          `yaml:"etcd_endpoints"`
+	Log           LogConfig         `yaml:"log"`
+	Raft          RaftConfig        `yaml:"raft"`
+	Storage       StorageConfig     `yaml:"storage"`
+	CacheRouter   CacheRouterConfig `yaml:"cache_router"`
+	HbmPool       HbmPoolConfig     `yaml:"hbm_pool"`
+	ClusterSync   ClusterSyncConfig `yaml:"cluster_sync"`
 }
 
 func LoadConfig(path string, logger *zap.Logger) (*ServerConfig, error) {
