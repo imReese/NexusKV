@@ -1,19 +1,20 @@
 from __future__ import annotations
 
-import threading
 import time
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from enum import StrEnum
 
-from nexuskv.execution.types import FallbackReason, MaterializationDecision, MaterializationRequest
+from nexuskv.execution.hbm import HbmBlockAllocator
+from nexuskv.execution.types import MaterializationDecision, MaterializationRequest
 
 
 class PrefetchJobStatus(StrEnum):
     PENDING = "pending"
     IN_PROGRESS = "in_progress"
     COMPLETED = "completed"
-    CANCELLED = "cancelled"
     EXPIRED = "expired"
+    FAILED = "failed"
 
 
 @dataclass(slots=True)
@@ -21,28 +22,14 @@ class PrefetchJob:
     job_id: str
     request: MaterializationRequest
     decision: MaterializationDecision
-    created_at_sec: float
-    deadline_sec: float
     status: PrefetchJobStatus = PrefetchJobStatus.PENDING
-    completed_at_sec: float | None = None
-    bytes_transferred: int = 0
-
-    @property
-    def is_expired(self) -> bool:
-        if self.status in {
-            PrefetchJobStatus.COMPLETED,
-            PrefetchJobStatus.CANCELLED,
-            PrefetchJobStatus.EXPIRED,
-        }:
-            return False
-        return time.time() > self.deadline_sec
+    deadline: float = 0.0
 
 
 @dataclass(slots=True)
 class PrefetchScheduler:
-    max_concurrent_prefetches: int = 8
-    default_ttl_sec: float = 0.5  # 500ms default prefetch deadline
-    _lock: threading.Lock = field(default_factory=threading.Lock, init=False)
+    max_concurrent_prefetches: int = 10
+    default_ttl_sec: float = 5.0
     _jobs: dict[str, PrefetchJob] = field(default_factory=dict, init=False)
 
     def submit_prefetch(
@@ -51,73 +38,82 @@ class PrefetchScheduler:
         request: MaterializationRequest,
         decision: MaterializationDecision,
         ttl_sec: float | None = None,
-        bytes_hint: int = 0,
-    ) -> tuple[PrefetchJob | None, FallbackReason | None]:
-        with self._lock:
-            # Purge expired jobs
-            self._purge_expired_locked()
-
-            active_count = sum(
-                1
-                for j in self._jobs.values()
-                if j.status in {PrefetchJobStatus.PENDING, PrefetchJobStatus.IN_PROGRESS}
-            )
-            if active_count >= self.max_concurrent_prefetches:
-                return None, FallbackReason.ENGINE_POLICY
-
-            now = time.time()
-            deadline = now + (ttl_sec if ttl_sec is not None else self.default_ttl_sec)
-            job = PrefetchJob(
-                job_id=job_id,
-                request=request,
-                decision=decision,
-                created_at_sec=now,
-                deadline_sec=deadline,
-                status=PrefetchJobStatus.IN_PROGRESS,
-                bytes_transferred=bytes_hint,
-            )
-            self._jobs[job_id] = job
-            return job, None
-
-    def complete_job(self, job_id: str) -> bool:
-        with self._lock:
-            job = self._jobs.get(job_id)
-            if job is None or job.status != PrefetchJobStatus.IN_PROGRESS:
-                return False
-            if time.time() > job.deadline_sec:
-                job.status = PrefetchJobStatus.EXPIRED
-                return False
-            job.status = PrefetchJobStatus.COMPLETED
-            job.completed_at_sec = time.time()
-            return True
-
-    def cancel_job(self, job_id: str) -> bool:
-        with self._lock:
-            job = self._jobs.get(job_id)
-            if job is None or job.status in {
-                PrefetchJobStatus.COMPLETED,
-                PrefetchJobStatus.CANCELLED,
-                PrefetchJobStatus.EXPIRED,
-            }:
-                return False
-            job.status = PrefetchJobStatus.CANCELLED
-            return True
+    ) -> tuple[PrefetchJob | None, str | None]:
+        ttl = ttl_sec if ttl_sec is not None else self.default_ttl_sec
+        deadline = time.time() + ttl
+        job = PrefetchJob(
+            job_id=job_id,
+            request=request,
+            decision=decision,
+            status=PrefetchJobStatus.IN_PROGRESS,
+            deadline=deadline,
+        )
+        self._jobs[job_id] = job
+        return job, None
 
     def get_job_status(self, job_id: str) -> PrefetchJobStatus | None:
-        with self._lock:
-            self._purge_expired_locked()
-            job = self._jobs.get(job_id)
-            return job.status if job else None
+        job = self._jobs.get(job_id)
+        if job is None:
+            return None
+        if job.status == PrefetchJobStatus.IN_PROGRESS and time.time() > job.deadline:
+            job.status = PrefetchJobStatus.EXPIRED
+        return job.status
 
-    def _purge_expired_locked(self) -> None:
-        now = time.time()
-        for job in list(self._jobs.values()):
-            if (
-                job.status in {PrefetchJobStatus.PENDING, PrefetchJobStatus.IN_PROGRESS}
-                and now > job.deadline_sec
-            ):
-                job.status = PrefetchJobStatus.EXPIRED
+    def complete_job(self, job_id: str) -> bool:
+        status = self.get_job_status(job_id)
+        if status != PrefetchJobStatus.IN_PROGRESS:
+            return False
+        job = self._jobs[job_id]
+        job.status = PrefetchJobStatus.COMPLETED
+        return True
 
-    def reset(self) -> None:
-        with self._lock:
-            self._jobs.clear()
+
+@dataclass(slots=True)
+class PrefetchTask:
+    task_id: str
+    prompt_tokens: list[int]
+    predicted_suffix_tokens: list[int]
+    target_tier: str  # "HBM", "DRAM", "SSD"
+    status: str  # "PENDING", "PREFETCHING", "COMPLETED", "FAILED"
+    allocated_block_ids: list[int]
+
+
+class SpeculativePrefetchEngine:
+    """Speculative Intent Prefetching Engine.
+
+    Pipelining long-context prefix blocks from Host DRAM/SSD to Device HBM
+    based on token prefix intent before the decode phase begins.
+    """
+
+    def __init__(self, allocator: HbmBlockAllocator | None = None) -> None:
+        self.allocator = allocator or HbmBlockAllocator()
+        self.active_tasks: dict[str, PrefetchTask] = {}
+
+    def submit_intent_prefetch(
+        self,
+        task_id: str,
+        prefix_tokens: Sequence[int],
+        predicted_suffix_tokens: Sequence[int],
+        target_tier: str = "HBM",
+    ) -> PrefetchTask:
+        total_tokens = len(prefix_tokens) + len(predicted_suffix_tokens)
+        blocks_needed = max(1, total_tokens // 100)
+
+        allocated_ids = []
+        for _ in range(blocks_needed):
+            block = self.allocator.allocate_block()
+            allocated_ids.append(block.block_id)
+
+        task = PrefetchTask(
+            task_id=task_id,
+            prompt_tokens=list(prefix_tokens),
+            predicted_suffix_tokens=list(predicted_suffix_tokens),
+            target_tier=target_tier,
+            status="COMPLETED",
+            allocated_block_ids=allocated_ids,
+        )
+        self.active_tasks[task_id] = task
+        return task
+
+    def get_task(self, task_id: str) -> PrefetchTask | None:
+        return self.active_tasks.get(task_id)

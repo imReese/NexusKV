@@ -55,8 +55,8 @@ jobs:
         with:
           go-version: 'stable'
           check-latest: true
-      - name: Run Root Go Tests
-        run: go test ./...
+      - name: Run Root Go Tests with Coverage
+        run: go test -coverprofile=coverage.out ./...
       - name: Run Control-Plane Go Tests
         working-directory: go
         run: go test ./...

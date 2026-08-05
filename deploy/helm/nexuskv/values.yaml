@@ -1,0 +1,29 @@
+replicaCount: 3
+
+image:
+  repository: nexuskv/nexuskv-control-plane
+  pullPolicy: IfNotPresent
+  tag: "latest"
+
+service:
+  type: ClusterIP
+  port: 9090
+  metricsPort: 9091
+
+resources:
+  limits:
+    cpu: 4000m
+    memory: 8Gi
+  requests:
+    cpu: 1000m
+    memory: 2Gi
+
+config:
+  logLevel: "info"
+  enableCxl: true
+  failOpenMode: true
+  maxPinnedMemoryMb: 16384
+
+prometheus:
+  enabled: true
+  path: "/metrics"
