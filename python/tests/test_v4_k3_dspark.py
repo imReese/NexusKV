@@ -7,7 +7,7 @@ from nexuskv.adapters.state import (
     validate_descriptor,
     StateSemanticType,
 )
-from nexuskv.execution.k3_cascade import K3CascadeMountEngine
+from nexuskv.execution.recurrent_cascade import RecurrentStateCascadeEngine
 
 
 class TestV4K3DSpark(unittest.TestCase):
@@ -24,8 +24,8 @@ class TestV4K3DSpark(unittest.TestCase):
         self.assertEqual(dspark.semantic_type, StateSemanticType.DSPARK_SPARSE)
         validate_descriptor(dspark)
 
-    def test_k3_cascade_mount_engine(self):
-        engine = K3CascadeMountEngine()
+    def test_recurrent_state_cascade_engine(self):
+        engine = RecurrentStateCascadeEngine()
         handle = engine.mount_k3_recurrent_checkpoint("session_001", b"recurrent_checkpoint_data")
         self.assertTrue(handle.is_pinned)
 
