@@ -1,129 +1,90 @@
-// pkg/storage/mirror.go
 package storage
 
 import (
-	"encoding/json"
+	"context"
 	"fmt"
 	"sync"
 	"time"
 )
 
-type MirrorOpType string
-
-const (
-	OpInsertBlock MirrorOpType = "INSERT"
-	OpEvictBlock  MirrorOpType = "EVICT"
-	OpUpdateTTL   MirrorOpType = "UPDATE_TTL"
-)
-
-type MirrorPacket struct {
-	SequenceID uint64       `json:"sequence_id"`
-	OpType     MirrorOpType `json:"op_type"`
-	TenantID   string       `json:"tenant_id"`
-	ModelName  string       `json:"model_name"`
-	BlockID    uint64       `json:"block_id"`
-	Size       uint64       `json:"size"`
-	Timestamp  int64        `json:"timestamp"`
+// NexusKVPagedGeometry represents an engine-agnostic token page block geometry.
+type NexusKVPagedGeometry struct {
+	BlockSize   int `json:"block_size"`   // Tokens per page block (e.g. 16, 32)
+	StrideBytes int `json:"stride_bytes"` // Physical bytes per token slot (e.g. 4096, 576)
 }
 
-type PeerHealthStatus struct {
-	PeerAddr  string    `json:"peer_addr"`
-	IsHealthy bool      `json:"is_healthy"`
-	LastSeen  time.Time `json:"last_seen"`
+// SyncDeltaDescriptor represents an append-only delta replication update for Decode phase.
+type SyncDeltaDescriptor struct {
+	DescriptorID     string               `json:"descriptor_id"`
+	Geometry         NexusKVPagedGeometry `json:"geometry"`
+	AppendedPageSlots []uint64             `json:"appended_page_slots"`
+	PhysicalHandles  []uint64             `json:"physical_handles"`
+	TimestampNano    int64                `json:"timestamp_nano"`
 }
 
-type CacheMirrorEngine struct {
+type DescriptorMirror struct {
 	mu           sync.RWMutex
-	sequence     uint64
-	peers        map[string]*PeerHealthStatus
-	syncedBlocks map[uint64]*MirrorPacket
+	peerAddrs    []string
+	localStore   map[string][]byte
+	deltaLog     []SyncDeltaDescriptor
+	isStandby    bool
+	activeTarget string
 }
 
-func NewCacheMirrorEngine(peerAddrs []string) *CacheMirrorEngine {
-	engine := &CacheMirrorEngine{
-		peers:        make(map[string]*PeerHealthStatus),
-		syncedBlocks: make(map[uint64]*MirrorPacket),
+func NewDescriptorMirror(peerAddrs []string, isStandby bool) *DescriptorMirror {
+	return &DescriptorMirror{
+		peerAddrs:  peerAddrs,
+		localStore: make(map[string][]byte),
+		deltaLog:   make([]SyncDeltaDescriptor, 0),
+		isStandby:  isStandby,
 	}
-	for _, addr := range peerAddrs {
-		engine.peers[addr] = &PeerHealthStatus{
-			PeerAddr:  addr,
-			IsHealthy: true,
-			LastSeen:  time.Now(),
-		}
-	}
-	return engine
 }
 
-func (e *CacheMirrorEngine) ReplicateBlock(op MirrorOpType, tenant, model string, blockID, size uint64) (*MirrorPacket, error) {
-	e.mu.Lock()
-	defer e.mu.Unlock()
+func (m *DescriptorMirror) ReplicateDescriptor(ctx context.Context, descID string, payload []byte) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 
-	e.sequence++
-	packet := &MirrorPacket{
-		SequenceID: e.sequence,
-		OpType:     op,
-		TenantID:   tenant,
-		ModelName:  model,
-		BlockID:    blockID,
-		Size:       size,
-		Timestamp:  time.Now().UnixNano(),
-	}
-
-	if op == OpInsertBlock {
-		e.syncedBlocks[blockID] = packet
-	} else if op == OpEvictBlock {
-		delete(e.syncedBlocks, blockID)
-	}
-
-	return packet, nil
-}
-
-func (e *CacheMirrorEngine) ApplyMirrorPacket(data []byte) error {
-	var packet MirrorPacket
-	if err := json.Unmarshal(data, &packet); err != nil {
-		return fmt.Errorf("failed to unmarshal mirror packet: %w", err)
-	}
-
-	e.mu.Lock()
-	defer e.mu.Unlock()
-
-	if packet.OpType == OpInsertBlock {
-		e.syncedBlocks[packet.BlockID] = &packet
-	} else if packet.OpType == OpEvictBlock {
-		delete(e.syncedBlocks, packet.BlockID)
-	}
-
+	m.localStore[descID] = payload
 	return nil
 }
 
-func (e *CacheMirrorEngine) GetSyncedBlockCount() int {
-	e.mu.RLock()
-	defer e.mu.RUnlock()
-	return len(e.syncedBlocks)
+func (m *DescriptorMirror) ReplicateDelta(ctx context.Context, delta SyncDeltaDescriptor) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	delta.TimestampNano = time.Now().UnixNano()
+	m.deltaLog = append(m.deltaLog, delta)
+	return nil
 }
 
-func (e *CacheMirrorEngine) UpdatePeerHeartbeat(peerAddr string, isHealthy bool) {
-	e.mu.Lock()
-	defer e.mu.Unlock()
+func (m *DescriptorMirror) GetDescriptor(descID string) ([]byte, bool) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
 
-	if status, exists := e.peers[peerAddr]; exists {
-		status.IsHealthy = isHealthy
-		status.LastSeen = time.Now()
-	} else {
-		e.peers[peerAddr] = &PeerHealthStatus{
-			PeerAddr:  peerAddr,
-			IsHealthy: isHealthy,
-			LastSeen:  time.Now(),
-		}
-	}
+	val, ok := m.localStore[descID]
+	return val, ok
 }
 
-func (e *CacheMirrorEngine) GetPeerHealth(peerAddr string) bool {
-	e.mu.RLock()
-	defer e.mu.RUnlock()
+func (m *DescriptorMirror) GetDeltaCount() int {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
 
-	if status, exists := e.peers[peerAddr]; exists {
-		return status.IsHealthy
+	return len(m.deltaLog)
+}
+
+func (m *DescriptorMirror) SetActiveTarget(target string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	m.activeTarget = target
+}
+
+func (m *DescriptorMirror) HealthCheck() string {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	if m.isStandby {
+		return fmt.Sprintf("STANDBY (Tracking Active: %s, Cached Descriptors: %d, Deltas: %d)", m.activeTarget, len(m.localStore), len(m.deltaLog))
 	}
-	return false
+	return fmt.Sprintf("ACTIVE (Peer Count: %d, Cached Descriptors: %d, Deltas: %d)", len(m.peerAddrs), len(m.localStore), len(m.deltaLog))
 }

@@ -1,51 +1,53 @@
-// pkg/storage/mirror_test.go
 package storage
 
 import (
-	"encoding/json"
+	"context"
 	"testing"
 )
 
-func TestCacheMirrorEngineLifecycle(t *testing.T) {
-	peers := []string{"192.168.1.10:9098", "192.168.1.11:9098"}
-	engine := NewCacheMirrorEngine(peers)
+func TestDescriptorMirrorReplication(t *testing.T) {
+	peers := []string{"localhost:9098", "localhost:90981"}
+	mirror := NewDescriptorMirror(peers, false)
 
-	if !engine.GetPeerHealth("192.168.1.10:9098") {
-		t.Fatal("expected peer to be healthy")
-	}
-
-	packet, err := engine.ReplicateBlock(OpInsertBlock, "tenant_a", "llama_70b", 1001, 4096)
+	ctx := context.Background()
+	payload := []byte("test-descriptor-data")
+	err := mirror.ReplicateDescriptor(ctx, "desc-1", payload)
 	if err != nil {
-		t.Fatalf("unexpected error replicating block: %v", err)
+		t.Fatalf("failed to replicate descriptor: %v", err)
 	}
 
-	if engine.GetSyncedBlockCount() != 1 {
-		t.Fatalf("expected 1 synced block, got %d", engine.GetSyncedBlockCount())
+	data, ok := mirror.GetDescriptor("desc-1")
+	if !ok || string(data) != "test-descriptor-data" {
+		t.Fatalf("descriptor payload mismatch: %s", string(data))
 	}
 
-	data, err := json.Marshal(packet)
+	health := mirror.HealthCheck()
+	if health == "" {
+		t.Fatalf("health check returned empty string")
+	}
+}
+
+func TestEngineAgnosticDeltaReplication(t *testing.T) {
+	peers := []string{"localhost:9098"}
+	mirror := NewDescriptorMirror(peers, false)
+
+	ctx := context.Background()
+	delta := SyncDeltaDescriptor{
+		DescriptorID: "desc-delta-1",
+		Geometry: NexusKVPagedGeometry{
+			BlockSize:   16,
+			StrideBytes: 4096,
+		},
+		AppendedPageSlots: []uint64{10, 11},
+		PhysicalHandles:  []uint64{0x1000, 0x2000},
+	}
+
+	err := mirror.ReplicateDelta(ctx, delta)
 	if err != nil {
-		t.Fatalf("failed to marshal packet: %v", err)
+		t.Fatalf("failed to replicate delta: %v", err)
 	}
 
-	backupEngine := NewCacheMirrorEngine(nil)
-	if err := backupEngine.ApplyMirrorPacket(data); err != nil {
-		t.Fatalf("failed to apply mirror packet: %v", err)
-	}
-
-	if backupEngine.GetSyncedBlockCount() != 1 {
-		t.Fatalf("expected backup engine to have 1 synced block, got %d", backupEngine.GetSyncedBlockCount())
-	}
-
-	// Test Eviction
-	evictPacket, err := engine.ReplicateBlock(OpEvictBlock, "tenant_a", "llama_70b", 1001, 0)
-	if err != nil {
-		t.Fatalf("unexpected error replicating eviction: %v", err)
-	}
-	evictData, _ := json.Marshal(evictPacket)
-	backupEngine.ApplyMirrorPacket(evictData)
-
-	if backupEngine.GetSyncedBlockCount() != 0 {
-		t.Fatalf("expected 0 synced blocks after eviction, got %d", backupEngine.GetSyncedBlockCount())
+	if mirror.GetDeltaCount() != 1 {
+		t.Fatalf("expected 1 delta log entry, got %d", mirror.GetDeltaCount())
 	}
 }

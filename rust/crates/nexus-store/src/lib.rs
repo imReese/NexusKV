@@ -10,6 +10,61 @@ pub mod hbm;
 
 use nexus_state::EntryIdentity;
 
+/// Engine-agnostic physical token page geometry description.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct NexusKVPagedGeometry {
+    /// Number of tokens grouped per physical block (e.g., 1, 16, 32, 64).
+    pub block_size: usize,
+    /// Physical byte stride per token slot (e.g., 4096 bytes for GQA, 576 bytes for MLA).
+    pub stride_bytes: usize,
+}
+
+impl NexusKVPagedGeometry {
+    pub fn new(block_size: usize, stride_bytes: usize) -> Self {
+        Self {
+            block_size,
+            stride_bytes,
+        }
+    }
+
+    /// Calculate total byte capacity of a single physical page block.
+    pub fn page_block_bytes(&self) -> usize {
+        self.block_size * self.stride_bytes
+    }
+}
+
+/// Engine-agnostic physical page table indirection descriptor.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct NexusKVPageTable {
+    pub geometry: NexusKVPagedGeometry,
+    pub page_indices: Vec<u64>,
+    pub physical_handles: Vec<u64>,
+}
+
+impl NexusKVPageTable {
+    pub fn new(
+        geometry: NexusKVPagedGeometry,
+        page_indices: Vec<u64>,
+        physical_handles: Vec<u64>,
+    ) -> Self {
+        Self {
+            geometry,
+            page_indices,
+            physical_handles,
+        }
+    }
+
+    /// Calculate total mapped byte capacity across all physical pages.
+    pub fn total_mapped_bytes(&self) -> usize {
+        self.page_indices.len() * self.geometry.page_block_bytes()
+    }
+
+    /// Calculate byte offset for a target page slot index.
+    pub fn page_offset(&self, page_slot_idx: usize) -> usize {
+        page_slot_idx * self.geometry.page_block_bytes()
+    }
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 struct KvPayloadKey(EntryIdentity);
 
