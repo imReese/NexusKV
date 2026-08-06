@@ -8,9 +8,7 @@
 #include <sys/mman.h>
 #endif
 
-#include <condition_variable>
-#include <mutex>
-#include <queue>
+#include <atomic>
 #include <thread>
 #include <vector>
 
@@ -18,6 +16,74 @@ struct AsyncTask {
     std::vector<NexusKVAsyncBatchItem> items;
     NexusKVAsyncCallback callback;
     void* user_data;
+    bool valid;
+
+    AsyncTask() : callback(nullptr), user_data(nullptr), valid(false) {}
+};
+
+// High-Performance Atomic Lock-Free MPMC Ring Buffer Template
+template <typename T, size_t Capacity>
+class LockFreeMPMCRingBuffer {
+   private:
+    struct Node {
+        T data;
+        std::atomic<size_t> sequence;
+    };
+
+    Node buffer_[Capacity];
+    alignas(64) std::atomic<size_t> enqueue_pos_;
+    alignas(64) std::atomic<size_t> dequeue_pos_;
+
+   public:
+    LockFreeMPMCRingBuffer() : enqueue_pos_(0), dequeue_pos_(0) {
+        for (size_t i = 0; i < Capacity; ++i) {
+            buffer_[i].sequence.store(i, std::memory_order_relaxed);
+        }
+    }
+
+    bool try_enqueue(T&& data) {
+        Node* node;
+        size_t pos = enqueue_pos_.load(std::memory_order_relaxed);
+        for (;;) {
+            node = &buffer_[pos % Capacity];
+            size_t seq = node->sequence.load(std::memory_order_acquire);
+            intptr_t dif = (intptr_t)seq - (intptr_t)pos;
+            if (dif == 0) {
+                if (enqueue_pos_.compare_exchange_weak(pos, pos + 1, std::memory_order_relaxed)) {
+                    break;
+                }
+            } else if (dif < 0) {
+                return false;  // Ring buffer full
+            } else {
+                pos = enqueue_pos_.load(std::memory_order_relaxed);
+            }
+        }
+        node->data = std::move(data);
+        node->sequence.store(pos + 1, std::memory_order_release);
+        return true;
+    }
+
+    bool try_dequeue(T& data) {
+        Node* node;
+        size_t pos = dequeue_pos_.load(std::memory_order_relaxed);
+        for (;;) {
+            node = &buffer_[pos % Capacity];
+            size_t seq = node->sequence.load(std::memory_order_acquire);
+            intptr_t dif = (intptr_t)seq - (intptr_t)(pos + 1);
+            if (dif == 0) {
+                if (dequeue_pos_.compare_exchange_weak(pos, pos + 1, std::memory_order_relaxed)) {
+                    break;
+                }
+            } else if (dif < 0) {
+                return false;  // Ring buffer empty
+            } else {
+                pos = dequeue_pos_.load(std::memory_order_relaxed);
+            }
+        }
+        data = std::move(node->data);
+        node->sequence.store(pos + Capacity, std::memory_order_release);
+        return true;
+    }
 };
 
 struct NexusKVClient {
@@ -25,12 +91,10 @@ struct NexusKVClient {
     int control_port;
     bool is_connected;
 
-    // Background Async Worker Thread Pool
+    // Background Lock-Free Worker Thread Pool
     std::thread worker_thread;
-    std::queue<AsyncTask> task_queue;
-    std::mutex queue_mutex;
-    std::condition_variable queue_cv;
-    bool stop_worker;
+    LockFreeMPMCRingBuffer<AsyncTask, 1024> lockfree_ring;
+    std::atomic<bool> stop_worker;
 
     NexusKVClient() : control_port(9098), is_connected(false), stop_worker(false) {
         memset(server_addr, 0, sizeof(server_addr));
@@ -38,34 +102,26 @@ struct NexusKVClient {
 };
 
 static void worker_thread_loop(NexusKVClient* client) {
-    while (true) {
+    while (!client->stop_worker.load(std::memory_order_relaxed)) {
         AsyncTask task;
-        {
-            std::unique_lock<std::mutex> lock(client->queue_mutex);
-            client->queue_cv.wait(
-                lock, [client] { return client->stop_worker || !client->task_queue.empty(); });
-
-            if (client->stop_worker && client->task_queue.empty()) {
-                break;
+        if (client->lockfree_ring.try_dequeue(task)) {
+            // Execute background batch registration without mutex contention
+            NexusKVHalStatus overall_status = NEXUSKV_HAL_SUCCESS;
+            for (const auto& item : task.items) {
+                NexusKVUnifiedMemHandle dummy_handle;
+                NexusKVHalStatus st = nexuskv_hal_register_mem(
+                    item.handle_id, item.ptr, item.size_bytes, item.device_id, &dummy_handle);
+                if (st != NEXUSKV_HAL_SUCCESS) {
+                    overall_status = st;
+                }
             }
 
-            task = std::move(client->task_queue.front());
-            client->task_queue.pop();
-        }
-
-        // Execute background batch registration
-        NexusKVHalStatus overall_status = NEXUSKV_HAL_SUCCESS;
-        for (const auto& item : task.items) {
-            NexusKVUnifiedMemHandle dummy_handle;
-            NexusKVHalStatus st = nexuskv_hal_register_mem(
-                item.handle_id, item.ptr, item.size_bytes, item.device_id, &dummy_handle);
-            if (st != NEXUSKV_HAL_SUCCESS) {
-                overall_status = st;
+            if (task.callback) {
+                task.callback(overall_status, task.user_data);
             }
-        }
-
-        if (task.callback) {
-            task.callback(overall_status, task.user_data);
+        } else {
+            // High-efficiency nanosecond yield when queue is idle
+            std::this_thread::yield();
         }
     }
 }
@@ -78,9 +134,9 @@ extern "C" NexusKVClient* nexuskv_client_create(const char* server_addr, int con
     snprintf(client->server_addr, sizeof(client->server_addr), "%s", target_addr);
     client->control_port = target_port;
     client->is_connected = true;
-    client->stop_worker = false;
+    client->stop_worker.store(false, std::memory_order_relaxed);
 
-    // Launch background worker thread
+    // Launch background lock-free worker thread
     client->worker_thread = std::thread(worker_thread_loop, client);
 
     return client;
@@ -89,11 +145,7 @@ extern "C" NexusKVClient* nexuskv_client_create(const char* server_addr, int con
 extern "C" void nexuskv_client_destroy(NexusKVClient* client) {
     if (!client) return;
 
-    {
-        std::lock_guard<std::mutex> lock(client->queue_mutex);
-        client->stop_worker = true;
-    }
-    client->queue_cv.notify_all();
+    client->stop_worker.store(true, std::memory_order_relaxed);
 
     if (client->worker_thread.joinable()) {
         client->worker_thread.join();
@@ -110,7 +162,6 @@ extern "C" NexusKVHalStatus nexuskv_client_pin_memory(void* ptr, size_t size_byt
 
 #if defined(__unix__) || defined(__APPLE__)
     if (mlock(ptr, size_bytes) != 0) {
-        // mlock may require privileges or ulimit limits; fallback cleanly
         return NEXUSKV_HAL_SUCCESS;
     }
 #endif
@@ -142,12 +193,13 @@ extern "C" NexusKVHalStatus nexuskv_client_async_batch_put(NexusKVClient* client
     task.items.assign(items, items + count);
     task.callback = callback;
     task.user_data = user_data;
+    task.valid = true;
 
-    {
-        std::lock_guard<std::mutex> lock(client->queue_mutex);
-        client->task_queue.push(std::move(task));
+    if (!client->lockfree_ring.try_enqueue(std::move(task))) {
+        // Queue full, fallback cleanly
+        if (callback) callback(NEXUSKV_HAL_ERR_IPC_FAILED, user_data);
+        return NEXUSKV_HAL_ERR_IPC_FAILED;
     }
-    client->queue_cv.notify_one();
 
     return NEXUSKV_HAL_SUCCESS;
 }

@@ -8,6 +8,7 @@ use std::hash::{Hash, Hasher};
 pub mod block_allocator;
 pub mod cxl;
 pub mod hbm;
+pub mod lockfree_queue;
 
 use nexus_state::EntryIdentity;
 
