@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""NexusKV Benchmark & Stress Test Runner.
+"""NexusKV Model-Agnostic Benchmark & Ultra-Long Context Profiling Suite.
 
 Executes dual-dimension performance profiling (QPS/RPS & GB Saved),
 hardware device & architecture detection, multi-size KV Tensor payload matrix,
-and high-concurrency cluster stress testing.
+and ultra-long context window evaluation (1K, 32K, 128K, 512K, 1M, 10M Tokens).
 """
 
 from __future__ import annotations
@@ -22,9 +22,9 @@ from nexuskv.benchmarks.system_info import get_system_hardware_info
 
 
 def main() -> None:
-    print("=" * 70)
-    print("      NexusKV Industrial Dual-Dimension Benchmark Suite")
-    print("=" * 70)
+    print("=" * 80)
+    print("      NexusKV Model-Agnostic Benchmark & Ultra-Long Context Suite")
+    print("=" * 80)
 
     # 1. Hardware Device & Memory Architecture Detection
     sys_info = get_system_hardware_info()
@@ -37,7 +37,7 @@ def main() -> None:
     print(f"• Memory Architecture    : {sys_info['memory_architecture']}")
 
     # 2. Workload Trace & Single-Trace Dual-Dimension Evaluation
-    print("\n[1/3] Evaluating Standard Workload Trace & Decision Latency...")
+    print("\n[1/5] Evaluating Standard Workload Trace & Decision Latency...")
     generator = BenchmarkTraceGenerator(seed=2026)
     standard_trace = generator.generate_synthetic_trace(num_requests=30)
     runner = BenchmarkStrategyRunner()
@@ -71,7 +71,7 @@ def main() -> None:
     print(f"• Effective Bandwidth Gain : {total_gb_saved / duration:.2f} GB/sec equivalent compute offload")
 
     # 3. Multi-Size KV Tensor Payload Matrix Benchmark
-    print("\n[2/3] Evaluating Multi-Size KV Tensor Payload Matrix (Saved Capacity & Decision Latency)...")
+    print("\n[2/5] Evaluating Multi-Size KV Tensor Payload Matrix (Saved Capacity & Decision Latency)...")
     matrix_traces = generator.generate_multi_size_matrix_traces()
     print("-" * 85)
     print(f"{'Payload Tier':<35} | {'Hits':<5} | {'KV Saved':<10} | {'Gain (ms)':<10} | {'Decision Lat (μs)':<18}")
@@ -81,19 +81,19 @@ def main() -> None:
         t_start = time.perf_counter_ns()
         rpt = runner.run_trace(matrix_trace, BenchmarkStrategy.NEXUSKV_COST_BASED)
         t_dur_us = (time.perf_counter_ns() - t_start) / 1000.0
-        
+
         bytes_saved = sum(len(r.tokens) * 256 for r in matrix_trace.requests)
         if bytes_saved >= (1024 ** 3):
             kv_saved_str = f"{bytes_saved / (1024 ** 3):.2f} GB"
         else:
             kv_saved_str = f"{bytes_saved / (1024 ** 2):.2f} MB"
-            
+
         avg_decision_lat_us = t_dur_us / len(matrix_trace.requests) if matrix_trace.requests else 0.0
         print(f"{label:<35} | {rpt.useful_reuses:<5} | {kv_saved_str:<10} | {rpt.aggregate_effective_gain_ms:<10.2f} | {avg_decision_lat_us:<18.2f}")
     print("-" * 85)
 
     # 4. Physical Transport & Pooled Memory Microbenchmark (H2D / D2H / SHM Zero-Copy)
-    print("\n[3/4] Running Physical Transport & Memory Microbenchmark (H2D / D2H / SHM)...")
+    print("\n[3/5] Running Physical Transport & Memory Microbenchmark (H2D / D2H / SHM)...")
     from nexuskv.benchmarks.physical_transport_bench import PhysicalTransportBenchmarkSuite
     phys_suite = PhysicalTransportBenchmarkSuite()
     phys_results = phys_suite.run_full_physical_suite()
@@ -112,26 +112,29 @@ def main() -> None:
         print(f"{res.operation:<36} | {size_str:<8} | {lat_str:<12} | {rate_str:<22}")
     print("-" * 88)
 
-    # 5. Attention Architecture Cache Size Footprint Profiler Matrix (MHA vs GQA vs MLA vs DSA)
-    print("\n[4/5] Evaluating Physical Memory Footprint per Attention Architecture (MHA / GQA / MLA / DSA)...")
+    # 5. Model-Agnostic Context Window Scaling Profiler Matrix (1K, 32K, 128K, 1M, 10M Tokens)
+    print("\n[4/5] Evaluating Context Window Scaling (1K, 32K, 128K, 1M, 10M Tokens)...")
     from nexuskv.benchmarks.attention_cache_size import ATTENTION_PROFILES
-    
-    print("-" * 88)
-    print(f"{'Attention Model Profile':<32} | {'Bytes/Token':<12} | {'4k Context':<12} | {'32k Context':<12} | {'128k Context':<12}")
-    print("-" * 88)
+
+    print("-" * 115)
+    print(f"{'Attention Model Profile':<30} | {'1K Context':<12} | {'32K Context':<12} | {'128K Context':<12} | {'1M Context':<14} | {'10M Context':<14}")
+    print("-" * 115)
     for prof in ATTENTION_PROFILES:
-        b_tok = prof.bytes_per_token(bytes_per_elem=2)
-        fp_4k = prof.calculate_footprint(4096, 2)
+        fp_1k = prof.calculate_footprint(1024, 2)
         fp_32k = prof.calculate_footprint(32768, 2)
         fp_128k = prof.calculate_footprint(131072, 2)
+        fp_1m = prof.calculate_footprint(1048576, 2)
+        fp_10m = prof.calculate_footprint(10485760, 2)
 
-        fp_4k_str = f"{fp_4k/1024:.2f} GB" if fp_4k >= 1024 else f"{fp_4k:.1f} MB"
-        fp_32k_str = f"{fp_32k/1024:.2f} GB" if fp_32k >= 1024 else f"{fp_32k:.1f} MB"
-        fp_128k_str = f"{fp_128k/1024:.2f} GB" if fp_128k >= 1024 else f"{fp_128k:.1f} MB"
+        def fmt(mb: float) -> str:
+            if mb >= 1024 * 1024:
+                return f"{mb / (1024 * 1024):.2f} TB"
+            elif mb >= 1024:
+                return f"{mb / 1024:.2f} GB"
+            return f"{mb:.1f} MB"
 
-        b_tok_str = f"{b_tok/1024:.1f} KB" if b_tok >= 1024 else f"{b_tok} B"
-        print(f"{prof.name:<32} | {b_tok_str:<12} | {fp_4k_str:<12} | {fp_32k_str:<12} | {fp_128k_str:<12}")
-    print("-" * 88)
+        print(f"{prof.name:<30} | {fmt(fp_1k):<12} | {fmt(fp_32k):<12} | {fmt(fp_128k):<12} | {fmt(fp_1m):<14} | {fmt(fp_10m):<14}")
+    print("-" * 115)
 
     # 6. Cluster Stress Test & Memory Leak Check
     print("\n[5/5] Running High-Concurrency Cluster Stress Test & Memory Leak Check...")
@@ -147,9 +150,9 @@ def main() -> None:
     print(f"Zero Memory Leak Verdict: {stress_report.zero_memory_leak}")
     print(f"Zero Crash Verdict      : {stress_report.zero_crash}")
 
-    print("\n" + "=" * 70)
+    print("\n" + "=" * 80)
     print("             NexusKV Industrial Benchmark Execution Complete!")
-    print("=" * 70)
+    print("=" * 80)
 
 
 if __name__ == "__main__":
