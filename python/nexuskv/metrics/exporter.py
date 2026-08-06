@@ -1,71 +1,65 @@
+"""Python side Prometheus metrics exporter and latency collector for NexusKV."""
+
 from __future__ import annotations
 
-import threading
 from dataclasses import dataclass, field
 
-
-@dataclass(slots=True)
-class NexusMetricsSnapshot:
-    cache_hits: int = 0
-    cache_misses: int = 0
-    fail_open_events: int = 0
-    quota_rejections: int = 0
-    total_bytes_transferred: int = 0
-    last_transfer_bandwidth_gbps: float = 0.0
-
-    @property
-    def hit_rate(self) -> float:
-        total = self.cache_hits + self.cache_misses
-        if total == 0:
-            return 0.0
-        return self.cache_hits / total
+from nexuskv.logger import logger
 
 
 @dataclass(slots=True)
-class NexusMetricsCollector:
-    """Thread-safe OpenTelemetry / Prometheus metric aggregator for NexusKV execution."""
+class MetricCounter:
+    name: str
+    value: float = 0.0
+    labels: dict[str, str] = field(default_factory=dict)
 
-    _hits: int = field(default=0, init=False)
-    _misses: int = field(default=0, init=False)
-    _fail_open: int = field(default=0, init=False)
-    _rejections: int = field(default=0, init=False)
-    _bytes_transferred: int = field(default=0, init=False)
-    _last_transfer_duration_sec: float = field(default=0.0, init=False)
-    _lock: threading.Lock = field(default_factory=threading.Lock, init=False)
+    def inc(self, amount: float = 1.0) -> None:
+        self.value += amount
 
-    def record_cache_hit(self) -> None:
-        with self._lock:
-            self._hits += 1
 
-    def record_cache_miss(self) -> None:
-        with self._lock:
-            self._misses += 1
+@dataclass(slots=True)
+class MetricGauge:
+    name: str
+    value: float = 0.0
 
-    def record_fail_open(self) -> None:
-        with self._lock:
-            self._fail_open += 1
+    def set(self, val: float) -> None:
+        self.value = val
 
-    def record_quota_rejection(self) -> None:
-        with self._lock:
-            self._rejections += 1
 
-    def record_transfer(self, bytes_count: int, duration_sec: float) -> None:
-        with self._lock:
-            self._bytes_transferred += bytes_count
-            if duration_sec > 0:
-                self._last_transfer_duration_sec = duration_sec
+class PythonMetricsExporter:
+    """Collects Python connector metrics for Prometheus integration."""
 
-    def snapshot(self) -> NexusMetricsSnapshot:
-        with self._lock:
-            gbps = 0.0
-            if self._last_transfer_duration_sec > 0 and self._bytes_transferred > 0:
-                gbps = (self._bytes_transferred / (1024**3)) / self._last_transfer_duration_sec
+    def __init__(self) -> None:
+        self.lookups_total = MetricCounter(name="nexuskv_cache_lookups_total")
+        self.saved_tokens_total = MetricCounter(name="nexuskv_prefill_saved_tokens_total")
+        self.active_pinned_bytes = MetricGauge(name="nexuskv_active_pinned_memory_bytes")
+        self.fail_open_total = MetricCounter(name="nexuskv_fail_open_fallbacks_total")
 
-            return NexusMetricsSnapshot(
-                cache_hits=self._hits,
-                cache_misses=self._misses,
-                fail_open_events=self._fail_open,
-                quota_rejections=self._rejections,
-                total_bytes_transferred=self._bytes_transferred,
-                last_transfer_bandwidth_gbps=gbps,
-            )
+    def record_lookup(self, hit: bool, tokens_saved: int = 0) -> None:
+        self.lookups_total.inc()
+        if hit and tokens_saved > 0:
+            self.saved_tokens_total.inc(float(tokens_saved))
+
+    def record_fail_open(self, reason: str = "timeout") -> None:
+        self.fail_open_total.inc()
+        logger.warning("Recorded fail-open fallback metric: %s", reason)
+
+    def set_active_pinned_memory(self, size_bytes: int) -> None:
+        self.active_pinned_bytes.set(float(size_bytes))
+
+    def export_prometheus_text(self) -> str:
+        lines = [
+            "# HELP nexuskv_cache_lookups_total Total number of KV cache lookup requests",
+            "# TYPE nexuskv_cache_lookups_total counter",
+            f"nexuskv_cache_lookups_total {self.lookups_total.value:.0f}",
+            "# HELP nexuskv_prefill_saved_tokens_total Total prefill tokens saved",
+            "# TYPE nexuskv_prefill_saved_tokens_total counter",
+            f"nexuskv_prefill_saved_tokens_total {self.saved_tokens_total.value:.0f}",
+            "# HELP nexuskv_active_pinned_memory_bytes Current active pinned memory in bytes",
+            "# TYPE nexuskv_active_pinned_memory_bytes gauge",
+            f"nexuskv_active_pinned_memory_bytes {self.active_pinned_bytes.value:.0f}",
+            "# HELP nexuskv_fail_open_fallbacks_total Total fail-open fallbacks triggered",
+            "# TYPE nexuskv_fail_open_fallbacks_total counter",
+            f"nexuskv_fail_open_fallbacks_total {self.fail_open_total.value:.0f}",
+        ]
+        return "\n".join(lines) + "\n"
