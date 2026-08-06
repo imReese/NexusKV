@@ -15,7 +15,7 @@ def print_status() -> int:
     print("               NexusKV Cluster Diagnostics                ")
     print("==========================================================")
     print("  Status             : RUNNING (Healthy)")
-    print("  Controlplane Addr  : localhost:9090")
+    print("  Controlplane Addr  : localhost:9098")
     print("  Fail-Open Protection: ENABLED (<1ms Fallback)")
     print("  Active Memory Pool : Host DRAM & POSIX SHM Active")
     print("  Supported Connectors: vLLM V2, SGLang UnifiedRadix, C++ FFI")

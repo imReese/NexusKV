@@ -32,7 +32,7 @@ struct PinnedBlockHandle {
 };
 
 struct ClientConfig {
-    std::string control_plane_addr = "127.0.0.1:9090";
+    std::string control_plane_addr = "127.0.0.1:9098";
     bool enable_fail_open = true;
     double timeout_ms = 50.0;
     std::string preferred_backend = "CUDA_IPC";
@@ -150,7 +150,7 @@ extern "C" {
 typedef void* nexuskv_client_t;
 
 inline nexuskv_client_t nexuskv_client_create(const char* control_plane_addr) {
-    std::string addr = control_plane_addr ? control_plane_addr : "127.0.0.1:9090";
+    std::string addr = control_plane_addr ? control_plane_addr : "127.0.0.1:9098";
     return reinterpret_cast<nexuskv_client_t>(new nexuskv::NexusKVClient(addr));
 }
 

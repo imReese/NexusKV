@@ -22,7 +22,7 @@ import (
 )
 
 const (
-	defaultPort     = "8080"
+	defaultPort     = "9098"
 	defaultDataDir  = "/opt/nexus-kv/data"
 	shutdownTimeout = 10 * time.Second
 	etcdEndpoints   = "localhost:2379"

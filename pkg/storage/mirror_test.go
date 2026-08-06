@@ -7,10 +7,10 @@ import (
 )
 
 func TestCacheMirrorEngineLifecycle(t *testing.T) {
-	peers := []string{"192.168.1.10:9090", "192.168.1.11:9090"}
+	peers := []string{"192.168.1.10:9098", "192.168.1.11:9098"}
 	engine := NewCacheMirrorEngine(peers)
 
-	if !engine.GetPeerHealth("192.168.1.10:9090") {
+	if !engine.GetPeerHealth("192.168.1.10:9098") {
 		t.Fatal("expected peer to be healthy")
 	}
 

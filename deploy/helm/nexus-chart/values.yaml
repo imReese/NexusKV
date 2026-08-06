@@ -12,8 +12,8 @@ controlPlane:
     tag: "latest"
     pullPolicy: IfNotPresent
   ports:
-    grpc: 9090
-    metrics: 9091
+    grpc: 9098
+    metrics: 9099
   persistence:
     enabled: true
     storageClass: ""

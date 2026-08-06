@@ -42,9 +42,9 @@ COPY pyproject.toml /app/
 ENV PYTHONPATH=/app/python
 
 # Expose gRPC Controlplane and Prometheus Metrics ports
-EXPOSE 9090 9091
+EXPOSE 9098 9099
 
 HEALTHCHECK --interval=10s --timeout=3s --retries=3 \
-  CMD curl -f http://localhost:9091/metrics || exit 1
+  CMD curl -f http://localhost:9099/metrics || exit 1
 
 ENTRYPOINT ["/usr/local/bin/nexuskv-server"]

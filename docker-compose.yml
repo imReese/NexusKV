@@ -6,8 +6,8 @@ services:
     container_name: nexuskv-server
     restart: always
     ports:
-      - "9090:9090"
-      - "9091:9091"
+      - "9098:9098"
+      - "9099:9099"
     environment:
       - NEXUSKV_LOG_LEVEL=INFO
       - NEXUSKV_FAIL_OPEN_MODE=true
@@ -18,7 +18,7 @@ services:
     container_name: nexuskv-prometheus
     restart: always
     ports:
-      - "9092:9090"
+      - "9090:9090"
     volumes:
       - ./deploy/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
     depends_on:
