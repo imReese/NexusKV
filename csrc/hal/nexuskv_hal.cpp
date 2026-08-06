@@ -4,13 +4,19 @@
 #include <string.h>
 
 #include "../amd/nexuskv_rocm.h"
+#include "../apple/nexuskv_metal.h"
+#include "../ascend/nexuskv_ascend.h"
 #include "../intel/nexuskv_intel.h"
 #include "../nvidia/nexuskv_cuda.h"
 
 // Hardware Probe Engine
 NexusKVHardwareVendor nexuskv_hal_detect_vendor(int device_id) {
     (void)device_id;
-#if defined(__CUDACC__) || defined(NEXUSKV_ENABLE_CUDA)
+#if defined(__APPLE__)
+    return NEXUSKV_VENDOR_APPLE_METAL;
+#elif defined(NEXUSKV_ENABLE_ASCEND) || defined(__ASCEND__)
+    return NEXUSKV_VENDOR_ASCEND;
+#elif defined(__CUDACC__) || defined(NEXUSKV_ENABLE_CUDA)
     return NEXUSKV_VENDOR_NVIDIA;
 #elif defined(__HIPCC__) || defined(NEXUSKV_ENABLE_ROCM)
     return NEXUSKV_VENDOR_AMD;
@@ -23,11 +29,13 @@ NexusKVHardwareVendor nexuskv_hal_detect_vendor(int device_id) {
 
 NexusKVMicroArch nexuskv_hal_detect_microarch(int device_id) {
     (void)device_id;
-    // Runtime compute capability probe:
-    // sm_80 -> NEXUSKV_ARCH_NVIDIA_AMPERE
-    // sm_90 -> NEXUSKV_ARCH_NVIDIA_HOPPER
-    // sm_100 -> NEXUSKV_ARCH_NVIDIA_BLACKWELL
-    return NEXUSKV_ARCH_NVIDIA_HOPPER;
+#if defined(__APPLE__)
+    return NEXUSKV_ARCH_APPLE_M5;
+#elif defined(NEXUSKV_ENABLE_ASCEND)
+    return NEXUSKV_ARCH_ASCEND_910C;
+#else
+    return NEXUSKV_ARCH_NVIDIA_RUBIN;
+#endif
 }
 
 // Polymorphic Dispatcher
@@ -49,6 +57,10 @@ extern "C" NexusKVHalStatus nexuskv_hal_register_mem(uint64_t handle_id, void* p
             return nexuskv_rocm_register(handle_id, ptr, size_bytes, device_id, out_handle);
         case NEXUSKV_VENDOR_INTEL:
             return nexuskv_intel_register(handle_id, ptr, size_bytes, device_id, out_handle);
+        case NEXUSKV_VENDOR_ASCEND:
+            return nexuskv_ascend_register(handle_id, ptr, size_bytes, device_id, out_handle);
+        case NEXUSKV_VENDOR_APPLE_METAL:
+            return nexuskv_metal_register(handle_id, ptr, size_bytes, device_id, out_handle);
         case NEXUSKV_VENDOR_CPU_SHM:
         default:
             out_handle->handle_id = handle_id;
@@ -75,6 +87,10 @@ extern "C" NexusKVHalStatus nexuskv_hal_open_mem(const NexusKVUnifiedMemHandle* 
             return nexuskv_rocm_open(in_handle, out_ptr);
         case NEXUSKV_VENDOR_INTEL:
             return nexuskv_intel_open(in_handle, out_ptr);
+        case NEXUSKV_VENDOR_ASCEND:
+            return nexuskv_ascend_open(in_handle, out_ptr);
+        case NEXUSKV_VENDOR_APPLE_METAL:
+            return nexuskv_metal_open(in_handle, out_ptr);
         case NEXUSKV_VENDOR_CPU_SHM:
         default:
             *out_ptr = reinterpret_cast<void*>(in_handle->physical_addr);
@@ -94,6 +110,10 @@ extern "C" NexusKVHalStatus nexuskv_hal_close_mem(void* ptr, NexusKVHardwareVend
             return nexuskv_rocm_close(ptr);
         case NEXUSKV_VENDOR_INTEL:
             return nexuskv_intel_close(ptr);
+        case NEXUSKV_VENDOR_ASCEND:
+            return nexuskv_ascend_close(ptr);
+        case NEXUSKV_VENDOR_APPLE_METAL:
+            return nexuskv_metal_close(ptr);
         case NEXUSKV_VENDOR_CPU_SHM:
         default:
             return NEXUSKV_HAL_SUCCESS;

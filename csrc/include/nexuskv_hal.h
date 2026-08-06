@@ -13,14 +13,21 @@ typedef enum {
     NEXUSKV_VENDOR_NVIDIA = 1,
     NEXUSKV_VENDOR_AMD = 2,
     NEXUSKV_VENDOR_INTEL = 3,
-    NEXUSKV_VENDOR_CPU_SHM = 4
+    NEXUSKV_VENDOR_ASCEND = 4,       // Huawei Ascend 华为昇腾
+    NEXUSKV_VENDOR_APPLE_METAL = 5,  // Apple Silicon Metal
+    NEXUSKV_VENDOR_CPU_SHM = 6
 } NexusKVHardwareVendor;
 
 typedef enum {
     NEXUSKV_ARCH_GENERIC = 0,
-    NEXUSKV_ARCH_NVIDIA_AMPERE = 80,     // sm_80 / A100
-    NEXUSKV_ARCH_NVIDIA_HOPPER = 90,     // sm_90 / H100
-    NEXUSKV_ARCH_NVIDIA_BLACKWELL = 100  // sm_100 / B200
+    NEXUSKV_ARCH_NVIDIA_AMPERE = 80,      // sm_80 / A100
+    NEXUSKV_ARCH_NVIDIA_HOPPER = 90,      // sm_90 / H100
+    NEXUSKV_ARCH_NVIDIA_BLACKWELL = 100,  // sm_100 / B200
+    NEXUSKV_ARCH_NVIDIA_RUBIN = 120,      // sm_120 / Rubin NVLink 6
+    NEXUSKV_ARCH_AMD_CDNA4 = 945,         // MI350X / MI400 CDNA 4
+    NEXUSKV_ARCH_ASCEND_910C = 910,       // Ascend 910C HCCS
+    NEXUSKV_ARCH_APPLE_M4 = 40,           // Apple M4 Series
+    NEXUSKV_ARCH_APPLE_M5 = 50            // Apple M5 Series
 } NexusKVMicroArch;
 
 typedef enum {
