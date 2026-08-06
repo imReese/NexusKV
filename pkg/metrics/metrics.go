@@ -1,72 +1,63 @@
+// pkg/metrics/metrics.go
 package metrics
 
 import (
+	"net/http"
 	"sync"
 
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 var (
-	registerOnce sync.Once
+	once sync.Once
 
-	RequestsTotal = prometheus.NewCounterVec(
+	CacheLookupsTotal = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
-			Name: "nexuskv_requests_total",
-			Help: "Total number of requests",
+			Namespace: "nexuskv",
+			Name:      "cache_lookups_total",
+			Help:      "Total number of KV cache lookup requests",
 		},
-		[]string{"method"},
+		[]string{"tenant", "model", "result"},
 	)
 
-	CacheHitsTotal = prometheus.NewCounterVec(
+	PrefillSavedTokensTotal = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
-			Name: "nexuskv_cache_hits_total",
-			Help: "Total number of cache hits",
-		},
-		[]string{"tenant", "model"},
-	)
-
-	CacheMissesTotal = prometheus.NewCounterVec(
-		prometheus.CounterOpts{
-			Name: "nexuskv_cache_misses_total",
-			Help: "Total number of cache misses",
+			Namespace: "nexuskv",
+			Name:      "prefill_saved_tokens_total",
+			Help:      "Total number of prefill tokens saved via KV cache hit",
 		},
 		[]string{"tenant", "model"},
 	)
 
-	TransferBandwidthBytesPerSec = prometheus.NewGaugeVec(
+	ActivePinnedMemoryBytes = prometheus.NewGauge(
 		prometheus.GaugeOpts{
-			Name: "nexuskv_transfer_bandwidth_bytes_per_sec",
-			Help: "Current physical transfer bandwidth in bytes per second",
+			Namespace: "nexuskv",
+			Name:      "active_pinned_memory_bytes",
+			Help:      "Current active pinned memory allocated in Host DRAM/POSIX SHM",
 		},
-		[]string{"backend", "tier"},
 	)
 
-	FailOpenEventsTotal = prometheus.NewCounterVec(
+	FailOpenFallbacksTotal = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
-			Name: "nexuskv_fail_open_events_total",
-			Help: "Total number of Fail-Open fallback events",
+			Namespace: "nexuskv",
+			Name:      "fail_open_fallbacks_total",
+			Help:      "Total number of fail-open fallback events triggered",
 		},
 		[]string{"reason"},
-	)
-
-	QuotaRejectionsTotal = prometheus.NewCounterVec(
-		prometheus.CounterOpts{
-			Name: "nexuskv_quota_rejections_total",
-			Help: "Total number of tenant quota backpressure rejections",
-		},
-		[]string{"tenant", "resource"},
 	)
 )
 
 func Init() {
-	registerOnce.Do(func() {
-		prometheus.MustRegister(
-			RequestsTotal,
-			CacheHitsTotal,
-			CacheMissesTotal,
-			TransferBandwidthBytesPerSec,
-			FailOpenEventsTotal,
-			QuotaRejectionsTotal,
-		)
+	once.Do(func() {
+		prometheus.MustRegister(CacheLookupsTotal)
+		prometheus.MustRegister(PrefillSavedTokensTotal)
+		prometheus.MustRegister(ActivePinnedMemoryBytes)
+		prometheus.MustRegister(FailOpenFallbacksTotal)
 	})
+}
+
+func Handler() http.Handler {
+	Init()
+	return promhttp.Handler()
 }
