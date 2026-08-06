@@ -15,11 +15,11 @@ type NexusKVPagedGeometry struct {
 
 // SyncDeltaDescriptor represents an append-only delta replication update for Decode phase.
 type SyncDeltaDescriptor struct {
-	DescriptorID     string               `json:"descriptor_id"`
-	Geometry         NexusKVPagedGeometry `json:"geometry"`
+	DescriptorID      string               `json:"descriptor_id"`
+	Geometry          NexusKVPagedGeometry `json:"geometry"`
 	AppendedPageSlots []uint64             `json:"appended_page_slots"`
-	PhysicalHandles  []uint64             `json:"physical_handles"`
-	TimestampNano    int64                `json:"timestamp_nano"`
+	PhysicalHandles   []uint64             `json:"physical_handles"`
+	TimestampNano     int64                `json:"timestamp_nano"`
 }
 
 type DescriptorMirror struct {

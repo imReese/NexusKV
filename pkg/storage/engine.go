@@ -57,7 +57,7 @@ var (
 	}
 )
 
-func NewHybridEngine(opts ...interface{}) *HybridEngine {
+func NewHybridEngine(opts ...any) *HybridEngine {
 	lsmConfig := DefaultLSMConfig
 	bpConfig := DefaultBPConfig
 

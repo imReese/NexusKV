@@ -68,8 +68,8 @@ type NodeConfig struct {
 	Peers            []string
 	ElectionTimeout  time.Duration
 	HeartbeatTimeout time.Duration
-	Storage          interface{}
-	WAL              interface{}
+	Storage          any
+	WAL              any
 	Transport        *Transport
 	EtcdConfig       EtcdConfig
 	Logger           *zap.Logger

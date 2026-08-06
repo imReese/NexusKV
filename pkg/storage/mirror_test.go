@@ -39,7 +39,7 @@ func TestEngineAgnosticDeltaReplication(t *testing.T) {
 			StrideBytes: 4096,
 		},
 		AppendedPageSlots: []uint64{10, 11},
-		PhysicalHandles:  []uint64{0x1000, 0x2000},
+		PhysicalHandles:   []uint64{0x1000, 0x2000},
 	}
 
 	err := mirror.ReplicateDelta(ctx, delta)
