@@ -34,7 +34,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY --from=go-builder /app/nexuskv-server /usr/local/bin/nexuskv-server
 
 # Copy Rust FFI shared library
-COPY --from=rust-builder /app/rust/target/release/libbindings_py.so /usr/local/lib/libbindings_py.so
+COPY --from=rust-builder /app/rust/target/release/libnexuskv_planner_native.so /usr/local/lib/libnexuskv_planner_native.so
 
 # Copy Python codebase
 COPY python/ /app/python/
