@@ -4,11 +4,15 @@ NexusKV 是专为分布式 LLM 推理集群打造的 **KV Cache 智能感知存�
 
 ---
 
-## 1. 极简系统架构 (System Architecture)
+## 1. 极简系统架构 (System Architecture Overview)
 
-NexusKV 采用 **控制面与数据面解耦** 的 4 层结构设计：
+NexusKV 采用 **控制面与数据面解耦** 的 4 层结构设计。根据用户浏览器的黑/白主题偏好，系统将自动无缝切换：
 
-![NexusKV Architecture Overview](images/nexus_architecture_overview.jpg)
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="images/nexus_architecture_overview.jpg">
+  <source media="(prefers-color-scheme: light)" srcset="images/nexus_architecture_overview_light.jpg">
+  <img alt="NexusKV Architecture Overview" src="images/nexus_architecture_overview.jpg" width="100%">
+</picture>
 
 ### 1.1 核心分层职责 (Layer Responsibilities)
 
