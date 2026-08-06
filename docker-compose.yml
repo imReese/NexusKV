@@ -1,0 +1,40 @@
+version: "3.8"
+
+services:
+  nexuskv-server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: nexuskv-server
+    restart: always
+    ports:
+      - "9090:9090"
+      - "9091:9091"
+    environment:
+      - NEXUSKV_LOG_LEVEL=INFO
+      - NEXUSKV_FAIL_OPEN_MODE=true
+      - NEXUSKV_TRANSPORT_TIMEOUT_MS=1.0
+
+  prometheus:
+    image: prom/prometheus:v2.50.0
+    container_name: nexuskv-prometheus
+    restart: always
+    ports:
+      - "9092:9090"
+    volumes:
+      - ./deploy/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    depends_on:
+      - nexuskv-server
+
+  grafana:
+    image: grafana/grafana:10.3.1
+    container_name: nexuskv-grafana
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - ./deploy/grafana/dashboard.json:/etc/grafana/provisioning/dashboards/nexus_dashboard.json:ro
+    depends_on:
+      - prometheus
