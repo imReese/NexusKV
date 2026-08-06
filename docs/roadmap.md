@@ -60,16 +60,16 @@ In 2026, the LLM inference ecosystem is undergoing rapid evolution led by **Deep
 
 ---
 
-### 2026 Q3: Rubin CPX Prefill Disaggregation, C++ SDK & Consistent Hashing
+### 2026 Q3: Rubin CPX Prefill Disaggregation, C++ SDK & Consistent Hashing (Completed)
 
-- [ ] **NVIDIA Rubin CPX Hardware PD Handshake**: Hardware-level `pd_disaggregate_handshake` offloading for Rubin CPX prefill processors and Rubin HBM4 nodes.
-- [ ] **Lock-Free Concurrent Radix Tree**: RCU (Read-Copy-Update) node traversal in `nxradixtree-core` for high CPU core concurrency.
-- [ ] **Header-Only C++ Client SDK**: Lightweight C++ client library (`nexuskv_client.h`) for TensorRT-LLM, LMDeploy, and custom C++ gateways.
-- [ ] **Consistent Hash Ring Self-Healing**: Virtual node hash ring in Go control plane for smooth worker node scaling.
+- [x] **NVIDIA Rubin CPX Hardware PD Handshake**: Hardware-level `pd_disaggregate_handshake` offloading for Rubin CPX prefill processors and Rubin HBM4 nodes (`rubin_handshake.py`).
+- [x] **Lock-Free Concurrent Radix Tree**: RCU (Read-Copy-Update) node traversal in `nxradixtree-core` for high CPU core concurrency.
+- [x] **Header-Only C++ Client SDK Production Enhancements**: Lightweight C++ client library with fail-open health checks (`nexuskv_client.h`) for TensorRT-LLM, LMDeploy, and custom C++ gateways.
+- [x] **Consistent Hash Ring Self-Healing**: Virtual node hash ring in Go control plane with node health probing (`hashring.go`) for smooth worker failover and scaling.
 
 ---
 
-### 2026 Q4: UALink 2.0 Open Fabric, CXL 3.1 Memory Pool & Agent Multi-Branch CoW
+### 2026 Q4: UALink 2.0 Open Fabric, CXL 3.1 Memory Pool & Agent Multi-Branch CoW (Completed)
 
-- [ ] **UALink 2.0 & CXL 3.1 Rack-Scale Memory Pool**: Fabric-Attached Memory direct Load/Store mapping for 0-hop network transfer.
-- [ ] **Agentic Multi-Branch CoW Radix Tree**: Copy-on-Write state sharing for Tree-of-Thought (ToT) and MCTS search.
+- [x] **UALink 2.0 & CXL 3.1 Rack-Scale Memory Pool**: Fabric-Attached Memory direct Load/Store mapping for 0-hop network transfer (`CxlFabricMemoryPool` & `UALink2FabricTransport`).
+- [x] **Agentic Multi-Branch CoW Radix Tree**: Copy-on-Write state sharing (`fork_branch()`) for Tree-of-Thought (ToT) and MCTS search.

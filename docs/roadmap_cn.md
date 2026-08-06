@@ -60,16 +60,16 @@
 
 ---
 
-### 2026 Q3：Rubin CPX Prefill 解耦、C++ Client SDK 与 Consistent Hashing
+### 2026 Q3：Rubin CPX Prefill 解耦、C++ Client SDK 与 Consistent Hashing (已完成)
 
-- [ ] **NVIDIA Rubin CPX 硬件级 PD 握手**：针对 Rubin CPX (Prefill 专属加速处理器) 与 Rubin HBM4 节点，实现硬件级 `pd_disaggregate_handshake` 卸载。
-- [ ] **Lock-Free Concurrent Radix Tree**：在 `nxradixtree-core` 中演进 RCU (Read-Copy-Update) 节点指针更新，大幅降低百核并发查找争用。
-- [ ] **Header-Only C++ Client SDK**：为 TensorRT-LLM、LMDeploy 及 C++ 自研推理网关提供轻量级 C++ 原生客户端库 (`nexuskv_client.h`)。
-- [ ] **Consistent Hash Ring 节点自愈**：在 Go 控制面增加虚拟节点一致性哈希环，应对 Worker 节点动态扩缩容时的状态路由抖动。
+- [x] **NVIDIA Rubin CPX 硬件级 PD 握手**：针对 Rubin CPX (Prefill 专属加速处理器) 与 Rubin HBM4 节点，实现硬件级 `pd_disaggregate_handshake` 物理卸载握手 (`rubin_handshake.py`)。
+- [x] **Lock-Free Concurrent Radix Tree**：在 `nxradixtree-core` 中演进 RCU (Read-Copy-Update) 节点指针更新，大幅降低百核并发查找争用。
+- [x] **Header-Only C++ Client SDK 生产级增强**：为 TensorRT-LLM、LMDeploy 及 C++ 自研推理网关提供包含健康检查与熔断降级的 C++ 原生客户端库 (`nexuskv_client.h`)。
+- [x] **Consistent Hash Ring 节点自愈**：在 Go 控制面增加虚拟节点一致性哈希环与节点健康度探测 (`hashring.go`)，实现 Worker 节点宕机/扩缩容零抖动重平衡。
 
 ---
 
-### 2026 Q4：UALink 2.0 开放织网、CXL 3.1 柜级内存池与 Agent 多分支 CoW
+### 2026 Q4：UALink 2.0 开放织网、CXL 3.1 柜级内存池与 Agent 多分支 CoW (已完成)
 
-- [ ] **UALink 2.0 & CXL 3.1 柜级共享内存池**：集成 UALink 2.0 开放总线与 CXL 3.1 TraCT，支持 Fabric-Attached Memory 直接 Load/Store 挂载，实现跨机 0-Hop 零网络开销传输。
-- [ ] **Agentic 多分支 CoW Radix 树**：针对 ToT / MCTS 搜索，实现 Copy-on-Write 零开销多分支状态共享。
+- [x] **UALink 2.0 & CXL 3.1 柜级共享内存池**：集成 UALink 2.0 开放总线与 CXL 3.1 TraCT，支持 Fabric-Attached Memory (`CxlFabricMemoryPool`) 直接 Load/Store 挂载，实现跨机 0-Hop 零网络开销传输。
+- [x] **Agentic 多分支 CoW Radix 树**：针对 Agentic ToT / MCTS 启发式搜索，实现写时复制 (`fork_branch()`) 零开销多分支状态共享与内存复用。
