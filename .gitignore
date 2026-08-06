@@ -56,7 +56,6 @@ python/dist/
 # Virtual Environments
 .env
 .venv
-.python-version
 env/
 venv/
 ENV/
