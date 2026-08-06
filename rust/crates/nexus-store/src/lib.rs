@@ -9,6 +9,7 @@ pub mod block_allocator;
 pub mod cxl;
 pub mod hbm;
 pub mod lockfree_queue;
+pub mod tiering;
 
 use nexus_state::EntryIdentity;
 

@@ -2,20 +2,20 @@ use nexus_store::cxl::CxlStoreAllocator;
 
 #[test]
 fn test_cxl_store_allocator_lifecycle() {
-    let mut allocator = CxlStoreAllocator::new(64 * 1024 * 1024, 16 * 1024 * 1024);
+    let allocator = CxlStoreAllocator::new(64 * 1024 * 1024);
 
-    let block1 = allocator
-        .allocate_block()
+    let slice1 = allocator
+        .allocate_slice("tenant-1", 16 * 1024 * 1024)
         .expect("Allocation 1 should succeed");
-    assert_eq!(block1.block_id, 1);
-    assert_eq!(allocator.allocated_bytes, 16 * 1024 * 1024);
+    assert_eq!(slice1.slice_id, 1);
+    assert_eq!(allocator.allocated_bytes(), 16 * 1024 * 1024);
 
-    let block2 = allocator
-        .allocate_block()
+    let slice2 = allocator
+        .allocate_slice("tenant-1", 16 * 1024 * 1024)
         .expect("Allocation 2 should succeed");
-    assert_eq!(block2.block_id, 2);
+    assert_eq!(slice2.slice_id, 2);
+    assert_eq!(allocator.allocated_bytes(), 32 * 1024 * 1024);
 
-    let freed = allocator.free_block(block1.block_id);
-    assert!(freed);
-    assert_eq!(allocator.allocated_bytes, 16 * 1024 * 1024);
+    let slices = allocator.get_tenant_slices("tenant-1");
+    assert_eq!(slices.len(), 2);
 }
