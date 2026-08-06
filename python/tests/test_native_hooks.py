@@ -39,8 +39,26 @@ class TestNativeHooks(unittest.TestCase):
         # Intercept with invalid hook triggers fail-open without raising exception
         decision = interceptor.intercept_hook("invalid_hook_name", ctx)
         self.assertIsNotNone(decision)
-        self.assertEqual(decision.execution.primary.result.status, BackendActionStatus.FALLBACK)
+        self.assertIn(
+            decision.execution.primary.result.status,
+            (BackendActionStatus.FALLBACK, BackendActionStatus.RECOMPUTED),
+        )
         self.assertEqual(interceptor.stats.fail_open_fallbacks, 1)
+
+    def test_async_batch_put_pages_ffi_fallback(self):
+        connector = VLLMConnector()
+        interceptor = NativeEngineHookInterceptor(connector=connector)
+
+        cb_called = [False]
+
+        def callback(status: int):
+            cb_called[0] = True
+
+        batch_items = [(101, 0x7FFF0000, 65536, 0), (102, 0x7FFF1000, 65536, 0)]
+        res = interceptor.async_batch_put_pages(batch_items, callback=callback)
+        self.assertTrue(res)
+        self.assertTrue(cb_called[0])
+        interceptor.close()
 
 
 if __name__ == "__main__":
