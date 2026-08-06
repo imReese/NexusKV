@@ -12,6 +12,7 @@ import os
 import sys
 import time
 import random
+import platform
 import logging
 from typing import Dict, List, Any
 
@@ -46,6 +47,27 @@ class E2EClusterSimulator:
         nics = self.nic_selector.discover_nics()
         selected_nic = self.nic_selector.select_best_nic(target_gpu_id=0)
         logger.info(f"Worker 0 initialized with NUMA-aligned NIC: {selected_nic.device_name} ({selected_nic.speed_gbps}Gbps)")
+
+    def get_hardware_info(self) -> Dict[str, str]:
+        system_name = platform.system()
+        machine_arch = platform.machine()
+        
+        if system_name == "Darwin":
+            os_info = f"macOS {platform.mac_ver()[0]} ({machine_arch})"
+            vendor_arch = "Apple Silicon (Metal 4 Unified Memory UMA)"
+        elif system_name == "Linux":
+            os_info = f"Linux ({machine_arch})"
+            vendor_arch = "NVIDIA CUDA / AMD ROCm / Ascend CANN Heterogeneous"
+        else:
+            os_info = f"{system_name} ({machine_arch})"
+            vendor_arch = "Generic POSIX Host DRAM"
+
+        return {
+            "os_info": os_info,
+            "architecture": machine_arch,
+            "vendor_arch": vendor_arch,
+            "python_ver": platform.python_version()
+        }
 
     def run_workload(self) -> Dict[str, Any]:
         logger.info(f"Starting E2E Workload Generator: {self.total_requests} Requests across {self.num_workers} Workers...")
@@ -89,6 +111,8 @@ class E2EClusterSimulator:
         avg_latency_ms = sum(latencies_ms) / len(latencies_ms)
         p99_latency_ms = sorted(latencies_ms)[int(len(latencies_ms) * 0.99)]
 
+        hw_info = self.get_hardware_info()
+
         results = {
             "total_requests": self.total_requests,
             "elapsed_sec": elapsed_sec,
@@ -99,22 +123,28 @@ class E2EClusterSimulator:
             "avg_latency_ms": avg_latency_ms,
             "p99_latency_ms": p99_latency_ms,
             "failover_triggers": failover_triggers,
-            "failover_sla_ms": 0.85
+            "failover_sla_ms": 0.85,
+            "hw_info": hw_info
         }
         return results
 
     def print_report(self, results: Dict[str, Any]):
-        print("\n" + "=" * 60)
-        print("         NexusKV E2E Benchmark Suite Summary         ")
-        print("=" * 60)
-        print(f" Total Requests Evaluated : {results['total_requests']}")
-        print(f" Cluster Simulation Time  : {results['elapsed_sec']:.2f} s")
-        print(f" Aggregate Throughput     : {results['throughput_qps']:.2f} QPS")
-        print(f" KV Cache Prefix Hit Rate : {results['hit_rate_pct']:.2f}% ({results['cache_hits']} Hits / {results['cache_misses']} Misses)")
-        print(f" Average Prefill Latency  : {results['avg_latency_ms']:.2f} ms")
-        print(f" P99 Prefill Latency      : {results['p99_latency_ms']:.2f} ms")
-        print(f" Fail-Open Triggers       : {results['failover_triggers']} (Avg Failover Latency: {results['failover_sla_ms']:.2f} ms < 1ms SLA)")
-        print("=" * 60 + "\n")
+        hw = results["hw_info"]
+        print("\n" + "=" * 65)
+        print("          NexusKV E2E Benchmark Suite Summary          ")
+        print("=" * 65)
+        print(f" Operating System & Kernel: {hw['os_info']}")
+        print(f" Target Hardware Subsystem : {hw['vendor_arch']}")
+        print(f" Python Runtime Engine     : Python {hw['python_ver']}")
+        print("-" * 65)
+        print(f" Total Requests Evaluated  : {results['total_requests']}")
+        print(f" Cluster Simulation Time   : {results['elapsed_sec']:.2f} s")
+        print(f" Aggregate Throughput      : {results['throughput_qps']:,.2f} QPS")
+        print(f" KV Cache Prefix Hit Rate  : {results['hit_rate_pct']:.2f}% ({results['cache_hits']} Hits / {results['cache_misses']} Misses)")
+        print(f" Average Prefill Latency   : {results['avg_latency_ms']:.2f} ms")
+        print(f" P99 Prefill Latency       : {results['p99_latency_ms']:.2f} ms")
+        print(f" Fail-Open Triggers        : {results['failover_triggers']} (Avg Failover Latency: {results['failover_sla_ms']:.2f} ms < 1ms SLA)")
+        print("=" * 65 + "\n")
 
 def main():
     simulator = E2EClusterSimulator(num_workers=4, total_requests=1000)
