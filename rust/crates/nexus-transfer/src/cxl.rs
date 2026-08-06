@@ -1,4 +1,6 @@
-//! CXL 3.0 (Compute Express Link) TraCT Shared Memory Pool Transfer Primitives.
+//! CXL 3.1 & UALink 2.0 (Compute Express Link & Ultra Accelerator Link) TraCT Shared Memory Pool Transfer Primitives.
+
+use std::collections::HashMap;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct CxlFabricLocation {
@@ -40,5 +42,52 @@ impl CxlSharedMemoryRegion {
 
     pub fn page_count(&self) -> usize {
         self.length_bytes / self.page_size_bytes
+    }
+}
+
+#[derive(Debug)]
+pub struct CxlFabricMemoryPool {
+    pub total_capacity_bytes: usize,
+    pub allocated_bytes: usize,
+    regions: HashMap<usize, CxlSharedMemoryRegion>,
+}
+
+impl CxlFabricMemoryPool {
+    pub fn new(total_capacity_bytes: usize) -> Self {
+        Self {
+            total_capacity_bytes,
+            allocated_bytes: 0,
+            regions: HashMap::new(),
+        }
+    }
+
+    pub fn register_region(
+        &mut self,
+        region_id: usize,
+        region: CxlSharedMemoryRegion,
+    ) -> Result<(), &'static str> {
+        if self.allocated_bytes + region.length_bytes > self.total_capacity_bytes {
+            return Err("CXL Fabric Pool Capacity Exceeded");
+        }
+        self.allocated_bytes += region.length_bytes;
+        self.regions.insert(region_id, region);
+        Ok(())
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct UALink2FabricTransport {
+    pub link_id: String,
+    pub max_bandwidth_gbps: usize,
+    pub is_active: bool,
+}
+
+impl UALink2FabricTransport {
+    pub fn new(link_id: String) -> Self {
+        Self {
+            link_id,
+            max_bandwidth_gbps: 3200,
+            is_active: true,
+        }
     }
 }

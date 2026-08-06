@@ -15,6 +15,7 @@ pub struct PosixShmRegion {
 pub enum ShmError {
     InvalidName,
     ZeroCapacity,
+    AllocationFailed,
 }
 
 impl Display for ShmError {
@@ -22,6 +23,7 @@ impl Display for ShmError {
         match self {
             Self::InvalidName => write!(f, "POSIX SHM name must not be empty"),
             Self::ZeroCapacity => write!(f, "POSIX SHM capacity must be greater than zero"),
+            Self::AllocationFailed => write!(f, "POSIX SHM allocation or mmap failed"),
         }
     }
 }
@@ -31,6 +33,7 @@ impl Error for ShmError {}
 #[derive(Debug, Default)]
 pub struct PosixShmAllocator {
     allocated_regions: Vec<PosixShmRegion>,
+    buffers: Vec<Vec<u8>>,
 }
 
 impl PosixShmAllocator {
@@ -50,8 +53,9 @@ impl PosixShmAllocator {
             return Err(ShmError::ZeroCapacity);
         }
 
-        // Simulated POSIX /dev/shm mmap address
-        let base_ptr = 0x7FFF_8000_0000 + (self.allocated_regions.len() * 0x1000_0000) as u64;
+        let mut buf = vec![0u8; size_bytes];
+        let base_ptr = buf.as_mut_ptr() as u64;
+        self.buffers.push(buf);
 
         let region = PosixShmRegion {
             shm_name: shm_name.to_string(),

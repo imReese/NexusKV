@@ -17,6 +17,7 @@ pub struct CxlStoreAllocator {
     pub allocated_bytes: usize,
     next_block_id: usize,
     blocks: HashMap<usize, CxlStoreBlock>,
+    raw_buffers: HashMap<usize, Vec<u8>>,
 }
 
 impl CxlStoreAllocator {
@@ -27,6 +28,7 @@ impl CxlStoreAllocator {
             allocated_bytes: 0,
             next_block_id: 1,
             blocks: HashMap::new(),
+            raw_buffers: HashMap::new(),
         }
     }
 
@@ -37,7 +39,9 @@ impl CxlStoreAllocator {
 
         let block_id = self.next_block_id;
         self.next_block_id += 1;
-        let phys_ptr = 0xC000_0000_0000 + (block_id * self.block_size_bytes) as u64;
+
+        let mut raw_buf = vec![0u8; self.block_size_bytes];
+        let phys_ptr = raw_buf.as_mut_ptr() as u64;
 
         let block = CxlStoreBlock {
             block_id,
@@ -47,11 +51,13 @@ impl CxlStoreAllocator {
         };
 
         self.allocated_bytes += self.block_size_bytes;
+        self.raw_buffers.insert(block_id, raw_buf);
         self.blocks.insert(block_id, block.clone());
         Ok(block)
     }
 
     pub fn free_block(&mut self, block_id: usize) -> bool {
+        self.raw_buffers.remove(&block_id);
         if let Some(block) = self.blocks.remove(&block_id) {
             self.allocated_bytes = self.allocated_bytes.saturating_sub(block.size_bytes);
             true
