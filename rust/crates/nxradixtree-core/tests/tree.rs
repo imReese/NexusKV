@@ -224,3 +224,24 @@ fn page_identity_participates_in_key_stability() {
 
     assert!(tree.lookup(&query_key(other_page_key)).is_none());
 }
+
+#[test]
+fn agentic_multi_branch_cow_fork() {
+    let mut tree = RadixTree::default();
+    let rkey = reuse_key(base_key("agent", "tot-llama-70b", &[100, 101, 102]));
+    tree.insert(
+        rkey.clone(),
+        base_entry(
+            "agent",
+            "tot-llama-70b",
+            &[100, 101, 102],
+            "agent-branch-base",
+        ),
+    );
+
+    let branch = tree
+        .fork_branch(&rkey, "branch-agent-01")
+        .expect("fork branch");
+    assert_eq!(branch.branch_id(), "branch-agent-01");
+    assert_eq!(tree.stats().active_cow_branches, 1);
+}

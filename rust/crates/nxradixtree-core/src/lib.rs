@@ -1,6 +1,8 @@
-//! nxradixtree core primitives.
+//! nxradixtree core primitives for high-performance concurrent prefix matching.
 
 use std::collections::HashMap;
+use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
 
 pub use nexus_state::{
     CacheEntry, CompatibilitySignal, EntryIdentity, EntryLocation, EntryVersion, KeyIdentity,
@@ -10,14 +12,14 @@ pub use nexus_state::{
 use nexus_state::{Granularity, TierKind};
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
-struct KeyScope {
-    tenant: String,
-    namespace: String,
-    model: String,
-    engine_family: nexus_state::EngineFamily,
-    semantic_type: nexus_state::StateSemanticType,
-    block_id: Option<u32>,
-    page_id: Option<u32>,
+pub struct KeyScope {
+    pub tenant: String,
+    pub namespace: String,
+    pub model: String,
+    pub engine_family: nexus_state::EngineFamily,
+    pub semantic_type: nexus_state::StateSemanticType,
+    pub block_id: Option<u32>,
+    pub page_id: Option<u32>,
 }
 
 impl From<&KeyIdentity> for KeyScope {
@@ -61,44 +63,101 @@ pub fn partial_hit_plan_from_match(hit: &nexus_state::MatchResult) -> PartialHit
     }
 }
 
-#[derive(Debug, Default)]
-struct Node {
-    children: HashMap<u32, Node>,
+#[derive(Clone, Debug, Default)]
+struct RadixNode {
+    children: HashMap<u32, Arc<RadixNode>>,
     terminal_entry: Option<CacheEntry>,
 }
 
 #[derive(Debug, Default)]
+pub struct RadixTreeStats {
+    pub total_lookups: u64,
+    pub total_inserts: u64,
+    pub exact_hits: u64,
+    pub active_cow_branches: u64,
+}
+
+#[derive(Debug)]
 pub struct RadixTree {
-    scopes: HashMap<KeyScope, Node>,
+    scopes: HashMap<KeyScope, Arc<RadixNode>>,
+    total_lookups: AtomicU64,
+    total_inserts: AtomicU64,
+    exact_hits: AtomicU64,
+    active_cow_branches: AtomicU64,
+}
+
+impl Default for RadixTree {
+    fn default() -> Self {
+        Self {
+            scopes: HashMap::new(),
+            total_lookups: AtomicU64::new(0),
+            total_inserts: AtomicU64::new(0),
+            exact_hits: AtomicU64::new(0),
+            active_cow_branches: AtomicU64::new(0),
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+#[allow(dead_code)]
+pub struct RadixTreeBranch {
+    branch_id: String,
+    root_scope: KeyScope,
+    node: Arc<RadixNode>,
 }
 
 impl RadixTree {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
     pub fn insert(&mut self, key: ReuseKey, entry: CacheEntry) {
+        self.total_inserts.fetch_add(1, Ordering::Relaxed);
         let scope = KeyScope::from(&key.identity);
-        let mut node = self.scopes.entry(scope).or_default();
+        let root = self.scopes.entry(scope).or_default();
+        let mut curr = Arc::make_mut(root);
+
         for token in &key.identity.tokens {
-            node = node.children.entry(*token).or_default();
+            let child = curr.children.entry(*token).or_default();
+            curr = Arc::make_mut(child);
         }
-        node.terminal_entry = Some(entry);
+        curr.terminal_entry = Some(entry);
+    }
+
+    pub fn fork_branch(&self, key: &ReuseKey, branch_id: &str) -> Option<RadixTreeBranch> {
+        let scope = KeyScope::from(&key.identity);
+        let root = self.scopes.get(&scope)?;
+        self.active_cow_branches.fetch_add(1, Ordering::Relaxed);
+
+        Some(RadixTreeBranch {
+            branch_id: branch_id.to_string(),
+            root_scope: scope,
+            node: Arc::clone(root),
+        })
     }
 
     pub fn lookup(&self, query: &QueryKey) -> Option<nexus_state::MatchResult> {
+        self.total_lookups.fetch_add(1, Ordering::Relaxed);
         let scope = KeyScope::from(&query.identity);
-        let mut node = self.scopes.get(&scope)?;
+        let mut curr = self.scopes.get(&scope)?;
         let mut best_entry: Option<(usize, CacheEntry)> = None;
 
         for (index, token) in query.identity.tokens.iter().enumerate() {
-            let Some(child) = node.children.get(token) else {
+            let Some(child) = curr.children.get(token) else {
                 break;
             };
-            node = child;
-            if let Some(entry) = node.terminal_entry.as_ref() {
+            curr = child;
+            if let Some(entry) = curr.terminal_entry.as_ref() {
                 best_entry = Some((index + 1, entry.clone()));
             }
         }
 
         let (matched_units, entry) = best_entry?;
         let classification = classify_match(query.identity.tokens.len(), matched_units);
+
+        if classification == MatchClassification::Exact {
+            self.exact_hits.fetch_add(1, Ordering::Relaxed);
+        }
 
         Some(nexus_state::MatchResult {
             classification,
@@ -125,6 +184,25 @@ impl RadixTree {
     pub fn plan_partial_hit(&self, query: &QueryKey) -> Option<PartialHitPlan> {
         self.lookup(query)
             .map(|hit| partial_hit_plan_from_match(&hit))
+    }
+
+    pub fn stats(&self) -> RadixTreeStats {
+        RadixTreeStats {
+            total_lookups: self.total_lookups.load(Ordering::Relaxed),
+            total_inserts: self.total_inserts.load(Ordering::Relaxed),
+            exact_hits: self.exact_hits.load(Ordering::Relaxed),
+            active_cow_branches: self.active_cow_branches.load(Ordering::Relaxed),
+        }
+    }
+}
+
+impl RadixTreeBranch {
+    pub fn branch_id(&self) -> &str {
+        &self.branch_id
+    }
+
+    pub fn root_scope(&self) -> &KeyScope {
+        &self.root_scope
     }
 }
 
