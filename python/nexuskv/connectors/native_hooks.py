@@ -24,6 +24,7 @@ from nexuskv.execution.types import (
     TargetTier,
     TransferMode,
 )
+from nexuskv.logger import logger
 from nexuskv.planner import RustPlanner
 
 
@@ -97,6 +98,7 @@ class NativeEngineHookInterceptor:
         hook: str,
         reason: str,
     ) -> LifecycleDecision:
+        logger.warning("NexusKV hook %s triggered fail-open fallback: %s", hook, reason)
         dummy_dec = MaterializationDecision(
             disposition=ExecutionDisposition.RECOMPUTE,
             source=SourceTier(tier=None),
