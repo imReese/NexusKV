@@ -6,14 +6,35 @@ import (
 	"sort"
 	"strconv"
 	"sync"
+	"sync/atomic"
 )
+
+type NodeStatus string
+
+const (
+	NodeHealthy  NodeStatus = "healthy"
+	NodeDegraded NodeStatus = "degraded"
+	NodeOffline  NodeStatus = "offline"
+)
+
+type MigrationPlan struct {
+	SourceNode string
+	TargetNode string
+	KeyRange   uint32
+}
+
+type NodeMetrics struct {
+	TotalRequests uint64
+	ActiveKeys    uint64
+	Status        NodeStatus
+}
 
 type ConsistentHashRing struct {
 	mu           sync.RWMutex
 	virtualNodes int
 	ring         []uint32
 	nodeMap      map[uint32]string
-	nodes        map[string]bool
+	nodes        map[string]*NodeMetrics
 }
 
 func NewConsistentHashRing(virtualNodes int) *ConsistentHashRing {
@@ -23,7 +44,7 @@ func NewConsistentHashRing(virtualNodes int) *ConsistentHashRing {
 	return &ConsistentHashRing{
 		virtualNodes: virtualNodes,
 		nodeMap:      make(map[uint32]string),
-		nodes:        make(map[string]bool),
+		nodes:        make(map[string]*NodeMetrics),
 	}
 }
 
@@ -37,10 +58,11 @@ func (c *ConsistentHashRing) AddNode(node string) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	if c.nodes[node] {
+	if metrics, exists := c.nodes[node]; exists {
+		metrics.Status = NodeHealthy
 		return
 	}
-	c.nodes[node] = true
+	c.nodes[node] = &NodeMetrics{Status: NodeHealthy}
 
 	for i := 0; i < c.virtualNodes; i++ {
 		vKey := node + "#" + strconv.Itoa(i)
@@ -53,11 +75,43 @@ func (c *ConsistentHashRing) AddNode(node string) {
 	})
 }
 
+func (c *ConsistentHashRing) SetNodeStatus(node string, status NodeStatus) []MigrationPlan {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	var plans []MigrationPlan
+	metrics, exists := c.nodes[node]
+	if !exists {
+		return plans
+	}
+
+	oldStatus := metrics.Status
+	metrics.Status = status
+
+	if status == NodeOffline && oldStatus != NodeOffline {
+		// Generate failover migration plan for offline node
+		for _, vHash := range c.ring {
+			if c.nodeMap[vHash] == node {
+				nextHealthy := c.findNextHealthyNodeUnlocked(vHash)
+				if nextHealthy != "" && nextHealthy != node {
+					plans = append(plans, MigrationPlan{
+						SourceNode: node,
+						TargetNode: nextHealthy,
+						KeyRange:   vHash,
+					})
+				}
+			}
+		}
+	}
+
+	return plans
+}
+
 func (c *ConsistentHashRing) RemoveNode(node string) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	if !c.nodes[node] {
+	if _, exists := c.nodes[node]; !exists {
 		return
 	}
 	delete(c.nodes, node)
@@ -94,5 +148,56 @@ func (c *ConsistentHashRing) GetNode(key string) (string, error) {
 		idx = 0
 	}
 
-	return c.nodeMap[c.ring[idx]], nil
+	startIdx := idx
+	for {
+		targetNode := c.nodeMap[c.ring[idx]]
+		metrics, ok := c.nodes[targetNode]
+		if ok && metrics.Status != NodeOffline {
+			atomic.AddUint64(&metrics.TotalRequests, 1)
+			return targetNode, nil
+		}
+
+		idx = (idx + 1) % len(c.ring)
+		if idx == startIdx {
+			break
+		}
+	}
+
+	return "", fmt.Errorf("no healthy worker nodes available in hash ring")
+}
+
+func (c *ConsistentHashRing) findNextHealthyNodeUnlocked(startHash uint32) string {
+	idx := sort.Search(len(c.ring), func(i int) bool {
+		return c.ring[i] > startHash
+	})
+	if idx == len(c.ring) {
+		idx = 0
+	}
+
+	startIdx := idx
+	for {
+		targetNode := c.nodeMap[c.ring[idx]]
+		metrics, ok := c.nodes[targetNode]
+		if ok && metrics.Status != NodeOffline {
+			return targetNode
+		}
+		idx = (idx + 1) % len(c.ring)
+		if idx == startIdx {
+			break
+		}
+	}
+	return ""
+}
+
+func (c *ConsistentHashRing) GetActiveNodeCount() int {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+
+	count := 0
+	for _, metrics := range c.nodes {
+		if metrics.Status != NodeOffline {
+			count++
+		}
+	}
+	return count
 }
