@@ -13,6 +13,7 @@ RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o nexuskv-server ./cmd/s
 # ==============================================================================
 FROM rust:slim AS rust-builder
 WORKDIR /app
+RUN apt-get update && apt-get install -y --no-install-recommends python3 python3-dev && rm -rf /var/lib/apt/lists/*
 COPY rust/ ./rust/
 WORKDIR /app/rust
 RUN cargo build --release -p bindings-py
