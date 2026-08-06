@@ -9,7 +9,6 @@
 #endif
 
 #include <atomic>
-#include <new>
 #include <thread>
 #include <type_traits>
 #include <vector>
@@ -23,7 +22,7 @@ struct AsyncTask {
     AsyncTask() : callback(nullptr), user_data(nullptr), valid(false) {}
 };
 
-// C++20 Cache-Line Interferences Alignment Size (128B on ARM64 Apple M-series, 64B on x86)
+// Standardized C++17 Cache-Line Alignment Probe (128B on ARM64 Apple M-series, 64B on x86-64)
 #if defined(__cpp_lib_hardware_interference_size)
 constexpr size_t kCacheLineSize = std::hardware_destructive_interference_size;
 #elif defined(__arm64__) || defined(__aarch64__)
@@ -32,12 +31,12 @@ constexpr size_t kCacheLineSize = 128;
 constexpr size_t kCacheLineSize = 64;
 #endif
 
-// Modern C++20 High-Performance Atomic Lock-Free MPMC Ring Buffer
+// Production-Grade C++17 High-Performance Atomic Lock-Free MPMC Ring Buffer
 template <typename T, size_t Capacity>
-#if __cplusplus >= 202002L
-    requires std::is_move_constructible_v<T>
-#endif
 class LockFreeMPMCRingBuffer {
+    static_assert(std::is_move_constructible<T>::value,
+                  "T must be move constructible in LockFreeMPMCRingBuffer");
+
    private:
     struct Node {
         T data;
@@ -105,7 +104,7 @@ struct NexusKVClient {
     int control_port;
     bool is_connected;
 
-    // Background Modern C++20 Lock-Free Worker Thread Pool
+    // Background Lock-Free Worker Thread Pool
     std::thread worker_thread;
     LockFreeMPMCRingBuffer<AsyncTask, 1024> lockfree_ring;
     std::atomic<bool> stop_worker;
@@ -150,7 +149,7 @@ extern "C" NexusKVClient* nexuskv_client_create(const char* server_addr, int con
     client->is_connected = true;
     client->stop_worker.store(false, std::memory_order_relaxed);
 
-    // Launch background C++20 lock-free worker thread
+    // Launch background worker thread
     client->worker_thread = std::thread(worker_thread_loop, client);
 
     return client;
