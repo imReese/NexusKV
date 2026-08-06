@@ -1,6 +1,7 @@
 #ifndef NEXUSKV_HAL_H
 #define NEXUSKV_HAL_H
 
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 
@@ -38,6 +39,19 @@ typedef enum {
 } NexusKVHalStatus;
 
 typedef struct {
+    NexusKVHardwareVendor vendor;
+    NexusKVMicroArch micro_arch;
+
+    // Fine-grained hardware SKU resource profiling
+    size_t total_global_mem_bytes;  // Total HBM / GDDR / Unified Memory (e.g., 80GB / 141GB / 48GB)
+    size_t memory_bandwidth_gbps;   // HBM/GDDR Bandwidth in GB/s (e.g., 3.35TB/s vs 4.8TB/s)
+    uint32_t sm_count;              // Multiprocessor SM Count (e.g., 132 vs 114)
+    bool has_nvlink;                // NVLink Interconnect Availability (SXM5 vs PCIe)
+    uint32_t nvlink_bandwidth_gbps;  // Interconnect Bandwidth in GB/s (e.g., 900GB/s vs 128GB/s)
+    bool is_unified_memory;          // UMA vs NUMA Discrete (e.g., Apple Silicon vs Discrete GPU)
+} NexusKVDeviceCapabilities;
+
+typedef struct {
     uint64_t handle_id;
     uint64_t physical_addr;
     size_t size_bytes;
@@ -47,9 +61,10 @@ typedef struct {
     uint8_t raw_handle_bytes[256];
 } NexusKVUnifiedMemHandle;
 
-// Hardware probe API
+// Hardware probe & SKU profiling API
 NexusKVHardwareVendor nexuskv_hal_detect_vendor(int device_id);
 NexusKVMicroArch nexuskv_hal_detect_microarch(int device_id);
+NexusKVHalStatus nexuskv_hal_get_device_caps(int device_id, NexusKVDeviceCapabilities* out_caps);
 
 // Unified HAL API
 NexusKVHalStatus nexuskv_hal_register_mem(uint64_t handle_id, void* ptr, size_t size_bytes,

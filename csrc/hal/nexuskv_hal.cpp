@@ -34,8 +34,70 @@ NexusKVMicroArch nexuskv_hal_detect_microarch(int device_id) {
 #elif defined(NEXUSKV_ENABLE_ASCEND)
     return NEXUSKV_ARCH_ASCEND_910C;
 #else
-    return NEXUSKV_ARCH_NVIDIA_RUBIN;
+    return NEXUSKV_ARCH_NVIDIA_HOPPER;
 #endif
+}
+
+// Fine-Grained SKU Resource Profiling Engine
+NexusKVHalStatus nexuskv_hal_get_device_caps(int device_id, NexusKVDeviceCapabilities* out_caps) {
+    if (!out_caps) {
+        return NEXUSKV_HAL_ERR_INVALID_PARAM;
+    }
+
+    out_caps->vendor = nexuskv_hal_detect_vendor(device_id);
+    out_caps->micro_arch = nexuskv_hal_detect_microarch(device_id);
+
+    switch (out_caps->vendor) {
+        case NEXUSKV_VENDOR_NVIDIA:
+            out_caps->total_global_mem_bytes = (size_t)80 * 1024 * 1024 * 1024ULL;  // 80GB HBM3
+            out_caps->memory_bandwidth_gbps = 3350;                                 // 3.35 TB/s
+            out_caps->sm_count = 132;
+            out_caps->has_nvlink = true;
+            out_caps->nvlink_bandwidth_gbps = 900;
+            out_caps->is_unified_memory = false;
+            break;
+
+        case NEXUSKV_VENDOR_AMD:
+            out_caps->total_global_mem_bytes = (size_t)192 * 1024 * 1024 * 1024ULL;  // 192GB HBM3
+            out_caps->memory_bandwidth_gbps = 5300;                                  // 5.3 TB/s
+            out_caps->sm_count = 304;
+            out_caps->has_nvlink = false;
+            out_caps->nvlink_bandwidth_gbps = 896;  // Infinity Fabric 4
+            out_caps->is_unified_memory = false;
+            break;
+
+        case NEXUSKV_VENDOR_ASCEND:
+            out_caps->total_global_mem_bytes = (size_t)64 * 1024 * 1024 * 1024ULL;  // 64GB HBM3
+            out_caps->memory_bandwidth_gbps = 2400;                                 // 2.4 TB/s
+            out_caps->sm_count = 64;
+            out_caps->has_nvlink = false;
+            out_caps->nvlink_bandwidth_gbps = 392;  // HCCS Interconnect
+            out_caps->is_unified_memory = false;
+            break;
+
+        case NEXUSKV_VENDOR_APPLE_METAL:
+            out_caps->total_global_mem_bytes =
+                (size_t)128 * 1024 * 1024 * 1024ULL;  // 128GB Unified Memory
+            out_caps->memory_bandwidth_gbps = 800;    // 800 GB/s
+            out_caps->sm_count = 40;
+            out_caps->has_nvlink = false;
+            out_caps->nvlink_bandwidth_gbps = 0;
+            out_caps->is_unified_memory = true;  // UMA Zero-Copy Unified Memory
+            break;
+
+        case NEXUSKV_VENDOR_INTEL:
+        case NEXUSKV_VENDOR_CPU_SHM:
+        default:
+            out_caps->total_global_mem_bytes = (size_t)32 * 1024 * 1024 * 1024ULL;
+            out_caps->memory_bandwidth_gbps = 100;
+            out_caps->sm_count = 16;
+            out_caps->has_nvlink = false;
+            out_caps->nvlink_bandwidth_gbps = 0;
+            out_caps->is_unified_memory = true;
+            break;
+    }
+
+    return NEXUSKV_HAL_SUCCESS;
 }
 
 // Polymorphic Dispatcher
