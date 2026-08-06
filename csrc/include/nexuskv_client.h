@@ -9,6 +9,8 @@
 #include <unordered_map>
 #include <vector>
 
+#include "nexuskv_hal.h"
+
 namespace nexuskv {
 
 enum class ReuseDisposition { FULL_HIT, PARTIAL_HIT, MISS, BYPASS };
