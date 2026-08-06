@@ -1,7 +1,7 @@
 # ==============================================================================
 # Stage 1: Build Go Controlplane Binary
 # ==============================================================================
-FROM golang:1.24-alpine AS go-builder
+FROM golang:alpine AS go-builder
 WORKDIR /app
 COPY go.mod go.sum ./
 RUN go mod download
@@ -11,7 +11,7 @@ RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o nexuskv-server ./cmd/s
 # ==============================================================================
 # Stage 2: Build Rust Native Planner FFI Extension
 # ==============================================================================
-FROM rust:1.80-slim AS rust-builder
+FROM rust:slim AS rust-builder
 WORKDIR /app
 COPY rust/ ./rust/
 WORKDIR /app/rust
