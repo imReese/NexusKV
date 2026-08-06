@@ -5,6 +5,7 @@ edition = "2024"
 
 [dependencies]
 nexus-state = { path = "../nexus-state" }
+tracing = "0.1"
 
 [lib]
 path = "src/lib.rs"

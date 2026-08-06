@@ -7,3 +7,6 @@ license = "MIT"
 
 [lib]
 path = "src/lib.rs"
+
+[dependencies]
+tracing = "0.1"

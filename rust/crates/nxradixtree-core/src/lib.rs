@@ -128,6 +128,7 @@ impl RadixTree {
         let scope = KeyScope::from(&key.identity);
         let root = self.scopes.get(&scope)?;
         self.active_cow_branches.fetch_add(1, Ordering::Relaxed);
+        tracing::debug!(branch_id = %branch_id, "Forked CoW RadixTree branch");
 
         Some(RadixTreeBranch {
             branch_id: branch_id.to_string(),
