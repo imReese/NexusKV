@@ -5,6 +5,7 @@ use std::error::Error;
 use std::fmt::{Display, Formatter};
 use std::hash::{Hash, Hasher};
 
+pub mod block_allocator;
 pub mod cxl;
 pub mod hbm;
 
