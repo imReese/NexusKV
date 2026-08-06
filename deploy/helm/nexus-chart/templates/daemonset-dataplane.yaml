@@ -1,0 +1,59 @@
+{{- if .Values.dataPlane.enabled }}
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: {{ include "nexus-chart.fullname" . }}-dataplane
+  labels:
+    app.kubernetes.io/name: {{ include "nexus-chart.name" . }}
+    app.kubernetes.io/component: dataplane
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "nexus-chart.name" . }}
+      app.kubernetes.io/component: dataplane
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ include "nexus-chart.name" . }}
+        app.kubernetes.io/component: dataplane
+    spec:
+      hostNetwork: {{ .Values.dataPlane.hostNetwork }}
+      hostIPC: {{ .Values.dataPlane.hostIPC }}
+      {{- if .Values.dataPlane.nodeSelector }}
+      nodeSelector:
+        {{- toYaml .Values.dataPlane.nodeSelector | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: dataplane
+          image: "{{ .Values.dataPlane.image.repository }}:{{ .Values.dataPlane.image.tag }}"
+          imagePullPolicy: {{ .Values.dataPlane.image.pullPolicy }}
+          securityContext:
+            privileged: true
+          env:
+            - name: NEXUSKV_LOG_LEVEL
+              value: {{ .Values.env.NEXUSKV_LOG_LEVEL | quote }}
+            - name: NEXUSKV_FAIL_OPEN_MODE
+              value: {{ .Values.env.NEXUSKV_FAIL_OPEN_MODE | quote }}
+            - name: NEXUSKV_GPU_DIRECT_RDMA
+              value: {{ .Values.env.NEXUSKV_GPU_DIRECT_RDMA | quote }}
+            - name: NEXUSKV_PREFERRED_NIC
+              value: {{ .Values.env.NEXUSKV_PREFERRED_NIC | quote }}
+          resources:
+            {{- toYaml .Values.dataPlane.resources | nindent 12 }}
+          volumeMounts:
+            - name: dshm
+              mountPath: /dev/shm
+            {{- if .Values.dataPlane.devices.infiniband }}
+            - name: infiniband
+              mountPath: /dev/infiniband
+            {{- end }}
+      volumes:
+        - name: dshm
+          hostPath:
+            path: /dev/shm
+        {{- if .Values.dataPlane.devices.infiniband }}
+        - name: infiniband
+          hostPath:
+            path: /dev/infiniband
+        {{- end }}
+{{- end }}

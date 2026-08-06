@@ -1,0 +1,66 @@
+# Default values for NexusKV Helm Chart
+
+global:
+  clusterName: nexuskv-cluster
+  namespace: default
+
+# Go Distributed Control Plane Configuration
+controlPlane:
+  replicaCount: 3
+  image:
+    repository: nexuskv/nexuskv-server
+    tag: "latest"
+    pullPolicy: IfNotPresent
+  ports:
+    grpc: 9090
+    metrics: 9091
+  persistence:
+    enabled: true
+    storageClass: ""
+    size: 10Gi
+  resources:
+    limits:
+      cpu: "4"
+      memory: 8Gi
+    requests:
+      cpu: "1"
+      memory: 2Gi
+
+# Rust Data Plane Configuration (DaemonSet on GPU/RDMA Nodes)
+dataPlane:
+  enabled: true
+  image:
+    repository: nexuskv/nexuskv-worker
+    tag: "latest"
+    pullPolicy: IfNotPresent
+  nodeSelector:
+    accelerator: nvidia-gpu
+  hostNetwork: true
+  hostIPC: true
+  devices:
+    infiniband: true
+    shm: true
+  resources:
+    limits:
+      cpu: "8"
+      memory: 16Gi
+      nvidia.com/gpu: "1"
+    requests:
+      cpu: "2"
+      memory: 4Gi
+      nvidia.com/gpu: "1"
+
+# Environment Variables
+env:
+  NEXUSKV_LOG_LEVEL: "INFO"
+  NEXUSKV_FAIL_OPEN_MODE: "true"
+  NEXUSKV_GPU_DIRECT_RDMA: "true"
+  NEXUSKV_PREFERRED_NIC: ""
+
+# Prometheus Metrics Monitoring
+metrics:
+  enabled: true
+  serviceMonitor:
+    enabled: true
+    interval: 15s
+    scrapeTimeout: 10s

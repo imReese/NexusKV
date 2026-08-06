@@ -1,0 +1,36 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "nexus-chart.fullname" . }}-controlplane
+  labels:
+    app.kubernetes.io/name: {{ include "nexus-chart.name" . }}
+    app.kubernetes.io/component: controlplane
+spec:
+  type: ClusterIP
+  ports:
+    - port: {{ .Values.controlPlane.ports.grpc }}
+      targetPort: grpc
+      name: grpc
+    - port: {{ .Values.controlPlane.ports.metrics }}
+      targetPort: metrics
+      name: metrics
+  selector:
+    app.kubernetes.io/name: {{ include "nexus-chart.name" . }}
+    app.kubernetes.io/component: controlplane
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "nexus-chart.fullname" . }}-controlplane-headless
+  labels:
+    app.kubernetes.io/name: {{ include "nexus-chart.name" . }}
+    app.kubernetes.io/component: controlplane
+spec:
+  clusterIP: None
+  ports:
+    - port: {{ .Values.controlPlane.ports.grpc }}
+      targetPort: grpc
+      name: grpc
+  selector:
+    app.kubernetes.io/name: {{ include "nexus-chart.name" . }}
+    app.kubernetes.io/component: controlplane

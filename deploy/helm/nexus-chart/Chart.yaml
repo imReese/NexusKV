@@ -1,0 +1,16 @@
+apiVersion: v2
+name: nexus-chart
+description: Helm chart for NexusKV - High-Performance Model-Aware KV Cache Engine for LLM Inference
+type: application
+version: 0.1.0
+appVersion: "1.0.0"
+keywords:
+  - nexuskv
+  - llm-inference
+  - kv-cache
+  - rdma
+  - cxl
+  - raft
+maintainers:
+  - name: NexusKV Team
+    email: dev@nexuskv.io

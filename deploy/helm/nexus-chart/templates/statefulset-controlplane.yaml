@@ -1,0 +1,55 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "nexus-chart.fullname" . }}-controlplane
+  labels:
+    app.kubernetes.io/name: {{ include "nexus-chart.name" . }}
+    app.kubernetes.io/component: controlplane
+spec:
+  serviceName: {{ include "nexus-chart.fullname" . }}-controlplane-headless
+  replicas: {{ .Values.controlPlane.replicaCount }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "nexus-chart.name" . }}
+      app.kubernetes.io/component: controlplane
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ include "nexus-chart.name" . }}
+        app.kubernetes.io/component: controlplane
+    spec:
+      containers:
+        - name: controlplane
+          image: "{{ .Values.controlPlane.image.repository }}:{{ .Values.controlPlane.image.tag }}"
+          imagePullPolicy: {{ .Values.controlPlane.image.pullPolicy }}
+          command: ["/usr/local/bin/nexuskv-server"]
+          env:
+            - name: NEXUSKV_LOG_LEVEL
+              value: {{ .Values.env.NEXUSKV_LOG_LEVEL | quote }}
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+          ports:
+            - name: grpc
+              containerPort: {{ .Values.controlPlane.ports.grpc }}
+            - name: metrics
+              containerPort: {{ .Values.controlPlane.ports.metrics }}
+          resources:
+            {{- toYaml .Values.controlPlane.resources | nindent 12 }}
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/nexuskv
+  {{- if .Values.controlPlane.persistence.enabled }}
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: [ "ReadWriteOnce" ]
+        {{- if .Values.controlPlane.persistence.storageClass }}
+        storageClassName: {{ .Values.controlPlane.persistence.storageClass | quote }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ .Values.controlPlane.persistence.size }}
+  {{- end }}
