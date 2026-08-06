@@ -143,4 +143,34 @@ class NexusKVClient {
 
 }  // namespace nexuskv
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+typedef void* nexuskv_client_t;
+
+inline nexuskv_client_t nexuskv_client_create(const char* control_plane_addr) {
+    std::string addr = control_plane_addr ? control_plane_addr : "127.0.0.1:9090";
+    return reinterpret_cast<nexuskv_client_t>(new nexuskv::NexusKVClient(addr));
+}
+
+inline void nexuskv_client_destroy(nexuskv_client_t client) {
+    if (client) {
+        delete reinterpret_cast<nexuskv::NexusKVClient*>(client);
+    }
+}
+
+inline void nexuskv_client_get_metrics(nexuskv_client_t client, uint64_t* out_requests,
+                                       uint64_t* out_hits) {
+    if (client) {
+        auto metrics = reinterpret_cast<nexuskv::NexusKVClient*>(client)->GetMetrics();
+        if (out_requests) *out_requests = metrics.total_routing_requests;
+        if (out_hits) *out_hits = metrics.total_cache_hits;
+    }
+}
+
+#ifdef __cplusplus
+}
+#endif
+
 #endif  // NEXUSKV_CLIENT_H
