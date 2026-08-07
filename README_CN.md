@@ -18,7 +18,7 @@
 
 ## 💡 什么是 NexusKV？
 
-**NexusKV** 是专为大语言模型（LLM）推理平台设计的**下一代通用模型状态智能与分布式内存基础设施层（Universal Model State Intelligence & Memory Fabric）**。
+**NexusKV** 是专为大语言模型（LLM）推理平台设计的**引擎无关通用模型状态智能与分布式内存基础设施层（Universal Model State Intelligence & Memory Fabric）**。
 
 NexusKV 的核心架构理念在于**三重解耦**：**引擎无关 (Engine-Agnostic)**、**模型架构无关 (Model-Agnostic)** 以及 **硬件无关 (Hardware-Agnostic)**。无论是主流开源推理引擎（如 vLLM、SGLang、TensorRT-LLM、LMDeploy、TGI）还是企业自研的 C++/Rust 推理引擎与 API 网关，均可通过统一的契约无缝接入。
 

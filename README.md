@@ -18,7 +18,7 @@
 
 ## 💡 What is NexusKV?
 
-**NexusKV** is a next-generation **Universal Model State Intelligence Layer & Distributed Memory Fabric** engineered for enterprise LLM inference platforms (supporting vLLM V2 Engine, SGLang Unified Radix Cache, TensorRT-LLM, LMDeploy, TGI, and custom C++/Rust inference runtimes).
+**NexusKV** is an engine-agnostic **Universal Model State Intelligence Layer & Distributed Memory Fabric** engineered for enterprise LLM inference platforms (supporting vLLM V2 Engine, SGLang Unified Radix Cache, TensorRT-LLM, LMDeploy, TGI, and custom C++/Rust inference runtimes).
 
 NexusKV operates on three foundational decoupling principles: **Engine-Agnostic**, **Model-Agnostic**, and **Hardware-Agnostic**. 
 
