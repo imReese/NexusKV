@@ -23,7 +23,7 @@ interface AttentionStateDescriptor {
 
 ---
 
-## 2. 8 Modern Attention & Recurrent State Descriptors
+## 2. Modern Attention & Recurrent State Descriptors
 
 ### 1. MHA / GQA / MQA (Standard Attention)
 Applies to LLaMA-3, Qwen-2.5, Mistral, and standard Transformer architectures.

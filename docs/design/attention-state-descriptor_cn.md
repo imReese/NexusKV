@@ -23,7 +23,7 @@ interface AttentionStateDescriptor {
 
 ---
 
-## 2. 8 大现代注意力与循环状态描述符定义
+## 2. 现代注意力与循环状态描述符定义
 
 ### 1. MHA / GQA / MQA (标准注意力机制)
 适用于 LLaMA-3、Qwen-2.5、Mistral 等传统 Transformer 架构。
