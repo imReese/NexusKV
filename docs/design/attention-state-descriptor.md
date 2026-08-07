@@ -83,12 +83,12 @@ Applies to Agent reasoning chains, Tree-of-Thought, and MCTS multi-path explorat
 | State Descriptor | Physical Storage Granularity | Transport Path | Effective Gain Evaluation |
 | :--- | :--- | :--- | :--- |
 | **MHA / GQA** | Paged Block ($S_{\text{page}}=16$) | POSIX SHM / Direct RDMA | $G = T_{\text{compute}} - T_{\text{cache}} > 0$ |
-| **DeepSeek MLA** | Latent Page ($c_t^{KV} + k_t^R$) | Zero-Copy RDMA Descriptors | $G = T_{\text{prefill\_mla}} - T_{\text{rdma\_latent}}$ |
-| **DeepSeek DSA** | Sparse Mask Block | On-Demand Block Pull | $G = T_{\text{sparse\_compute}} - T_{\text{sparse\_pull}}$ |
-| **Kimi KDA** | Checkpoint Segment | Direct SHM Pointer | $G = T_{\text{recurrent\_recompute}} - T_{\text{h\_t\_load}}$ |
-| **SSM Mamba2** | State Snapshot ($O(1)$) | Fast IPC Handle | $G = T_{\text{ssm\_scan}} - T_{\text{snapshot\_load}}$ |
-| **Multimodal Vision**| Spatio-Temporal Tensor | Pinned Memory Pool | $G = T_{\text{vision\_encode}} - T_{\text{vision\_cache}}$ |
-| **Agentic ToT** | CoW Radix Branch | $O(1)$ Page Pointer Reuse | $G = T_{\text{branch\_recompute}} - 0$ ($O(1)$ Hit) |
+| **DeepSeek MLA** | Latent Page ($c_t^{KV} + k_t^R$) | Zero-Copy RDMA Descriptors | $G = T_{\text{prefill-mla}} - T_{\text{rdma-latent}}$ |
+| **DeepSeek DSA** | Sparse Mask Block | On-Demand Block Pull | $G = T_{\text{sparse-compute}} - T_{\text{sparse-pull}}$ |
+| **Kimi KDA** | Checkpoint Segment | Direct SHM Pointer | $G = T_{\text{recurrent-recompute}} - T_{\text{h-t-load}}$ |
+| **SSM Mamba2** | State Snapshot ($O(1)$) | Fast IPC Handle | $G = T_{\text{ssm-scan}} - T_{\text{snapshot-load}}$ |
+| **Multimodal Vision**| Spatio-Temporal Tensor | Pinned Memory Pool | $G = T_{\text{vision-encode}} - T_{\text{vision-cache}}$ |
+| **Agentic ToT** | CoW Radix Branch | $O(1)$ Page Pointer Reuse | $G = T_{\text{branch-recompute}} - 0$ ($O(1)$ Hit) |
 
 ---
 

@@ -36,7 +36,7 @@ $$\delta_{\text{bytes}} = 2 \times S_{\text{page}} \times \left( \frac{H}{N_{\te
 ### Pipeline Parallelism (PP)
 To defeat rank divergence in Pipeline Parallelism ($N_{\text{PP}} > 1$), Stage 0 (Pipeline Leader) executes a pre-forward Phase-0 handshake probe across all ranks $k \in [0, N_{\text{PP}}-1]$ to compute the **Global Minimum Common Prefix**:
 
-$$L_{\text{common}} = \min_{k \in [0, N_{\text{PP}}-1]} \left( \text{Matched\_Tokens}_k \right)$$
+$$L_{\text{common}} = \min_{k \in [0, N_{\text{PP}}-1]} \left( \text{Matched-Tokens}_k \right)$$
 
 The KV Cache page table generation $\mathcal{G}(L_{\text{common}})$ is locked via an atomic in-flight reference counter:
 
