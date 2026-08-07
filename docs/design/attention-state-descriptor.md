@@ -1,7 +1,5 @@
 # 📐 Attention State Descriptor Specification
 
-**Version**: v1.2.0 | **Status**: Production Specification
-
 In modern Large Language Models (LLM), Vision-Language Models (VLM/DiT), and State Space Models (SSM/Mamba), inference intermediate state goes far beyond classic Multi-Head Attention Key/Value tensor pairs. **NexusKV** introduces a unified **Attention State Descriptor Contract** as the stable, strongly-typed interface shared across the Rust storage core, Go control plane, and Python engine connectors.
 
 ---

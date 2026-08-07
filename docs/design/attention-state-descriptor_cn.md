@@ -1,7 +1,5 @@
 # 📐 Attention 状态描述符规范 (Attention State Descriptor Specification)
 
-**版本**: v1.2.0 | **状态**: 生产级规范 (Production Spec)
-
 在现代大语言模型（LLM）、多模态模型（VLM/DiT）以及线性/循环状态模型（SSM/Mamba）中，推理中间状态已经远远超出了传统“MHA Key/Value 张量对”的简单范畴。**NexusKV** 引入了统一的 **Attention State Descriptor（注意力状态描述符契约）**，作为 Rust 存储内核、Go 控制面以及 Python 引擎 Hook 之间的无缝契约。
 
 ---
