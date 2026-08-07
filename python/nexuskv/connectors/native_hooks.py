@@ -23,10 +23,12 @@ from nexuskv.execution.types import (
     CapabilityCheckResult,
     ExecutionDisposition,
     ExecutionStepOutcome,
+    FallbackReason,
     MaterializationDecision,
     MaterializationOutcome,
     SourceTier,
     TargetTier,
+    TransferMode,
 )
 from nexuskv.logger import logger
 from nexuskv.planner import RustPlanner
@@ -212,30 +214,31 @@ class NativeEngineHookInterceptor:
         reason: str,
     ) -> LifecycleDecision:
         logger.warning(f"NexusKV hook {hook} triggered fail-open fallback: {reason}")
+        capability_check = CapabilityCheckResult(
+            supported=True,
+            degraded=True,
+            required_capability=None,
+            fallback_reason=None,
+            selected_backend=None,
+        )
         return LifecycleDecision(
             disposition=ExecutionDisposition.RECOMPUTE,
-            capability_result=CapabilityCheckResult(
-                supported=True,
-                degraded=True,
-                required_capability=None,
-                fallback_reason=None,
-                selected_backend=None,
-            ),
+            capability_result=capability_check,
             materialization_decision=MaterializationDecision(
-                should_materialize=False,
-                entry_ids=[],
-                source_tier=SourceTier(tier=None),
-                target_tier=TargetTier(tier=None),
+                disposition=ExecutionDisposition.RECOMPUTE,
+                source=SourceTier(tier=None),
+                target=TargetTier(tier=None),
+                transfer=TransferMode(selected_backend=None),
+                capability_check=capability_check,
+                fallback_reason=FallbackReason(reason=reason),
             ),
             materialization_result=MaterializationOutcome(
-                status=BackendActionStatus.FALLBACK,
-                step_outcomes=[
-                    ExecutionStepOutcome(
-                        action=BackendActionKind.RECOMPUTE,
-                        result=BackendActionResult.DEGRADED_FALLBACK,
-                        details={"fallback_reason": reason},
-                    )
-                ],
+                primary=ExecutionStepOutcome(
+                    action=BackendActionKind.RECOMPUTE,
+                    result=BackendActionResult.DEGRADED_FALLBACK,
+                    details={"fallback_reason": reason},
+                ),
+                prefetch=None,
             ),
         )
 
