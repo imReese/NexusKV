@@ -1,0 +1,141 @@
+@import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap');
+
+/* ==========================================================================
+   Catppuccin Palette & Clean High-Contrast Styling for Material for MkDocs
+   ========================================================================== */
+
+:root {
+  --md-font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --md-font-mono: 'Fira Code', monospace;
+}
+
+/* --------------------------------------------------------------------------
+   Catppuccin Latte (Light Mode)
+   -------------------------------------------------------------------------- */
+[data-md-color-scheme="default"] {
+  --md-default-bg-color: #eff1f5;
+  --md-default-bg-color--light: #e6e9ef;
+  --md-default-bg-color--lighter: #dce0e8;
+
+  --md-default-fg-color: #4c4f69;
+  --md-default-fg-color--light: #6c6f85;
+  --md-default-fg-color--lighter: #7c7f93;
+  --md-default-fg-color--lightest: #9ca0b0;
+
+  --md-primary-fg-color: #8839ef;
+  --md-primary-fg-color--light: #9a5cf7;
+  --md-primary-fg-color--dark: #722bd3;
+  --md-primary-bg-color: #eff1f5;
+
+  --md-accent-fg-color: #1e66f5;
+  --md-accent-bg-color: #dce0e8;
+
+  --md-code-bg-color: #e6e9ef;
+  --md-code-fg-color: #4c4f69;
+
+  --md-typeset-color: #4c4f69;
+  --md-typeset-a-color: #1e66f5;
+
+  --md-footer-bg-color: #e6e9ef;
+  --md-footer-bg-color--dark: #dce0e8;
+}
+
+/* --------------------------------------------------------------------------
+   Catppuccin Mocha (Dark Mode)
+   -------------------------------------------------------------------------- */
+[data-md-color-scheme="slate"] {
+  --md-default-bg-color: #1e1e2e;
+  --md-default-bg-color--light: #181825;
+  --md-default-bg-color--lighter: #11111b;
+
+  --md-default-fg-color: #cdd6f4;
+  --md-default-fg-color--light: #a6adc8;
+  --md-default-fg-color--lighter: #bac2de;
+  --md-default-fg-color--lightest: #45475a;
+
+  --md-primary-fg-color: #cba6f7;
+  --md-primary-fg-color--light: #dcbbf9;
+  --md-primary-fg-color--dark: #b48ead;
+  --md-primary-bg-color: #1e1e2e;
+
+  --md-accent-fg-color: #89b4fa;
+  --md-accent-bg-color: #313244;
+
+  --md-code-bg-color: #11111b;
+  --md-code-fg-color: #cdd6f4;
+
+  --md-typeset-color: #cdd6f4;
+  --md-typeset-a-color: #89b4fa;
+
+  --md-footer-bg-color: #181825;
+  --md-footer-bg-color--dark: #11111b;
+}
+
+/* ==========================================================================
+   Header, Tabs & Navigation Visibility Fix
+   ========================================================================== */
+
+.md-header {
+  background-color: var(--md-default-bg-color--light) !important;
+  color: var(--md-default-fg-color) !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+[data-md-color-scheme="default"] .md-header {
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.md-header__title,
+.md-header__topic,
+.md-header__button {
+  color: var(--md-default-fg-color) !important;
+}
+
+.md-tabs {
+  background-color: var(--md-default-bg-color) !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.md-tabs__link {
+  color: var(--md-default-fg-color--light) !important;
+  font-weight: 500;
+}
+
+.md-tabs__link:hover,
+.md-tabs__link--active {
+  color: var(--md-accent-fg-color) !important;
+  opacity: 1;
+}
+
+.md-nav__link {
+  color: var(--md-default-fg-color) !important;
+}
+
+.md-nav__link:hover,
+.md-nav__link--active {
+  color: var(--md-accent-fg-color) !important;
+}
+
+/* Search Input Styling */
+.md-search__form {
+  background-color: var(--md-default-bg-color) !important;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.md-search__input {
+  color: var(--md-default-fg-color) !important;
+}
+
+/* Code & Typography Enhancements */
+.md-typeset code {
+  font-family: var(--md-font-mono);
+  background-color: var(--md-code-bg-color) !important;
+  border-radius: 6px;
+  padding: 0.15em 0.4em;
+}
+
+.md-typeset pre > code {
+  border-radius: 8px;
+  padding: 1rem;
+}

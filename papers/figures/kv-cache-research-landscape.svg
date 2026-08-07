@@ -1,0 +1,68 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="720" viewBox="0 0 1200 720" role="img" aria-labelledby="title desc">
+  <title id="title">Model State Infrastructure system landscape</title>
+  <desc id="desc">A layered view of representative Inference Runtimes, scheduling, intelligence, middleware, storage, and transfer systems.</desc>
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L9,3 z" fill="#64748b"/>
+    </marker>
+    <style>
+      .title { font: 700 30px Arial, sans-serif; fill: #0f172a; }
+      .layer { font: 700 18px Arial, sans-serif; fill: #334155; }
+      .system { font: 700 17px Arial, sans-serif; fill: #0f172a; }
+      .detail { font: 15px Arial, sans-serif; fill: #475569; }
+      .band { fill: #f8fafc; stroke: #cbd5e1; stroke-width: 1.5; rx: 14; }
+      .box { fill: #ffffff; stroke: #64748b; stroke-width: 1.7; rx: 10; }
+      .proposal { fill: #eef2ff; stroke: #4f46e5; stroke-width: 2.5; rx: 10; }
+      .flow { stroke: #64748b; stroke-width: 2; stroke-dasharray: 6 6; marker-end: url(#arrow); }
+    </style>
+  </defs>
+
+  <rect width="1200" height="720" fill="#ffffff"/>
+  <text class="title" x="600" y="46" text-anchor="middle">Model State Infrastructure Landscape</text>
+
+  <rect class="band" x="155" y="75" width="990" height="100"/>
+  <text class="layer" x="30" y="130">Inference Runtime</text>
+  <rect class="box" x="205" y="98" width="240" height="55"/>
+  <text class="system" x="325" y="132" text-anchor="middle">vLLM</text>
+  <rect class="box" x="505" y="98" width="240" height="55"/>
+  <text class="system" x="625" y="132" text-anchor="middle">SGLang</text>
+  <rect class="box" x="805" y="98" width="240" height="55"/>
+  <text class="system" x="925" y="132" text-anchor="middle">TensorRT-LLM</text>
+
+  <rect class="band" x="155" y="190" width="990" height="85"/>
+  <text class="layer" x="30" y="238">Scheduling</text>
+  <rect class="box" x="330" y="208" width="540" height="50"/>
+  <text class="system" x="600" y="239" text-anchor="middle">Dynamo KV-aware routing and Inference Runtime schedulers</text>
+
+  <rect class="band" x="155" y="290" width="990" height="95"/>
+  <text class="layer" x="30" y="330">Intelligence</text>
+  <text class="layer" x="30" y="352">Layer</text>
+  <rect class="proposal" x="330" y="310" width="540" height="55"/>
+  <text class="system" x="600" y="336" text-anchor="middle">NexusKV (proposed)</text>
+  <text class="detail" x="600" y="356" text-anchor="middle">semantic compatibility + cost-based decisions</text>
+
+  <rect class="band" x="155" y="400" width="990" height="100"/>
+  <text class="layer" x="30" y="442">Middleware</text>
+  <text class="layer" x="30" y="464">+ hierarchy</text>
+  <rect class="box" x="270" y="423" width="285" height="55"/>
+  <text class="system" x="412" y="456" text-anchor="middle">SGLang HiCache</text>
+  <rect class="box" x="645" y="423" width="285" height="55"/>
+  <text class="system" x="787" y="456" text-anchor="middle">LMCache</text>
+
+  <rect class="band" x="155" y="515" width="990" height="80"/>
+  <text class="layer" x="30" y="561">Storage</text>
+  <rect class="box" x="270" y="530" width="285" height="50"/>
+  <text class="system" x="412" y="561" text-anchor="middle">Mooncake Store</text>
+  <rect class="box" x="645" y="530" width="285" height="50"/>
+  <text class="system" x="787" y="561" text-anchor="middle">InfiniStore</text>
+
+  <rect class="band" x="155" y="610" width="990" height="75"/>
+  <text class="layer" x="30" y="653">Transfer</text>
+  <rect class="box" x="270" y="623" width="285" height="48"/>
+  <text class="system" x="412" y="653" text-anchor="middle">NIXL</text>
+  <rect class="box" x="645" y="623" width="285" height="48"/>
+  <text class="system" x="787" y="653" text-anchor="middle">Mooncake Transfer Engine</text>
+
+  <line class="flow" x1="1120" y1="153" x2="1120" y2="600"/>
+  <text class="detail" x="1098" y="382" text-anchor="middle" transform="rotate(-90 1098 382)">composed capabilities</text>
+</svg>

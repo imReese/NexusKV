@@ -1,0 +1,1213 @@
+
+<!doctype html>
+<html lang="zh" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Enterprise Engine-Agnostic Distributed KV Cache & Attention State Fabric">
+      
+      
+      
+        <link rel="canonical" href="https://imReese.github.io/NexusKV/design/attention-state-descriptor/">
+      
+      
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>📐 Attention State Descriptor Specification - NexusKV</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../stylesheets/catppuccin.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="slate" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#attention-state-descriptor-specification" class="md-skip">
+          跳转至
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow md-header--lifted" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="页眉">
+    <a href="../.." title="NexusKV" class="md-header__button md-logo" aria-label="NexusKV" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            NexusKV
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              📐 Attention State Descriptor Specification
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="slate" data-md-color-accent="indigo"  aria-label="切换至 Catppuccin Mocha (暗黑)"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="切换至 Catppuccin Mocha (暗黑)" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="slate" data-md-color-accent="indigo"  aria-label="切换至 Catppuccin Latte (亮色)"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="切换至 Catppuccin Latte (亮色)" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="搜索" placeholder="搜索" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="查找">
+        
+        <button type="reset" class="md-search__icon md-icon" title="清空当前内容" aria-label="清空当前内容" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            正在初始化搜索引擎
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/imReese/NexusKV" title="前往仓库" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    imReese/NexusKV
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+    
+      
+<nav class="md-tabs" aria-label="标签" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../.." class="md-tabs__link">
+        
+  
+  
+    
+  
+  首页
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../quickstart_cn/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  快速开始
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../architecture_cn/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  系统架构
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../papers/beyond-kv-cache_cn/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  技术白皮书 & 论文
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../roadmap_cn/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  路线图
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+    
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="导航栏" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="NexusKV" class="md-nav__button md-logo" aria-label="NexusKV" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    NexusKV
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/imReese/NexusKV" title="前往仓库" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    imReese/NexusKV
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    首页
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    快速开始
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    快速开始
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../quickstart_cn/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    快速开始 (中文)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../quickstart/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Quickstart (English)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    系统架构
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    系统架构
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture_cn/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    架构全景指南
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    技术白皮书 & 论文
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    技术白皮书 & 论文
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../papers/beyond-kv-cache_cn/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Beyond KV-Cache (中文白皮书)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../papers/beyond-kv-cache/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Beyond KV-Cache (English Paper)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    路线图
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    路线图
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../roadmap_cn/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    2026-2028 路线图 (中文)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../roadmap/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    2026-2028 Roadmap (English)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="目录">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      目录
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#1-core-contract-fields" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Core Contract Fields
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-8-modern-attention-recurrent-state-descriptors" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. 8 Modern Attention &amp; Recurrent State Descriptors
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2. 8 Modern Attention &amp; Recurrent State Descriptors">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-mha-gqa-mqa-standard-attention" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. MHA / GQA / MQA (Standard Attention)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-deepseek-mla-multi-head-latent-attention" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. DeepSeek MLA (Multi-Head Latent Attention)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-deepseek-dsa-deepseek-sparse-attention" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. DeepSeek DSA (DeepSeek Sparse Attention)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4-kimi-kda-delta-attention-recurrent-terminal-checkpoints" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Kimi KDA / Delta Attention (Recurrent Terminal Checkpoints)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#5-mamba2-selective-ssm-state-space-models" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Mamba2 / Selective SSM (State Space Models)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#6-deepseek-nsa-native-sparse-attention" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. DeepSeek NSA (Native Sparse Attention)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#7-multimodal-audiovideo-vision-kv-cache-dit-qwen2-vl-sora" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. Multimodal Audio/Video Vision KV Cache (DiT / Qwen2-VL / Sora)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#8-agentic-tree-of-thought-tot-mcts-multi-branching-agent-cow" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8. Agentic Tree-of-Thought (ToT / MCTS Multi-Branching Agent CoW)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-descriptor-compatibility-routing-matrix" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Descriptor Compatibility &amp; Routing Matrix
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-conclusion" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Conclusion
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="attention-state-descriptor-specification">📐 Attention State Descriptor Specification</h1>
+<p>In modern Large Language Models (LLM), Vision-Language Models (VLM/DiT), and State Space Models (SSM/Mamba), inference intermediate state goes far beyond classic Multi-Head Attention Key/Value tensor pairs. <strong>NexusKV</strong> introduces a unified <strong>Attention State Descriptor Contract</strong> as the stable, strongly-typed interface shared across the Rust storage core, Go control plane, and Python engine connectors.</p>
+<hr />
+<h2 id="1-core-contract-fields">1. Core Contract Fields</h2>
+<p>Each descriptor contains the following immutable schema attributes:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="kd">interface</span><span class="w"> </span><span class="nx">AttentionStateDescriptor</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="w">  </span><span class="nx">descriptor_id</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">;</span><span class="w">              </span><span class="c1">// Stable contract ID (e.g., &quot;deepseek-v3-mla-page16&quot;)</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="w">  </span><span class="nx">engine_family</span><span class="o">:</span><span class="w"> </span><span class="kt">EngineFamily</span><span class="p">;</span><span class="w">        </span><span class="c1">// Engine adapter (VLLM, SGLANG, TENSORRT_LLM, CXX_FFI)</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="w">  </span><span class="nx">semantic_type</span><span class="o">:</span><span class="w"> </span><span class="kt">StateSemanticType</span><span class="p">;</span><span class="w">  </span><span class="c1">// Semantic type (MHA_KV, MLA_LATENT, DSA_SPARSE, KDA_RECURRENT, SSM_MAMBA2)</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="w">  </span><span class="nx">granularity</span><span class="o">:</span><span class="w"> </span><span class="kt">Granularity</span><span class="p">;</span><span class="w">          </span><span class="c1">// Granularity (TOKEN, PAGE, BLOCK, SEGMENT, CHECKPOINT)</span>
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="w">  </span><span class="nx">tensor_specs</span><span class="o">:</span><span class="w"> </span><span class="kt">TensorSpec</span><span class="p">[];</span><span class="w">        </span><span class="c1">// Named role-bearing tensors (KEY, VALUE, LATENT_KV, ROPE_K, RECURRENT_STATE)</span>
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="w">  </span><span class="nx">layout</span><span class="o">:</span><span class="w"> </span><span class="kt">LayoutMetadata</span><span class="p">;</span><span class="w">            </span><span class="c1">// Physical memory layout (interleaved, page_tokens, stride_bytes)</span>
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="w">  </span><span class="nx">quantization</span><span class="o">:</span><span class="w"> </span><span class="kt">QuantizationMetadata</span><span class="p">;</span><span class="c1">// Quantization (scheme: fp8/int4/none, scale_factors)</span>
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="w">  </span><span class="nx">compatibility_flags</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">[];</span><span class="w">     </span><span class="c1">// Compatibility flags (EXACT_REUSE, COW_BRANCH, ZERO_COPY_RDMA)</span>
+<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a><span class="p">}</span>
+</code></pre></div>
+<hr />
+<h2 id="2-8-modern-attention-recurrent-state-descriptors">2. 8 Modern Attention &amp; Recurrent State Descriptors</h2>
+<h3 id="1-mha-gqa-mqa-standard-attention">1. MHA / GQA / MQA (Standard Attention)</h3>
+<p>Applies to LLaMA-3, Qwen-2.5, Mistral, and standard Transformer architectures.
+* <strong>Physical Tensors</strong>:
+  * Key Tensor $\mathbf{K} \in \mathbb{R}^{B \times S_{\text{page}} \times H_{kv} \times D}$
+  * Value Tensor $\mathbf{V} \in \mathbb{R}^{B \times S_{\text{page}} \times H_{kv} \times D}$
+* <strong>Memory Stride</strong>: $\delta_{\text{bytes}} = 2 \times S_{\text{page}} \times H_{kv} \times D \times b_{\text{elem}}$</p>
+<h3 id="2-deepseek-mla-multi-head-latent-attention">2. DeepSeek MLA (Multi-Head Latent Attention)</h3>
+<p>Applies to DeepSeek-V2 / DeepSeek-V3 / DeepSeek-R1.
+* <strong>Physical Tensors</strong>:
+  * Compressed Latent KV Vector $\mathbf{c}_t^{KV} \in \mathbb{R}^{d_c}$ ($d_c = 512$)
+  * Decoupled RoPE Key Vector $\mathbf{k}_t^R \in \mathbb{R}^{d_R}$ ($d_R = 64$)
+* <strong>Physical Efficiency</strong>: Achieves 93.3% memory compression compared to standard MHA. NexusKV pools and transfers $c_t^{KV}$ latent pages directly.</p>
+<h3 id="3-deepseek-dsa-deepseek-sparse-attention">3. DeepSeek DSA (DeepSeek Sparse Attention)</h3>
+<p>Applies to query-dependent sparse selection block regions in ultra-long contexts.
+* <strong>Physical Tensors</strong>:
+  * Sparse Block Data $\mathbf{X}<em _text_topk="\text{topk">{\text{sparse}} \in \mathbb{R}^{K</em>$
+  * Selector Routing Indices $\mathbf{I}}} \times S_{\text{block}} \times H \times D<em _text_topk="\text{topk">{\text{sparse}} \in \mathbb{Z}^{K</em>$}}</p>
+<h3 id="4-kimi-kda-delta-attention-recurrent-terminal-checkpoints">4. Kimi KDA / Delta Attention (Recurrent Terminal Checkpoints)</h3>
+<p>Applies to Kimi K3 ultra-long contexts (10M+ tokens) with recurrent decay attention.
+* <strong>Physical Tensors</strong>:
+  * Terminal Recurrent State Matrix $\mathbf{h}<em _text_state="\text{state">t \in \mathbb{R}^{d</em>$
+  * Sliding Window History Decay Factor $\boldsymbol{\gamma}}} \times d_{\text{state}}<em _text_state="\text{state">t \in \mathbb{R}^{d</em>$}}</p>
+<h3 id="5-mamba2-selective-ssm-state-space-models">5. Mamba2 / Selective SSM (State Space Models)</h3>
+<p>Applies to Jamba and Mamba-2-Hybrid architectures.
+* <strong>Physical Tensors</strong>:
+  * SSM Recurrent Hidden State $\mathbf{h}<em _text_conv="\text{conv">t \in \mathbb{R}^{B \times H \times N \times D}$
+  * 1D Convolutional Temporal Buffer $\mathbf{x}</em>$}} \in \mathbb{R}^{B \times (d_{\text{inner}} + 2 \cdot d_{\text{state}}) \times K_{\text{width}}</p>
+<h3 id="6-deepseek-nsa-native-sparse-attention">6. DeepSeek NSA (Native Sparse Attention)</h3>
+<p>Applies to native sparse long-context models.
+* <strong>Physical Tensors</strong>:
+  * Compressed Summary Blocks $\mathbf{S}<em _text_block="\text{block">{\text{summary}} \in \mathbb{R}^{\frac{L}{l</em>$
+  * Selected Fine Blocks $\mathbf{S}}}} \times D<em _text_block="\text{block">{\text{selected}} \in \mathbb{R}^{K \times l</em>$}} \times D</p>
+<h3 id="7-multimodal-audiovideo-vision-kv-cache-dit-qwen2-vl-sora">7. Multimodal Audio/Video Vision KV Cache (DiT / Qwen2-VL / Sora)</h3>
+<p>Applies to Qwen2-VL, LLaVA-NeXT, and Sora video generation and understanding models.
+* <strong>Physical Tensors</strong>:
+  * 2D/3D Spatio-Temporal RoPE Key Tensor $\mathbf{K}_{\text{vision}} \in \mathbb{R}^{T \times H \times W \times D}$
+  * Cross-Attention Text-Vision Key/Value Tensors</p>
+<h3 id="8-agentic-tree-of-thought-tot-mcts-multi-branching-agent-cow">8. Agentic Tree-of-Thought (ToT / MCTS Multi-Branching Agent CoW)</h3>
+<p>Applies to Agent reasoning chains, Tree-of-Thought, and MCTS multi-path exploration.
+* <strong>Physical Metadata</strong>:
+  * Parent Node Lineage Pointer <code>parent_entry_id</code>
+  * Branch Depth <code>branch_depth</code>
+  * Copy-on-Write Counter <code>cow_ref_cnt</code></p>
+<hr />
+<h2 id="3-descriptor-compatibility-routing-matrix">3. Descriptor Compatibility &amp; Routing Matrix</h2>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">State Descriptor</th>
+<th style="text-align: left;">Physical Storage Granularity</th>
+<th style="text-align: left;">Transport Path</th>
+<th style="text-align: left;">Effective Gain Evaluation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><strong>MHA / GQA</strong></td>
+<td style="text-align: left;">Paged Block ($S_{\text{page}}=16$)</td>
+<td style="text-align: left;">POSIX SHM / Direct RDMA</td>
+<td style="text-align: left;">$G = T_{\text{compute}} - T_{\text{cache}} &gt; 0$</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>DeepSeek MLA</strong></td>
+<td style="text-align: left;">Latent Page ($c_t^{KV} + k_t^R$)</td>
+<td style="text-align: left;">Zero-Copy RDMA Descriptors</td>
+<td style="text-align: left;">$G = T_{\text{prefill_mla}} - T_{\text{rdma_latent}}$</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>DeepSeek DSA</strong></td>
+<td style="text-align: left;">Sparse Mask Block</td>
+<td style="text-align: left;">On-Demand Block Pull</td>
+<td style="text-align: left;">$G = T_{\text{sparse_compute}} - T_{\text{sparse_pull}}$</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Kimi KDA</strong></td>
+<td style="text-align: left;">Checkpoint Segment</td>
+<td style="text-align: left;">Direct SHM Pointer</td>
+<td style="text-align: left;">$G = T_{\text{recurrent_recompute}} - T_{\text{h_t_load}}$</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>SSM Mamba2</strong></td>
+<td style="text-align: left;">State Snapshot ($O(1)$)</td>
+<td style="text-align: left;">Fast IPC Handle</td>
+<td style="text-align: left;">$G = T_{\text{ssm_scan}} - T_{\text{snapshot_load}}$</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Multimodal Vision</strong></td>
+<td style="text-align: left;">Spatio-Temporal Tensor</td>
+<td style="text-align: left;">Pinned Memory Pool</td>
+<td style="text-align: left;">$G = T_{\text{vision_encode}} - T_{\text{vision_cache}}$</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Agentic ToT</strong></td>
+<td style="text-align: left;">CoW Radix Branch</td>
+<td style="text-align: left;">$O(1)$ Page Pointer Reuse</td>
+<td style="text-align: left;">$G = T_{\text{branch_recompute}} - 0$ ($O(1)$ Hit)</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="4-conclusion">4. Conclusion</h2>
+<p>By modeling inference state as a strongly-typed <strong>State Descriptor</strong>, NexusKV eliminates hardcoded assumptions about classic MHA key/value tensors, enabling 100% physical support for trillion-parameter MoE (DeepSeek-V3), ultra-long context (Kimi K3), and multimodal Agent systems.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  回到页面顶部
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.tabs.sticky", "navigation.top", "navigation.tracking", "navigation.indexes", "search.suggest", "search.highlight", "content.code.copy", "content.code.annotate"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "\u5df2\u590d\u5236", "clipboard.copy": "\u590d\u5236", "search.result.more.one": "\u5728\u8be5\u9875\u4e0a\u8fd8\u6709 1 \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.more.other": "\u5728\u8be5\u9875\u4e0a\u8fd8\u6709 # \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.none": "\u6ca1\u6709\u627e\u5230\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.one": "\u627e\u5230 1 \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.other": "# \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.placeholder": "\u952e\u5165\u4ee5\u5f00\u59cb\u641c\u7d22", "search.result.term.missing": "\u7f3a\u5c11", "select.version": "\u9009\u62e9\u5f53\u524d\u7248\u672c"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+    
+  </body>
+</html>
