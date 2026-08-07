@@ -15,6 +15,7 @@ from nexuskv.connectors.base import (
     ReusePlanner,
 )
 from nexuskv.execution.runner import BaselineExecutionRunner
+from nexuskv.execution.topology import PPTopologyManager
 from nexuskv.execution.types import (
     BackendActionKind,
     BackendActionResult,
@@ -145,6 +146,7 @@ class NativeEngineHookInterceptor:
         self._lock = threading.Lock()
         self.stats = FastPathHookStats()
         self.ffi_client = AsyncBatchClientFFI()
+        self.topology_mgr = PPTopologyManager()
 
     def async_batch_put_pages(
         self,
