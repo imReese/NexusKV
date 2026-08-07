@@ -51,7 +51,7 @@ NexusKV 通过三层解耦设计打破了这一局限：
 
 ```text
  ┌─────────────────────────────────────────────────────────────────────────────┐
- │       vLLM V2 Engine (Workflow Defined Engine) / SGLang (UnifiedRadixCache)│
+ │              LLM 推理引擎层 (vLLM / SGLang / TensorRT-LLM)                  │
  └──────────────────────────────────────┬──────────────────────────────────────┘
                                         │ Native Fast FFI 拦截器 (<1ms 降级保障)
                                         ▼
@@ -101,7 +101,7 @@ NexusKV 引入了统一的 **Attention State Taxonomy（注意力状态描述符
 
 ## ⚡ 快速集成示例
 
-### 1. 与 vLLM V2 及 SGLang 引擎集成
+### 1. 与 LLM 推理引擎集成 (vLLM / SGLang)
 
 ```python
 from nexuskv.connectors.vllm.connector import VLLMConnector

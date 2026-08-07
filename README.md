@@ -51,7 +51,7 @@ Using an **Effective Gain Estimator ($G = T_{\text{compute}} - T_{\text{cache}} 
 
 ```text
  ┌─────────────────────────────────────────────────────────────────────────────┐
- │       vLLM V2 Engine (Workflow Defined Engine) / SGLang (UnifiedRadixCache)│
+ │              LLM Inference Engines (vLLM / SGLang / TensorRT-LLM)           │
  └──────────────────────────────────────┬──────────────────────────────────────┘
                                         │ Native Fast FFI Interceptor (<1ms Guarantee)
                                         ▼
@@ -101,7 +101,7 @@ NexusKV introduces a unified **Attention State Taxonomy** designed to parse the 
 
 ## ⚡ Integration Examples
 
-### 1. Integration with vLLM V2 Engine & SGLang Unified Radix Cache
+### 1. Integration with LLM Inference Engines (vLLM / SGLang)
 
 ```python
 from nexuskv.connectors.vllm.connector import VLLMConnector
