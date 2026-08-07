@@ -23,6 +23,8 @@ class StateSemanticType(StrEnum):
     HCA_SUMMARY = "hca_summary"
     DSPARK_SPARSE = "dspark_sparse"
     SPARSE_INDEXED_STATE = "sparse_indexed_state"
+    MULTIMODAL_VISION = "multimodal_vision"
+    AGENT_TOT_COW = "agent_tot_cow"
     GENERIC_CONTAINER = "generic_container"
 
 

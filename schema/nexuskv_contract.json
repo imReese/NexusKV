@@ -2,7 +2,7 @@
   "schema_version": "nexuskv.contract.v1",
   "enums": {
     "EngineFamily": ["UNKNOWN", "SGLANG", "VLLM"],
-    "StateSemanticType": ["MHA_KV", "GQA_KV", "MQA_KV", "MLA_STATE", "DSA_STATE", "KDA_CHECKPOINT", "CSA_STATE", "HCA_SUMMARY", "DSPARK_SPARSE", "SPARSE_INDEXED_STATE", "GENERIC_CONTAINER"],
+    "StateSemanticType": ["MHA_KV", "GQA_KV", "MQA_KV", "MLA_STATE", "DSA_STATE", "KDA_CHECKPOINT", "CSA_STATE", "HCA_SUMMARY", "DSPARK_SPARSE", "SPARSE_INDEXED_STATE", "MULTIMODAL_VISION", "AGENT_TOT_COW", "GENERIC_CONTAINER"],
     "TensorRole": ["KEY", "VALUE", "LATENT", "POSITION", "AUXILIARY", "SCALE_TENSOR"],
     "Granularity": ["TOKEN", "BLOCK", "PAGE", "SEGMENT"],
     "CompatibilityFlag": [
