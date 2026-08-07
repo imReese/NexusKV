@@ -1111,37 +1111,37 @@
 <td style="text-align: left;"><strong>DeepSeek MLA</strong></td>
 <td style="text-align: left;">Latent Page ($c_t^{KV} + k_t^R$)</td>
 <td style="text-align: left;">Zero-Copy RDMA Descriptors</td>
-<td style="text-align: left;">$G = T_{\text{prefill_mla}} - T_{\text{rdma_latent}}$</td>
+<td style="text-align: left;">$G = T_{\text{prefill-mla}} - T_{\text{rdma-latent}}$</td>
 </tr>
 <tr>
 <td style="text-align: left;"><strong>DeepSeek DSA</strong></td>
 <td style="text-align: left;">Sparse Mask Block</td>
 <td style="text-align: left;">On-Demand Block Pull</td>
-<td style="text-align: left;">$G = T_{\text{sparse_compute}} - T_{\text{sparse_pull}}$</td>
+<td style="text-align: left;">$G = T_{\text{sparse-compute}} - T_{\text{sparse-pull}}$</td>
 </tr>
 <tr>
 <td style="text-align: left;"><strong>Kimi KDA</strong></td>
 <td style="text-align: left;">Checkpoint Segment</td>
 <td style="text-align: left;">Direct SHM Pointer</td>
-<td style="text-align: left;">$G = T_{\text{recurrent_recompute}} - T_{\text{h_t_load}}$</td>
+<td style="text-align: left;">$G = T_{\text{recurrent-recompute}} - T_{\text{h-t-load}}$</td>
 </tr>
 <tr>
 <td style="text-align: left;"><strong>SSM Mamba2</strong></td>
 <td style="text-align: left;">State Snapshot ($O(1)$)</td>
 <td style="text-align: left;">Fast IPC Handle</td>
-<td style="text-align: left;">$G = T_{\text{ssm_scan}} - T_{\text{snapshot_load}}$</td>
+<td style="text-align: left;">$G = T_{\text{ssm-scan}} - T_{\text{snapshot-load}}$</td>
 </tr>
 <tr>
 <td style="text-align: left;"><strong>Multimodal Vision</strong></td>
 <td style="text-align: left;">Spatio-Temporal Tensor</td>
 <td style="text-align: left;">Pinned Memory Pool</td>
-<td style="text-align: left;">$G = T_{\text{vision_encode}} - T_{\text{vision_cache}}$</td>
+<td style="text-align: left;">$G = T_{\text{vision-encode}} - T_{\text{vision-cache}}$</td>
 </tr>
 <tr>
 <td style="text-align: left;"><strong>Agentic ToT</strong></td>
 <td style="text-align: left;">CoW Radix Branch</td>
 <td style="text-align: left;">$O(1)$ Page Pointer Reuse</td>
-<td style="text-align: left;">$G = T_{\text{branch_recompute}} - 0$ ($O(1)$ Hit)</td>
+<td style="text-align: left;">$G = T_{\text{branch-recompute}} - 0$ ($O(1)$ Hit)</td>
 </tr>
 </tbody>
 </table>

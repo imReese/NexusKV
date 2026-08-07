@@ -1057,7 +1057,7 @@
 <hr />
 <h3 id="pipeline-parallelism-pp">Pipeline Parallelism (PP)</h3>
 <p>To defeat rank divergence in Pipeline Parallelism ($N_{\text{PP}} &gt; 1$), Stage 0 (Pipeline Leader) executes a pre-forward Phase-0 handshake probe across all ranks $k \in [0, N_{\text{PP}}-1]$ to compute the <strong>Global Minimum Common Prefix</strong>:</p>
-<p>$$L_{\text{common}} = \min_{k \in [0, N_{\text{PP}}-1]} \left( \text{Matched_Tokens}_k \right)$$</p>
+<p>$$L_{\text{common}} = \min_{k \in [0, N_{\text{PP}}-1]} \left( \text{Matched-Tokens}_k \right)$$</p>
 <p>The KV Cache page table generation $\mathcal{G}(L_{\text{common}})$ is locked via an atomic in-flight reference counter:</p>
 <p>$$\text{RefCnt}(\mathcal{G}) \leftarrow \text{RefCnt}(\mathcal{G}) + 1, \quad \forall t \in [0, L_{\text{common}}]$$</p>
 <p><img alt="FIG. 3: PIPELINE PARALLELISM DETERMINISTIC LEADER LOCK AND COMMON PREFIX" src="../assets/nexus_pp.jpg" /></p>
