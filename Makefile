@@ -34,6 +34,9 @@ test:
 	cd rust && cargo test --workspace --locked
 	@echo "==> Running Python Tests..."
 	PYTHONPATH=python python3 -m unittest discover -s python/tests -p "test_*.py"
+	@echo "==> Running Standalone Topology & Read/Write Precision Verification..."
+	python3 tools/verify_all_topologies.py
+
 
 bench:
 	python3 tools/run_benchmarks.py

@@ -88,6 +88,9 @@ jobs:
         run: PYTHONPATH=python python3 -m unittest discover -s python/tests -p "test_*.py"
       - name: Run Benchmark Evidence & Stress Utility
         run: python3 tools/run_benchmarks.py
+      - name: Run Standalone Topology Matrix & Read/Write Precision Verification
+        run: python3 tools/verify_all_topologies.py
+
 
   docker-ci:
     name: Docker Build & Compose Check
