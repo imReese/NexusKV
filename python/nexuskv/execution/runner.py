@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, replace
+from typing import Any
 
 from nexuskv.connectors.base import LookupStatus
 from nexuskv.contracts.generated import (
@@ -26,6 +27,7 @@ from nexuskv.execution.catalog import BackendCatalog, BackendRegistration
 from nexuskv.execution.policy import ExecutionPolicy, ExecutionPolicyProvider
 from nexuskv.execution.quota import QuotaTracker
 from nexuskv.execution.store import InMemoryEntryStore
+from nexuskv.execution.topology import PPTopologyManager
 from nexuskv.execution.types import (
     BackendActionKind,
     BackendActionRequest,
@@ -52,6 +54,28 @@ from nexuskv.execution.types import (
 from nexuskv.planner.cost import CostEstimator
 
 
+class ParallelTopologyPolicy:
+    """Config-driven topology policy engine for TP, PP, CP, and EP parallel strategy resolution."""
+
+    @staticmethod
+    def resolve_topology_policy(
+        pp_size: int = 1,
+        tp_size: int = 1,
+        cp_size: int = 1,
+        ep_size: int = 1,
+    ) -> dict[str, Any]:
+        """Resolves active parallel execution modes based on environment/topology configuration."""
+        return {
+            "enable_pp_min_prefix_lock": pp_size > 1,
+            "enable_tp_stride_alignment": tp_size > 1,
+            "enable_cp_sequence_partitioning": cp_size > 1,
+            "enable_ep_cxl_slice_routing": ep_size > 1,
+            "is_single_node_fast_path": (
+                pp_size == 1 and tp_size == 1 and cp_size == 1 and ep_size == 1
+            ),
+        }
+
+
 @dataclass(slots=True)
 class BaselineExecutionRunner:
     backend: ExecutionBackend | None = None
@@ -60,8 +84,21 @@ class BaselineExecutionRunner:
     policy_provider: ExecutionPolicyProvider | None = None
     quota_tracker: QuotaTracker | None = None
     cost_estimator: CostEstimator | None = None
+    topology_manager: PPTopologyManager | None = None
+
+    def resolve_topology_policy(self) -> dict[str, Any]:
+        if self.topology_manager is None:
+            self.topology_manager = PPTopologyManager()
+        topo = self.topology_manager.get_topology()
+        return ParallelTopologyPolicy.resolve_topology_policy(
+            pp_size=topo.pp_size,
+            tp_size=topo.tp_size,
+            cp_size=1,
+            ep_size=1,
+        )
 
     def execute(self, request: MaterializationRequest) -> MaterializationOutcome:
+
         self.policy = self._active_policy()
         if self.catalog is None:
             self.catalog = self._build_default_catalog()
