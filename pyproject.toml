@@ -18,6 +18,7 @@ classifiers = [
 
 [project.scripts]
 nexuskv-cli = "nexuskv.cli:main"
+nexuskv-locus-bridge = "nexuskv.integrations.locus_bridge:main"
 
 [tool.ruff]
 line-length = 100

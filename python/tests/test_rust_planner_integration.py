@@ -1,6 +1,8 @@
+import json
 import subprocess
 import sys
 import unittest
+from copy import deepcopy
 from pathlib import Path
 
 from nexuskv.connectors.base import LookupStatus, SGLangLifecycleContext, VLLMLifecycleContext
@@ -11,6 +13,7 @@ from nexuskv.execution.backend import BaselineExecutionBackend
 from nexuskv.execution.policy import ExecutionPolicy
 from nexuskv.execution.runner import BaselineExecutionRunner
 from nexuskv.execution.types import ExecutionDisposition, FallbackReason, TransferStatus
+from nexuskv.integrations.locus_bridge import LocusBridgeService, load_fixture
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -61,6 +64,29 @@ class RustPlannerIntegrationTest(unittest.TestCase):
         self.assertEqual(
             decision.materialization_result.transfer_session.result.status, TransferStatus.COMPLETED
         )
+
+    def test_locus_bridge_uses_rust_matcher_and_protocol_execution_boundary(self) -> None:
+        from nexuskv.planner.rust_backend import RustPlanner
+
+        fixture = ROOT / "tests" / "fixtures" / "locus_bridge" / "conformance.json"
+        payload = json.loads(fixture.read_text(encoding="utf-8"))
+        service = LocusBridgeService(RustPlanner())
+        load_fixture(fixture, service)
+
+        lookup = service.lookup(deepcopy(payload["requests"]["lookup"]))
+        estimate_request = deepcopy(payload["requests"]["estimate"])
+        estimate_request["source_handle"] = lookup["match_result"]["validation"]["source_handle"]
+        estimate = service.estimate(estimate_request)
+        materialize = deepcopy(payload["requests"]["materialize"])
+        materialize["option_id"] = estimate["option_id"]
+        materialize["option_handle"] = estimate["option_handle"]
+        result = service.materialize(materialize)
+
+        self.assertEqual(lookup["match_result"]["entry"]["identity"]["entry_id"], "nexus-state-1")
+        self.assertEqual(estimate["locality"], "local")
+        self.assertEqual(result["receipt"]["namespace"], "nexuskv.protocol-transfer-receipt.v1")
+        self.assertEqual(result["bytes_transferred"], 0)
+        self.assertFalse(result["evidence"]["physical_transfer_verified"])
 
     def test_python_can_plan_partial_hit_via_rust(self) -> None:
         from nexuskv.planner.rust_backend import RustPlanner

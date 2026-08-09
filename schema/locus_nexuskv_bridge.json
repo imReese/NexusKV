@@ -1,0 +1,320 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/imReese/NexusKV/schema/locus_nexuskv_bridge.json",
+  "title": "Locus NexusKV Bridge Contract",
+  "description": "Versioned wire envelopes served by NexusKV for the optional Locus StateProvider integration.",
+  "type": "object",
+  "$defs": {
+    "bridgeVersion": {
+      "const": "locus.nexuskv-bridge.v1"
+    },
+    "nexusVersion": {
+      "const": "nexuskv.contract.v1"
+    },
+    "componentIdentity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "revision", "fingerprint"],
+      "properties": {
+        "kind": {"type": "string", "minLength": 1},
+        "revision": {"type": "string", "minLength": 1},
+        "fingerprint": {"type": "string", "minLength": 1}
+      }
+    },
+    "modelIdentity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["model_revision", "adapter_revision", "execution_profile"],
+      "properties": {
+        "model_revision": {"type": "string", "minLength": 1},
+        "adapter_revision": {"type": ["string", "null"]},
+        "execution_profile": {"type": "string", "minLength": 1}
+      }
+    },
+    "inputSemanticIdentity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["tokenizer", "template", "multimodal_preprocessing"],
+      "properties": {
+        "tokenizer": {"$ref": "#/$defs/componentIdentity"},
+        "template": {"$ref": "#/$defs/componentIdentity"},
+        "multimodal_preprocessing": {
+          "oneOf": [
+            {"$ref": "#/$defs/componentIdentity"},
+            {"type": "null"}
+          ]
+        }
+      }
+    },
+    "lookupRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "nexuskv_schema_version",
+        "identity",
+        "locus_model_identity",
+        "locus_input_semantic_identity",
+        "input_fingerprint"
+      ],
+      "properties": {
+        "schema_version": {"$ref": "#/$defs/bridgeVersion"},
+        "nexuskv_schema_version": {"$ref": "#/$defs/nexusVersion"},
+        "identity": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["tenant", "namespace", "model", "engine_family", "semantic_type", "tokens"],
+          "properties": {
+            "tenant": {"type": "string", "minLength": 1},
+            "namespace": {"type": "string", "minLength": 1},
+            "model": {"type": "string", "minLength": 1},
+            "engine_family": {"enum": ["sglang", "vllm"]},
+            "semantic_type": {"type": "string", "minLength": 1},
+            "tokens": {
+              "type": "array",
+              "maxItems": 1000000,
+              "items": {"type": "integer", "minimum": 0, "maximum": 4294967295}
+            }
+          }
+        },
+        "locus_model_identity": {"$ref": "#/$defs/modelIdentity"},
+        "locus_input_semantic_identity": {"$ref": "#/$defs/inputSemanticIdentity"},
+        "input_fingerprint": {"type": "string", "minLength": 1}
+      }
+    },
+    "estimateRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "source_state",
+        "source_handle",
+        "source_locator",
+        "source_tier",
+        "target_id",
+        "target_engine_id",
+        "target_engine_generation",
+        "target_residency"
+      ],
+      "properties": {
+        "schema_version": {"$ref": "#/$defs/bridgeVersion"},
+        "source_state": {"type": "string", "minLength": 1},
+        "source_handle": {"type": "string", "minLength": 1},
+        "source_locator": {"type": "string", "minLength": 1},
+        "source_tier": {"type": "string", "minLength": 1},
+        "target_id": {"type": "string", "minLength": 1},
+        "target_engine_id": {"type": "string", "minLength": 1},
+        "target_engine_generation": {"type": "integer", "minimum": 1},
+        "target_residency": {"type": "string", "minLength": 1}
+      }
+    },
+    "materializeRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "option_id",
+        "option_handle",
+        "import_id",
+        "target_id",
+        "target_engine_id",
+        "target_engine_generation",
+        "sink_namespace",
+        "sink_value"
+      ],
+      "properties": {
+        "schema_version": {"$ref": "#/$defs/bridgeVersion"},
+        "option_id": {"type": "string", "minLength": 1},
+        "option_handle": {"type": "string", "minLength": 1},
+        "import_id": {"type": "string", "minLength": 1},
+        "target_id": {"type": "string", "minLength": 1},
+        "target_engine_id": {"type": "string", "minLength": 1},
+        "target_engine_generation": {"type": "integer", "minimum": 1},
+        "sink_namespace": {"type": "string", "minLength": 1},
+        "sink_value": {"type": "string", "minLength": 1}
+      }
+    },
+    "lookupResponse": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_version", "nexuskv_schema_version", "match_result"],
+      "properties": {
+        "schema_version": {"$ref": "#/$defs/bridgeVersion"},
+        "nexuskv_schema_version": {"$ref": "#/$defs/nexusVersion"},
+        "match_result": {
+          "oneOf": [
+            {
+              "type": "object",
+              "required": ["classification", "matched_extent", "entry", "compatibility", "validation"],
+              "properties": {
+                "classification": {"enum": ["exact", "prefix", "partial"]},
+                "matched_extent": {
+                  "type": "object",
+                  "required": ["units", "granularity"],
+                  "properties": {
+                    "units": {"type": "integer", "minimum": 1},
+                    "granularity": {"enum": ["token", "block", "page", "segment"]}
+                  }
+                },
+                "entry": {"type": "object"},
+                "compatibility": {
+                  "type": "object",
+                  "required": ["reusable", "fallback_to_recompute", "reason"],
+                  "properties": {
+                    "reusable": {"type": "boolean"},
+                    "fallback_to_recompute": {"type": "boolean"},
+                    "reason": {"type": "string"}
+                  }
+                },
+                "validation": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["model_identity", "input_semantic_identity", "source_handle"],
+                  "properties": {
+                    "model_identity": {"$ref": "#/$defs/modelIdentity"},
+                    "input_semantic_identity": {"$ref": "#/$defs/inputSemanticIdentity"},
+                    "source_handle": {"type": "string", "minLength": 1}
+                  }
+                }
+              }
+            },
+            {"type": "null"}
+          ]
+        }
+      }
+    },
+    "estimateResponse": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "option_id",
+        "option_handle",
+        "locality",
+        "topology_path",
+        "estimated_transfer_micros"
+      ],
+      "properties": {
+        "schema_version": {"$ref": "#/$defs/bridgeVersion"},
+        "option_id": {"type": "string", "minLength": 1},
+        "option_handle": {"type": "string", "minLength": 1},
+        "locality": {"enum": ["local", "remote"]},
+        "topology_path": {"type": ["string", "null"]},
+        "estimated_transfer_micros": {"type": "integer", "minimum": 0}
+      }
+    },
+    "materializeResponse": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_version", "bytes_transferred", "receipt", "evidence"],
+      "properties": {
+        "schema_version": {"$ref": "#/$defs/bridgeVersion"},
+        "bytes_transferred": {"type": "integer", "minimum": 0},
+        "receipt": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["namespace", "value"],
+          "properties": {
+            "namespace": {"type": "string", "minLength": 1},
+            "value": {"type": "string", "minLength": 1}
+          }
+        },
+        "evidence": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "level",
+            "physical_transfer_verified",
+            "execution_backend",
+            "transfer_session",
+            "sink_namespace",
+            "sink_value",
+            "import_id"
+          ],
+          "properties": {
+            "level": {"enum": ["protocol", "physical"]},
+            "physical_transfer_verified": {"type": "boolean"},
+            "execution_backend": {"type": "string", "minLength": 1},
+            "transfer_session": {"type": "string", "minLength": 1},
+            "sink_namespace": {"type": "string", "minLength": 1},
+            "sink_value": {"type": "string", "minLength": 1},
+            "import_id": {"type": "string", "minLength": 1}
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "evidence": {
+                "properties": {"level": {"const": "protocol"}},
+                "required": ["level"]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "bytes_transferred": {"const": 0},
+              "receipt": {
+                "properties": {
+                  "namespace": {"const": "nexuskv.protocol-transfer-receipt.v1"}
+                }
+              },
+              "evidence": {
+                "properties": {"physical_transfer_verified": {"const": false}}
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "evidence": {
+                "properties": {"level": {"const": "physical"}},
+                "required": ["level"]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "receipt": {
+                "properties": {
+                  "namespace": {"not": {"const": "nexuskv.protocol-transfer-receipt.v1"}}
+                }
+              },
+              "evidence": {
+                "properties": {"physical_transfer_verified": {"const": true}}
+              }
+            }
+          }
+        }
+      ]
+    },
+    "errorResponse": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_version", "error"],
+      "properties": {
+        "schema_version": {"$ref": "#/$defs/bridgeVersion"},
+        "error": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["code", "message"],
+          "properties": {
+            "code": {"type": "string", "minLength": 1},
+            "message": {"type": "string", "minLength": 1}
+          }
+        }
+      }
+    }
+  },
+  "oneOf": [
+    {"$ref": "#/$defs/lookupRequest"},
+    {"$ref": "#/$defs/estimateRequest"},
+    {"$ref": "#/$defs/materializeRequest"},
+    {"$ref": "#/$defs/lookupResponse"},
+    {"$ref": "#/$defs/estimateResponse"},
+    {"$ref": "#/$defs/materializeResponse"},
+    {"$ref": "#/$defs/errorResponse"}
+  ]
+}
