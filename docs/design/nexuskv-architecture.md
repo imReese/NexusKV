@@ -153,8 +153,9 @@ availability, completed materialization, and useful reuse.
 
 ## 4. API Ownership
 
-The current code exposes internal contracts rather than a stable public network
-API.
+The current code exposes mostly internal contracts plus one explicitly
+versioned Locus integration API. It is not a stable general-purpose public
+network API.
 
 | Contract | Current owner | Stability expectation |
 | --- | --- | --- |
@@ -164,9 +165,12 @@ API.
 | Execution backend protocol | Python execution layer | Extension point for real backends |
 | Payload/transfer session types | Python execution contract and shared enums | Stable seam, not proof of transfer |
 | Execution policy | Go producer and Python consumer | Versioned operator contract |
+| Locus lookup/estimate/materialize bridge | Python HTTP service backed by the Rust planner and execution boundary | Versioned integration contract; protocol evidence only |
 
-New public RPCs must not be inferred from these internal types. A network API
-requires an explicit versioning, authentication, failure, and rollout design.
+New public RPCs must not be inferred from the internal types. The Locus bridge
+has an explicit schema, authentication hook, structured failures, capability
+handles, and conformance fixture; it does not make the other internal contracts
+public or prove physical transfer.
 
 ## 5. Request Data Flow
 

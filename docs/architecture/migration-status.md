@@ -65,6 +65,8 @@ Completed:
 - execution results now carry explicit payload-handle and transfer-session metadata, creating a stable seam for future data-movement implementations
 - Go control-plane and Python execution now share a versioned execution-policy contract for backend enablement, backend priority, allowed tiers/devices/buffers, and fallback behavior
 - execution policy now has a file-based handoff/reload path and backend capability overlays that affect future backend selections without connector changes
+- the versioned Locus bridge now serves lookup, estimate, and materialize across a real process boundary with Rust matcher integration, source/option capability binding, strict errors, and shared conformance fixtures
+- Locus cross-repository E2E validates planning plus prepare/materialize/commit and cold fallback; the receipt remains protocol-only with zero verified physical bytes
 
 ## Next Planned Step
 
@@ -214,4 +216,3 @@ Completed:
 - added Maturin PyO3 configuration in `rust/crates/bindings-py/pyproject.toml`
 - added `PrometheusMetricsExporter` in Go (`go/controlplane/fabric/metrics.go`) for Prometheus metric endpoints
 - added `PosixShmAllocator` in Rust (`rust/crates/nexus-transfer/src/shm.rs`) for POSIX shared memory zero-copy handles
-

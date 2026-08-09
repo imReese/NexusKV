@@ -187,6 +187,7 @@ make bench   # Run performance benchmark suite
 | **Roadmap** | [Roadmap & Milestones](docs/roadmap.md) | [路线图与阶段规划](docs/roadmap_cn.md) | Roadmap milestones & development progress |
 | **State Contract** | [Attention Descriptor Spec](docs/design/attention-state-descriptor.md) | [Attention 状态描述符](docs/design/attention-state-descriptor_cn.md) | MLA / DSA / CSA / HCA state descriptors |
 | **Connector** | [Connector Lifecycle](docs/design/connector-lifecycle.md) | [引擎接插件生命周期](docs/design/connector-lifecycle_cn.md) | vLLM / SGLang hooks & PD disaggregation |
+| **Locus Bridge** | [Versioned Locus Integration](docs/design/locus-bridge.md) | — | Lookup, estimate, materialize, capability binding & evidence boundary |
 | **Control Policy** | [Controlplane Policy](docs/design/controlplane-execution-policy.md) | [控制面执行策略](docs/design/controlplane-execution-policy_cn.md) | Leases, monotonic epochs & quota backpressure |
 | **Benchmarking** | [Benchmark Methodology](docs/benchmarks/benchmark-methodology.md) | [基准测试方法论](docs/benchmarks/benchmark-methodology_cn.md) | Microsecond Wall-Clock timing & QPS / GB dual metrics |
 | **Reliability** | [Reliability Model](docs/ops/reliability-model.md) | [系统可靠性与降级熔断](docs/ops/reliability-model_cn.md) | <1ms Fail-Open fallback guarantees |
