@@ -1233,6 +1233,8 @@
 <li>execution results now carry explicit payload-handle and transfer-session metadata, creating a stable seam for future data-movement implementations</li>
 <li>Go control-plane and Python execution now share a versioned execution-policy contract for backend enablement, backend priority, allowed tiers/devices/buffers, and fallback behavior</li>
 <li>execution policy now has a file-based handoff/reload path and backend capability overlays that affect future backend selections without connector changes</li>
+<li>the versioned Locus bridge now serves lookup, estimate, and materialize across a real process boundary with Rust matcher integration, source/option capability binding, strict errors, and shared conformance fixtures</li>
+<li>Locus cross-repository E2E validates planning plus prepare/materialize/commit and cold fallback; the receipt remains protocol-only with zero verified physical bytes</li>
 </ul>
 <h2 id="next-planned-step">Next Planned Step</h2>
 <p>PR 13 should introduce the first admission/quota policy hook behind the execution policy, keeping quota enforcement explicit and testable before staged-buffer reuse work.</p>

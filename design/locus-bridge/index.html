@@ -10,7 +10,7 @@
       
       
       
-        <link rel="canonical" href="https://imReese.github.io/NexusKV/design/nexuskv-architecture/">
+        <link rel="canonical" href="https://imReese.github.io/NexusKV/design/locus-bridge/">
       
       
       
@@ -23,7 +23,7 @@
     
     
       
-        <title>NexusKV Architecture - NexusKV</title>
+        <title>Locus Bridge - NexusKV</title>
       
     
     
@@ -76,7 +76,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#nexuskv-architecture" class="md-skip">
+        <a href="#locus-bridge" class="md-skip">
           跳转至
         </a>
       
@@ -112,7 +112,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              NexusKV Architecture
+              Locus Bridge
             
           </span>
         </div>
@@ -871,10 +871,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#1-architectural-objective" class="md-nav__link">
+  <a href="#status" class="md-nav__link">
     <span class="md-ellipsis">
       
-        1. Architectural Objective
+        Status
       
     </span>
   </a>
@@ -882,10 +882,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#2-layer-boundaries" class="md-nav__link">
+  <a href="#ownership" class="md-nav__link">
     <span class="md-ellipsis">
       
-        2. Layer Boundaries
+        Ownership
       
     </span>
   </a>
@@ -893,104 +893,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#3-component-boundaries" class="md-nav__link">
+  <a href="#contract" class="md-nav__link">
     <span class="md-ellipsis">
       
-        3. Component Boundaries
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="3. Component Boundaries">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#31-state-contract" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        3.1 State Contract
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#32-state-index-and-matcher" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        3.2 State Index and Matcher
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#33-reuse-planner" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        3.3 Reuse Planner
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#34-execution-boundary" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        3.4 Execution Boundary
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#35-payload-and-transfer-contract" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        3.5 Payload and Transfer Contract
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#36-control-plane-policy" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        3.6 Control Plane Policy
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#37-observability-and-feedback" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        3.7 Observability and Feedback
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#4-api-ownership" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        4. API Ownership
+        Contract
       
     </span>
   </a>
@@ -998,10 +904,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#5-request-data-flow" class="md-nav__link">
+  <a href="#running-the-reference-service" class="md-nav__link">
     <span class="md-ellipsis">
       
-        5. Request Data Flow
+        Running the reference service
       
     </span>
   </a>
@@ -1009,32 +915,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#6-state-lifecycle" class="md-nav__link">
+  <a href="#validation-boundary" class="md-nav__link">
     <span class="md-ellipsis">
       
-        6. State Lifecycle
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#7-current-implementation-map" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        7. Current Implementation Map
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#8-change-protocol" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        8. Change Protocol
+        Validation boundary
       
     </span>
   </a>
@@ -1061,314 +945,106 @@
   
 
 
-<h1 id="nexuskv-architecture">NexusKV Architecture</h1>
-<p><strong>Status:</strong> Development contract · August 2026</p>
-<p>This document translates the
-<a href="../../papers/beyond-kv-cache/">NexusKV Whitepaper</a> into implementation
-boundaries. The Whitepaper defines the problem and research direction; this
-document defines ownership, APIs, data flow, lifecycle, and change gates for
-development. Delivery sequence is tracked in the
-<a href="../../roadmap/">Roadmap</a>, and current evidence is tracked in
-<a href="../../architecture/migration-status/">Migration Status</a>.</p>
-<h2 id="1-architectural-objective">1. Architectural Objective</h2>
-<p>NexusKV is a Model State Intelligence Layer for LLM inference. It coordinates:</p>
-<ul>
-<li>State Identity and compatibility;</li>
-<li>exact and partial reuse discovery;</li>
-<li>cost-based reuse, placement, and transfer planning;</li>
-<li>bounded asynchronous prefetch;</li>
-<li>deterministic fallback and decision feedback.</li>
-</ul>
-<p>It does not own model execution, general-purpose storage, or transport
-implementation. The architecture must remain composable with Inference
-Runtimes and replaceable Data Plane systems.</p>
-<h2 id="2-layer-boundaries">2. Layer Boundaries</h2>
+<h1 id="locus-bridge">Locus Bridge</h1>
+<h2 id="status">Status</h2>
+<p>NexusKV ships a reference HTTP service for the versioned
+<code>locus.nexuskv-bridge.v1</code> integration contract. It exposes lookup, estimate,
+and materialize operations backed by the Rust <code>nxradixtree</code> matcher, the Python
+cost estimator, and the existing execution boundary.</p>
+<p>This milestone establishes process separation, contract compatibility,
+capability binding, and orchestration behavior. The baseline execution backend
+does not move cache bytes into an inference engine. A successful materialize
+response therefore reports zero transferred bytes, uses the
+<code>nexuskv.protocol-transfer-receipt.v1</code> namespace, and sets
+<code>physical_transfer_verified</code> to <code>false</code>.</p>
+<h2 id="ownership">Ownership</h2>
 <table>
 <thead>
 <tr>
-<th>Layer</th>
-<th>Owns</th>
-<th>Does not own</th>
+<th>Concern</th>
+<th>Owner</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>Inference Runtime</td>
-<td>Request admission, device allocation, block/page tables, streams, kernels, and final state consumption</td>
-<td>Cross-runtime state policy</td>
+<td>Global compute and state placement</td>
+<td>Locus planner</td>
 </tr>
 <tr>
-<td>Runtime adapter</td>
-<td>Lifecycle translation, descriptor construction, planner invocation, and final safety handoff</td>
-<td>Global policy or backend implementation</td>
+<td>Match evidence, source location, and transfer estimate</td>
+<td>NexusKV bridge</td>
 </tr>
 <tr>
-<td>Intelligence Layer</td>
-<td>Compatibility, matching, cost comparison, placement intent, transfer selection, deadlines, and fallback plan</td>
-<td>Model kernels, storage capacity, or transport primitives</td>
+<td>Destination allocation and state attachment</td>
+<td>Locus engine adapter and inference engine</td>
 </tr>
 <tr>
-<td>Control Plane</td>
-<td>Versioned policy, topology, tenancy, quotas, capability configuration, rollout, and fleet observability</td>
-<td>Per-request payload movement</td>
+<td>Prepare, materialize, commit, abort, and cold fallback ordering</td>
+<td>Locus <code>PlanExecutor</code></td>
 </tr>
 <tr>
-<td>Data Plane</td>
-<td>Payload capacity, registration, transfer execution, completion, and backend-specific failure reporting</td>
-<td>Semantic compatibility or reuse value</td>
+<td>Physical transport implementation and verified byte count</td>
+<td>A future NexusKV native transport backend</td>
 </tr>
 </tbody>
 </table>
-<p>The Inference Runtime remains the final authority over whether a payload can be
-materialized into runtime-owned memory and consumed safely.</p>
-<h2 id="3-component-boundaries">3. Component Boundaries</h2>
-<h3 id="31-state-contract">3.1 State Contract</h3>
-<p>The versioned State Contract describes semantic and physical compatibility. Its
-current source of truth is the repository schema with generated Rust and Python
-bindings.</p>
-<p>Core types include:</p>
+<p>NexusKV options are evidence offered to Locus, not placement authority. Locus
+chooses a target and may discard an option or fall back to recompute.</p>
+<h2 id="contract">Contract</h2>
+<p>The JSON Schema source of truth is
+<a href="../../schema/locus_nexuskv_bridge.json"><code>schema/locus_nexuskv_bridge.json</code></a>.
+The service exposes:</p>
 <ul>
-<li><code>AttentionStateDescriptor</code>;</li>
-<li><code>KeyIdentity</code>, <code>ReuseKey</code>, and <code>QueryKey</code>;</li>
-<li><code>CacheEntry</code>, <code>EntryVersion</code>, and <code>EntryLocation</code>;</li>
-<li><code>TensorSpec</code>, <code>LayoutMetadata</code>, and <code>QuantizationMetadata</code>;</li>
-<li><code>TransferPath</code> and <code>MaterializationProfile</code>.</li>
+<li><code>POST /locus/v1/lookup</code></li>
+<li><code>POST /locus/v1/estimate</code></li>
+<li><code>POST /locus/v1/materialize</code></li>
+<li><code>GET /healthz</code></li>
 </ul>
-<p>The contract must identify model revision, engine family, semantic state type,
-layer and parallel scope, token or checkpoint lineage, layout, dtype,
-quantization, and materialization capabilities when those fields affect
-correctness. See
-<a href="../attention-state-descriptor/">Attention State Descriptor</a> and
-<a href="../shared-schema/">Shared Schema</a>.</p>
-<h3 id="32-state-index-and-matcher">3.2 State Index and Matcher</h3>
-<p><code>nxradixtree</code> owns deterministic discovery inside an identity scope. It
-provides exact lookup, longest-prefix lookup, matched extent, compatibility
-signals, and partial-hit planning primitives.</p>
-<p>It does not decide that a match is profitable, reserve destination memory, or
-execute transfer. See <a href="../nxradixtree/">nxradixtree</a>.</p>
-<h3 id="33-reuse-planner">3.3 Reuse Planner</h3>
-<p>The planner consumes a query, compatible match candidates, topology and policy
-constraints, and cost observations. Its target output is an explainable choice
-among:</p>
-<ul>
-<li>full reuse;</li>
-<li>partial reuse;</li>
-<li>route-to-state;</li>
-<li>transfer and materialize;</li>
-<li>recompute.</li>
-</ul>
-<p>The current implementation proves the match and execution boundary. A fully
-calibrated cost planner remains in progress.</p>
-<h3 id="34-execution-boundary">3.4 Execution Boundary</h3>
-<p>The execution layer turns a planner result into deterministic actions while
-keeping connector code policy-agnostic. The backend protocol exposes:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>materialize(request) -&gt; result
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>prefetch(request)    -&gt; result
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>store(request)       -&gt; result
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>skip(request)        -&gt; result
-<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>recompute(request)   -&gt; result
+<p>Lookup requires canonical token IDs plus the tenant, namespace, immutable model
+identity, and Locus input-semantic identity. NexusKV fails closed when the
+matched entry lacks identical compatibility evidence. A successful match also
+returns an unguessable <code>source_handle</code>; estimate must present that handle, so a
+state ID alone does not authorize materialization planning.</p>
+<p>Estimate validates the source handle and source location, then returns a
+short-lived option bound to one Locus target, engine ID, engine generation, and
+residency. Materialize requires the opaque option handle and matching target.
+The option is consumed only after the execution boundary reports a completed
+materialize action. Malformed requests, expired or replayed options, mismatched
+targets, and execution rejection return structured errors.</p>
+<p>Bearer authentication is optional for local fixtures and should be enabled for
+deployment with <code>--api-key-env</code>. The reference server has one process-wide
+credential; it does not yet map credentials to tenant scopes, implement
+per-tenant admission, or replace network-layer isolation. The source capability
+reduces state-ID enumeration risk but is not a substitute for tenant-scoped
+authorization.</p>
+<h2 id="running-the-reference-service">Running the reference service</h2>
+<p>Build the Rust planner extension, then start the bridge with registered fixture
+state:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nb">cd</span><span class="w"> </span>rust
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>cargo<span class="w"> </span>rustc<span class="w"> </span>-p<span class="w"> </span>bindings-py<span class="w"> </span>--crate-type<span class="w"> </span>cdylib
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="nb">cd</span><span class="w"> </span>..
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="nv">PYTHONPATH</span><span class="o">=</span>python<span class="w"> </span>python<span class="w"> </span>-m<span class="w"> </span>nexuskv.integrations.locus_bridge<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="w">  </span>--listen<span class="w"> </span><span class="m">127</span>.0.0.1:9099<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="w">  </span>--fixture<span class="w"> </span>tests/fixtures/locus_bridge/conformance.json
 </code></pre></div>
-<p>Each result records the requested action, executed action, backend selection,
-payload handle, transfer session, disposition, and fallback reason. Current
-baseline, staged-copy, and remote-store behavior must be interpreted according
-to <a href="../execution-boundary/">Execution Boundary</a> and
-<a href="../transport-backend-catalog/">Transport Backend Catalog</a>; stubs are not native
-movement.</p>
-<h3 id="35-payload-and-transfer-contract">3.5 Payload and Transfer Contract</h3>
-<p>The transfer boundary uses explicit types rather than payload-less control
-flow:</p>
+<p>On macOS, the PyO3 build additionally needs
+<code>-- -C link-arg=-undefined -C link-arg=dynamic_lookup</code>.</p>
+<p>The fixture schema is <code>locus.nexuskv-bridge.fixture.v1</code>. Locus vendors the same
+fixture and its cross-repository E2E script rejects any byte-level divergence
+before starting the two processes.</p>
+<h2 id="validation-boundary">Validation boundary</h2>
+<p>Automated tests cover strict request validation, bearer authentication,
+semantic mismatch, source/option handle tampering, target-generation mismatch,
+one-time option consumption, backend rejection, and structured failure. The
+cross-repository test starts this service in a separate process with the real
+Rust matcher and verifies Locus planning plus prepare/materialize/commit.</p>
+<p>The following remain unverified:</p>
 <ul>
-<li><code>PayloadDescriptor</code> and <code>StateSliceDescriptor</code>;</li>
-<li><code>PayloadLocation</code> and <code>PayloadHandle</code>;</li>
-<li><code>TransferRequest</code>, <code>TransferResult</code>, and <code>TransferSession</code>.</li>
+<li>native SGLang or vLLM GPU state import;</li>
+<li>physical Host DRAM, shared-memory, RDMA, or device transfer through this API;</li>
+<li>production cost calibration, throughput, and tail latency;</li>
+<li>multi-replica option/state coordination and tenant-scoped authentication.</li>
 </ul>
-<p>Ownership values are currently descriptive hints, not a complete memory-safety
-protocol. A real backend must define allocation authority, registration,
-completion, cancellation, retry, and cleanup semantics. See
-<a href="../payload-transfer-contract/">Payload Transfer Contract</a>.</p>
-<h3 id="36-control-plane-policy">3.6 Control Plane Policy</h3>
-<p><code>nexuskv.execution_policy.v1</code> is the versioned operator-authored contract for:</p>
-<ul>
-<li>enabled backends and backend priority;</li>
-<li>allowed source and target tiers;</li>
-<li>allowed device and buffer classes;</li>
-<li>materialization capabilities;</li>
-<li>degraded-path and fallback behavior;</li>
-<li>backend capability overlays;</li>
-<li>tenancy, quota, and admission placeholders.</li>
-</ul>
-<p>Go owns validation and export. Python owns consumption, last-known-good reload,
-catalog filtering, and execution interpretation. Connectors do not evaluate
-policy. See <a href="../controlplane-execution-policy/">Control Plane Execution Policy</a>.</p>
-<h3 id="37-observability-and-feedback">3.7 Observability and Feedback</h3>
-<p>Every decision should connect:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>state identity
-<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>  -&gt; match and compatibility
-<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>  -&gt; predicted cost
-<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>  -&gt; selected placement and backend
-<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>  -&gt; completion or fallback
-<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>  -&gt; observed latency, interference, and Effective Gain
-</code></pre></div>
-<p>Aggregate hit rate is diagnostic, not the optimization objective. Telemetry
-must preserve tenant isolation and distinguish logical match, physical
-availability, completed materialization, and useful reuse.</p>
-<h2 id="4-api-ownership">4. API Ownership</h2>
-<p>The current code exposes mostly internal contracts plus one explicitly
-versioned Locus integration API. It is not a stable general-purpose public
-network API.</p>
-<table>
-<thead>
-<tr>
-<th>Contract</th>
-<th>Current owner</th>
-<th>Stability expectation</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>State and planner schema</td>
-<td>Repository IDL with generated Rust/Python bindings</td>
-<td>Version before incompatible change</td>
-</tr>
-<tr>
-<td><code>lookup</code> and <code>plan_partial_hit</code></td>
-<td>Rust planner through the Python bridge</td>
-<td>Narrow internal planning API</td>
-</tr>
-<tr>
-<td>Connector lifecycle hooks</td>
-<td>Python SGLang/vLLM adapters</td>
-<td>Version-pinned compatibility surface</td>
-</tr>
-<tr>
-<td>Execution backend protocol</td>
-<td>Python execution layer</td>
-<td>Extension point for real backends</td>
-</tr>
-<tr>
-<td>Payload/transfer session types</td>
-<td>Python execution contract and shared enums</td>
-<td>Stable seam, not proof of transfer</td>
-</tr>
-<tr>
-<td>Execution policy</td>
-<td>Go producer and Python consumer</td>
-<td>Versioned operator contract</td>
-</tr>
-<tr>
-<td>Locus lookup/estimate/materialize bridge</td>
-<td>Python HTTP service backed by the Rust planner and execution boundary</td>
-<td>Versioned integration contract; protocol evidence only</td>
-</tr>
-</tbody>
-</table>
-<p>New public RPCs must not be inferred from the internal types. The Locus bridge
-has an explicit schema, authentication hook, structured failures, capability
-handles, and conformance fixture; it does not make the other internal contracts
-public or prove physical transfer.</p>
-<h2 id="5-request-data-flow">5. Request Data Flow</h2>
-<ol>
-<li><strong>Describe.</strong> The adapter converts Inference Runtime context into a
-   <code>QueryKey</code> and required State Descriptor.</li>
-<li><strong>Match.</strong> <code>nxradixtree</code> returns exact or prefix candidates and remaining
-   work.</li>
-<li><strong>Validate.</strong> Identity, descriptor, lineage, tenant, and version checks
-   reject unsafe candidates.</li>
-<li><strong>Plan.</strong> The planner compares reuse paths with recomputation under policy,
-   capacity, topology, deadline, and uncertainty constraints.</li>
-<li><strong>Reserve.</strong> The Inference Runtime authorizes runtime-owned destination
-   memory; the selected backend reserves other required resources.</li>
-<li><strong>Execute.</strong> The Data Plane materializes, prefetches, stores, skips, or
-   reports rejection through a transfer session.</li>
-<li><strong>Commit or fall back.</strong> The Inference Runtime consumes ready compatible
-   state or recomputes deterministically.</li>
-<li><strong>Observe.</strong> Completion and cost feedback update telemetry and future
-   calibration.</li>
-</ol>
-<h2 id="6-state-lifecycle">6. State Lifecycle</h2>
-<p>The conceptual lifecycle is:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>described
-<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>  -&gt; matched
-<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>  -&gt; validated
-<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>  -&gt; planned
-<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>  -&gt; reserved
-<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>  -&gt; materialized | recomputed | skipped
-<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a>  -&gt; observed
-<a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a>  -&gt; retained | demoted | evicted | invalidated
-</code></pre></div>
-<p>Not every transition is implemented. In particular, distributed leases,
-invalidation, native asynchronous completion, demotion, and eviction policy are
-future work.</p>
-<p>Lifecycle invariants:</p>
-<ul>
-<li>compatibility fails closed;</li>
-<li>missing or late state falls back without changing model correctness;</li>
-<li>metadata match, payload availability, and materialization completion remain
-  distinct states;</li>
-<li>transfer intent is not reported as completed movement;</li>
-<li>the Inference Runtime authorizes final consumption;</li>
-<li>Control Plane updates do not mutate in-flight decisions without an explicit
-  version boundary.</li>
-</ul>
-<h2 id="7-current-implementation-map">7. Current Implementation Map</h2>
-<table>
-<thead>
-<tr>
-<th>Area</th>
-<th>Current state</th>
-<th>Next boundary</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>State Contract</td>
-<td>Versioned schema and generated bindings</td>
-<td>Richer conversion and compatibility rules</td>
-</tr>
-<tr>
-<td>Matcher</td>
-<td>Rust exact/prefix lookup and partial-hit plan</td>
-<td>Cost and multi-extent planning</td>
-</tr>
-<tr>
-<td>Store</td>
-<td>Bounded Host DRAM payload store</td>
-<td>Tiered lifecycle and persistence integrations</td>
-</tr>
-<tr>
-<td>Adapters</td>
-<td>Lifecycle-aware SGLang/vLLM surfaces</td>
-<td>Version-pinned native conformance</td>
-</tr>
-<tr>
-<td>Execution</td>
-<td>Deterministic runner, catalog, fallback, and stubs</td>
-<td>Native transfer backends and completion</td>
-</tr>
-<tr>
-<td>Control Plane</td>
-<td>Validated file policy handoff and overlays</td>
-<td>Distributed rollout, quota, and admission</td>
-</tr>
-<tr>
-<td>Evaluation</td>
-<td>Methodology and scaffolding</td>
-<td>Retained end-to-end benchmark artifacts</td>
-</tr>
-</tbody>
-</table>
-<h2 id="8-change-protocol">8. Change Protocol</h2>
-<p>Every feature proposal must answer:</p>
-<ol>
-<li>Does it conform to the Whitepaper?</li>
-<li>Which architecture layer owns it?</li>
-<li>Which concrete problem does it solve?</li>
-<li>How will it be benchmarked or otherwise validated?</li>
-<li>Does it change the State Contract or compatibility rules?</li>
-</ol>
-<p>If ownership is ambiguous, the change should stop at a contract boundary until
-the architecture decision is explicit. If correctness, timing, or capability
-cannot be established, recomputation remains the default behavior.</p>
 
 
 
