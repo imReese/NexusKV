@@ -168,6 +168,11 @@ extern "C" void nexuskv_client_destroy(NexusKVClient* client) {
     delete client;
 }
 
+extern "C" bool nexuskv_client_health_check(NexusKVClient* client) {
+    if (!client) return false;
+    return client->is_connected && !client->stop_worker.load(std::memory_order_relaxed);
+}
+
 extern "C" NexusKVHalStatus nexuskv_client_pin_memory(void* ptr, size_t size_bytes) {
     if (!ptr || size_bytes == 0) {
         return NEXUSKV_HAL_ERR_INVALID_PARAM;
@@ -175,7 +180,7 @@ extern "C" NexusKVHalStatus nexuskv_client_pin_memory(void* ptr, size_t size_byt
 
 #if defined(__unix__) || defined(__APPLE__)
     if (mlock(ptr, size_bytes) != 0) {
-        return NEXUSKV_HAL_SUCCESS;
+        return NEXUSKV_HAL_ERR_OUT_OF_MEMORY;
     }
 #endif
     return NEXUSKV_HAL_SUCCESS;

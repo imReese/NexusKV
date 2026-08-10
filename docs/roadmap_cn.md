@@ -1,75 +1,75 @@
-# 🧭 NexusKV 高速演进路线图 (2026 季度敏捷规划)
+# 🧭 NexusKV 高速演进路线图 (2026 季度规划)
 
 ---
 
-## 💡 一、 2026 年最新大模型推理前沿与硬件演进 (2026 Tech Landscape)
+## 💡 1. 2026 前沿大模型推理与硬件互联演进
 
-在大模型基础设施领域，推理架构正在经历由 **DeepSeek-V4** 与 **NVIDIA Vera Rubin / Blackwell Ultra** 引领的物理级变革：
+在 2026 年，大模型推理生态正在经历由 **DeepSeek-V4** 与 **NVIDIA Vera Rubin / Blackwell Ultra** 平台主导的剧烈演进：
 
-1. **硬件辅助 Prefill-Decode (PD) 物理卸载**：随着 **NVIDIA Rubin CPX**（Prefill 专属加速处理器）与 Rubin GPU (HBM4) 的普及，Prefill 与 Decode 在物理硬件层实现彻底解耦，跨节点 0-Hop 内存传输与算力感知成为核心关隘。
-2. **DeepSeek-V4 混合 Attention 架构 (CSA + HCA)**：DeepSeek-V4（1M+ 拓扑上下文）全面引入 **Compressed Sparse Attention (CSA)** 与 **Heavily Compressed Attention (HCA)**，相比 V3 降低 90% 的 KV Cache 内存负担，要求基础设施层原生支持混合压缩标度与动态 Scale 重映射。
-3. **极速总线与开放内存织网 (NVLink 6 & UALink 2.0)**：物理传输全面拥抱 **6th-Gen NVLink**、**UALink 2.0 开放织网** 与 **CXL 3.1 柜级共享内存**，实现跨卡跨机 Fabric-Attached Memory 挂载。
-4. **NVFP4 / FP4 硬件量化标度与 Agent 多分支 CoW**：在 NVFP4 低精度推理下，状态层需原生支持 FP4 量化 Scale 标度与 Agentic ToT / MCTS 搜索的零开销 Copy-on-Write 前缀共享。
+1. **硬件辅助 Prefill-Decode (PD) 分离**: 随着 **NVIDIA Rubin CPX**（专用 Prefill 加速芯片）和 Rubin HBM4 GPU 的推出，Prefill 与 Decode 在物理芯片层实现了真正的解耦。
+2. **DeepSeek-V4 混合注意力 (CSA + HCA)**: DeepSeek-V4 引入了 **压缩稀疏注意力 (CSA)** 与 **重度压缩注意力 (HCA)** 架构，针对 100 万 Token 以上超长上下文，将 KV 显存开销降低 90%。
+3. **极速互联与 Fabric 挂载内存**: 物理传输正向 **第 6 代 NVLink**、**UALink 2.0 开放 Fabric 协议** 以及 **CXL 3.1** 机架级共享内存池演进。
+4. **NVFP4 量化与 Agent 多分支 CoW**: 在 NVFP4 低精度推理下，状态层原生对齐 FP4 量化 Scale 因子，并为 Tree-of-Thought (ToT) Agentic 搜索提供零开销 Copy-on-Write 前缀共享。
 
 ---
 
-## 🏛 二、 2026 季度演进里程碑 (2026 Quarterly Milestones)
+## 🏛 2. 2026 季度里程碑
 
 ```text
  ┌───────────────────────────────────────────────────────────────────────────────────┐
- │ 2026 Q1 (已完成): 核心多语言架构闭环与零开销契约                                    │
- │ - Go 控制面 / Rust `nxradixtree-core` 前缀树 / Python FFI / Apache 2.0 开源协议  │
+ │ 2026 Q1 (已完成): 核心多语言引擎与零开销契约抽象                                   │
+ │ - Go 控制面 / Rust `nxradixtree-core` / Python FFI / Apache 2.0 许可证           │
  └─────────────────────────────────────────┬─────────────────────────────────────────┘
                                            │
                                            ▼
  ┌───────────────────────────────────────────────────────────────────────────────────┐
- │ 2026 Q2 (推进中): DeepSeek-V4 (CSA/HCA) 混合 Attention 与 NVFP4 量化标度支持       │
- │ - DeepSeek-V4 CSA/HCA 混合 Attention 状态重映射 / NVFP4 Scale 对齐 / Helm & PyPI│
+ │ 2026 Q2 (推进中): DeepSeek-V4 (CSA/HCA) 稀疏/块状注意力与 NVFP4 量化对齐            │
+ │ - DeepSeek-V4 CSA/HCA 状态映射 / NVFP4 Scale 对齐 / Helm & PyPI                  │
  └─────────────────────────────────────────┬─────────────────────────────────────────┘
                                            │
                                            ▼
  ┌───────────────────────────────────────────────────────────────────────────────────┐
- │ 2026 Q3: Rubin CPX Prefill 解耦、C++ Client SDK 与 Consistent Hashing             │
- │ - Rubin CPX Prefill/Decode 硬件握手 / RCU 无锁 Radix Tree / C++ SDK / 节点自愈    │
+ │ 2026 Q3 (计划中): Rubin CPX Prefill 解耦、C++ SDK 与一致性哈希                        │
+ │ - Rubin CPX Prefill 卸载 / RCU 无锁 Radix Tree / C++ SDK / 自愈机制               │
  └─────────────────────────────────────────┬─────────────────────────────────────────┘
                                            │
                                            ▼
  ┌───────────────────────────────────────────────────────────────────────────────────┐
- │ 2026 Q4: UALink 2.0 开放织网、CXL 3.1 柜级内存池与 Agent 多分支 CoW                 │
- │ - UALink 2.0 / CXL 3.1 柜级共享内存挂载 / Agentic ToT 零拷贝 Copy-on-Write 树     │
+ │ 2026 Q4 (计划中): UALink 2.0 开放 Fabric、CXL 3.1 内存池与 Agent 多分支 CoW        │
+ │ - UALink 2.0 / CXL 3.1 Fabric 挂载内存 / Agentic ToT CoW 树                        │
  └───────────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-### 2026 Q1：核心多语言架构闭环与零开销契约 (已完成)
+### 2026 Q1: 核心多语言引擎与零开销契约抽象 (已完成)
 
-- [x] **Go 分布式控制面**：Raft 状态同步、WAL 持久化日志与 `TenantQuotaManager` 多租户硬隔离。
-- [x] **Rust 内核与匹配引擎**：`nxradixtree-core` 前缀树匹配、`nexus-store` 锁页内存与 POSIX SHM 零拷贝。
-- [x] **通用 C-FFI / Python 挂载协议**：完全解耦底层推理引擎，原生适配 vLLM、SGLang 等主流引擎。
-- [x] **Apache 2.0 开源协议**：全面升级许可契约，赋予显式专利授权保护。
-
----
-
-### 2026 Q2：通用稀疏/分块 Attention 拓扑与 Block 量化标度 (已完成)
-
-- [x] **Grafana & 可观测性面板**：提供预设仪表盘 `grafana-dashboard.json`，实时监控命中率、传输带宽 (GB/s) 与 Fail-Open 事件。
-- [x] **PyPI Wheel 自动化构建**：配置 `.github/workflows/release.yml`，支持多平台 Maturin 自动化二进制构建。
-- [x] **Speculative Intent 预取引擎**：实现 Decode 前的 Token Prefix 意图异步流水线预加载 (`prefetch.py`)。
-- [x] **通用稀疏/分块 Attention 拓扑与 Block 量化标度**：抽象 `SPARSE_INDEXED_STATE` 通用稀疏索引原语与 `SCALE_TENSOR` 通用量化标度对齐契约（支持 FP8/FP4/INT4 分块标度对齐与反量化补偿）。
+- [x] **Go 分布式控制面骨架与本地 WAL**: 单节点选举状态机、顺序 WAL 日志追加/恢复，以及集群一致性哈希环拓扑。
+- [x] **Rust 内核与匹配引擎**: `nxradixtree-core` 前缀树、`nexus-store` Host DRAM 内存分配器，以及契约内存结构。
+- [x] **通用 C-FFI / Python 挂载协议**: 引擎无关架构设计；提供 vLLM 与 SGLang 的原生 C-FFI / PyO3 绑定与 Adapter 接口。
+- [x] **Apache 2.0 开源许可证**: 明确的专利许可保护与开源合规。
 
 ---
 
-### 2026 Q3：Rubin CPX Prefill 解耦、C++ Client SDK 与 Consistent Hashing (已完成)
+### 2026 Q2: 通用稀疏/块状注意力拓扑与量化 Scale 对齐 (推进中)
 
-- [x] **NVIDIA Rubin CPX 硬件级 PD 握手**：针对 Rubin CPX (Prefill 专属加速处理器) 与 Rubin HBM4 节点，实现硬件级 `pd_disaggregate_handshake` 物理卸载握手 (`rubin_handshake.py`)。
-- [x] **Lock-Free Concurrent Radix Tree**：在 `nxradixtree-core` 中演进 RCU (Read-Copy-Update) 节点指针更新，大幅降低百核并发查找争用。
-- [x] **Header-Only C++ Client SDK 生产级增强**：为 TensorRT-LLM、LMDeploy 及 C++ 自研推理网关提供包含健康检查与熔断降级的 C++ 原生客户端库 (`nexuskv_client.h`)。
-- [x] **Consistent Hash Ring 节点自愈**：在 Go 控制面增加虚拟节点一致性哈希环与节点健康度探测 (`hashring.go`)，实现 Worker 节点宕机/扩缩容零抖动重平衡。
+- [x] **Grafana 与可观测性 Dashboard**: 预配置 `grafana-dashboard.json`，提供 Hit Rate 命中率 (Hits vs Misses)、GB/s 传输带宽以及 Fail-Open 降级事件监控。
+- [x] **PyPI Wheel 自动化构建**: `.github/workflows/release.yml` 提供跨平台 Maturin 轮子打包流水线。
+- [ ] **Speculative Intent 预取引擎**: Decode 阶段前的高并发 Pipeline 异步预加载 (`prefetch.py` 队列骨架)。
+- [x] **通用稀疏/块状注意力与量化 Scale 原语**: 抽象 `SPARSE_INDEXED_STATE` 拓扑原语与 `SCALE_TENSOR` 量化 Scale 对齐契约。
 
 ---
 
-### 2026 Q4：UALink 2.0 开放织网、CXL 3.1 柜级内存池与 Agent 多分支 CoW (已完成)
+### 2026 Q3: Rubin CPX Prefill 解耦、C++ SDK 与一致性哈希 (计划中)
 
-- [x] **UALink 2.0 & CXL 3.1 柜级共享内存池**：集成 UALink 2.0 开放总线与 CXL 3.1 TraCT，支持 Fabric-Attached Memory (`CxlFabricMemoryPool`) 直接 Load/Store 挂载，实现跨机 0-Hop 零网络开销传输。
-- [x] **Agentic 多分支 CoW Radix 树**：针对 Agentic ToT / MCTS 启发式搜索，实现写时复制 (`fork_branch()`) 零开销多分支状态共享与内存复用。
+- [ ] **NVIDIA Rubin CPX 硬件 PD 握手**: 针对 Rubin CPX Prefill 芯片的 `pd_disaggregate_handshake` 硬件卸载逻辑 (`rubin_handshake.py` 会话契约)。
+- [ ] **无锁并发 Radix Tree**: `nxradixtree-core` 中的 RCU (Read-Copy-Update) 节点遍历，提升 CPU 多核并发。
+- [x] ** Header-Only C++ Client SDK 增强**: 轻量级 C++ 客户端库 (`nexuskv_client.h`)，提供 Fail-Open 内存锁定与 `health_check()` 接口。
+- [x] **一致性哈希环自愈机制**: Go 控制面虚拟节点哈希环 (`hashring.go`)，提供节点健康探测与平滑故障转移。
+
+---
+
+### 2026 Q4: UALink 2.0 开放 Fabric、CXL 3.1 内存池与 Agent 多分支 CoW (计划中)
+
+- [ ] **UALink 2.0 与 CXL 3.1 机架级内存池**: Fabric 挂载内存直接 Load/Store 映射 (`CxlFabricMemoryPool` 与 `UALink2FabricTransport` 描述符模拟器)。
+- [ ] **Agentic 多分支 CoW Radix Tree**: 用于 Tree-of-Thought (ToT) 与 MCTS 搜索的 Copy-on-Write 状态共享 (`fork_branch()`) 生命周期管理。

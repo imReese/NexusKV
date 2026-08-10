@@ -3,7 +3,7 @@ name = "nexus-store"
 version = "0.1.0"
 edition = "2024"
 description = "Concrete KV payload stores for NexusKV"
-license = "MIT"
+license = "Apache-2.0"
 
 [dependencies]
 nexus-state = { path = "../nexus-state" }

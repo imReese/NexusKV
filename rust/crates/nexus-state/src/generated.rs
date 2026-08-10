@@ -24,6 +24,8 @@ pub enum StateSemanticType {
     HcaSummary,
     DsparkSparse,
     SparseIndexedState,
+    MultimodalVision,
+    AgentTotCow,
     GenericContainer,
 }
 

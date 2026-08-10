@@ -22,13 +22,10 @@ echo "======================================================================"
 echo "==> [1/4] Generating Contract Bindings..."
 python3 "${REPO_ROOT}/tools/generate_contracts.py"
 
-# 2. Build Go Binaries
+# 2. Build Go Control Plane & Server Binaries
 echo "==> [2/4] Building Go Control Plane & Server Binaries..."
-cd "${REPO_ROOT}/go"
-GOTOOLCHAIN=go1.25.9 go build -o "${BIN_DIR}/nexuskv-controlplane" ./cmd/nexuskv-controlplane
 cd "${REPO_ROOT}"
-GOTOOLCHAIN=go1.25.9 go build -o "${BIN_DIR}/nexuskv-server" ./cmd/server
-echo "    ✔ Built Go controlplane binary : ${BIN_DIR}/nexuskv-controlplane"
+go build -o "${BIN_DIR}/nexuskv-server" ./cmd/server
 echo "    ✔ Built Go server binary       : ${BIN_DIR}/nexuskv-server"
 
 # 3. Build Rust Core Engine & PyO3 Native Bindings

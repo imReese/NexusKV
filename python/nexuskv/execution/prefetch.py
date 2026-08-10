@@ -39,6 +39,14 @@ class PrefetchScheduler:
         decision: MaterializationDecision,
         ttl_sec: float | None = None,
     ) -> tuple[PrefetchJob | None, str | None]:
+        active_count = sum(
+            1
+            for j in self._jobs.values()
+            if j.status == PrefetchJobStatus.IN_PROGRESS and time.time() <= j.deadline
+        )
+        if active_count >= self.max_concurrent_prefetches:
+            return None, "max concurrent prefetches limit reached"
+
         ttl = ttl_sec if ttl_sec is not None else self.default_ttl_sec
         deadline = time.time() + ttl
         job = PrefetchJob(

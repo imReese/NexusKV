@@ -83,6 +83,7 @@ type Node struct {
 	term       uint64
 	votedFor   string
 	leaderID   string
+	wal        any
 	config     Config
 	logger     *zap.Logger
 	stopChan   chan struct{}
@@ -114,6 +115,7 @@ func NewNode(cfg NodeConfig) (*Node, error) {
 		term:       0,
 		votedFor:   "",
 		leaderID:   "",
+		wal:        cfg.WAL,
 		logger:     cfg.Logger,
 		stopChan:   make(chan struct{}),
 		resetTimer: make(chan struct{}, 1),
@@ -184,6 +186,17 @@ func (n *Node) AppendEntries(args *AppendEntriesArgs, reply *AppendEntriesReply)
 	}
 
 	n.leaderID = args.LeaderID
+
+	if len(args.Entries) > 0 {
+		if walInst, ok := n.wal.(interface{ WriteLog([]byte) (uint64, error) }); ok && walInst != nil {
+			for _, entryData := range args.Entries {
+				if len(entryData) > 0 {
+					_, _ = walInst.WriteLog(entryData)
+				}
+			}
+		}
+	}
+
 	reply.Success = true
 	n.signalResetTimerUnlocked()
 }
@@ -304,6 +317,9 @@ func (n *Node) Shutdown(ctx context.Context) error {
 }
 
 func RegisterRaftServiceServer(server grpc.ServiceRegistrar, node *Node) {
+	if server != nil && node != nil && node.logger != nil {
+		node.logger.Info("Registered Raft gRPC service server", zap.String("node_id", node.id))
+	}
 }
 
 func randomTimeout(base time.Duration) time.Duration {

@@ -25,6 +25,7 @@ typedef void (*NexusKVAsyncCallback)(NexusKVHalStatus status, void* user_data);
 // Client Lifecycle Management
 NexusKVClient* nexuskv_client_create(const char* server_addr, int control_port);
 void nexuskv_client_destroy(NexusKVClient* client);
+bool nexuskv_client_health_check(NexusKVClient* client);
 
 // DMA Memory Locking API (POSIX mlock/munlock)
 NexusKVHalStatus nexuskv_client_pin_memory(void* ptr, size_t size_bytes);
