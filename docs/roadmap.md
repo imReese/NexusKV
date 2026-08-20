@@ -44,7 +44,7 @@ In 2026, the LLM inference ecosystem is undergoing rapid evolution led by **Deep
 
 ### 2026 Q1: Core Polyglot Engine & Zero-Overhead Contracts (Completed)
 
-- [x] **Go Control Plane Scaffolding & Local WAL**: Single-node election state machine, WAL append/recovery, and cluster hash ring topology.
+- [x] **Go Control Plane Foundation**: gRPC topology API backed by a consistent-hash FSM and single-node Hashicorp Raft bootstrap with BoltDB-backed consensus state.
 - [x] **Rust Kernel & Matching Engine**: `nxradixtree-core` prefix tree, `nexus-store` Host DRAM allocator, and contract memory structures.
 - [x] **Universal C-FFI / Python Attachment Protocol**: Native C-FFI / PyO3 bindings and connector interfaces for vLLM and SGLang.
 - [x] **Apache 2.0 Open Source License**: Explicit patent licensing protection across repository crates and artifacts.

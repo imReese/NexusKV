@@ -44,7 +44,7 @@
 
 ### 2026 Q1: 核心多语言引擎与零开销契约抽象 (已完成)
 
-- [x] **Go 分布式控制面骨架与本地 WAL**: 单节点选举状态机、顺序 WAL 日志追加/恢复，以及集群一致性哈希环拓扑。
+- [x] **Go 控制面基础**: 基于一致性哈希 FSM 的 gRPC 拓扑 API，以及采用 BoltDB 持久化共识状态的单节点 Hashicorp Raft 启动路径。
 - [x] **Rust 内核与匹配引擎**: `nxradixtree-core` 前缀树、`nexus-store` Host DRAM 内存分配器，以及契约内存结构。
 - [x] **通用 C-FFI / Python 挂载协议**: 引擎无关架构设计；提供 vLLM 与 SGLang 的原生 C-FFI / PyO3 绑定与 Adapter 接口。
 - [x] **Apache 2.0 开源许可证**: 明确的专利许可保护与开源合规。
