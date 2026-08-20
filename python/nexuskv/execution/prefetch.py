@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import asyncio
+import threading
 import time
 from collections.abc import Sequence
 from dataclasses import dataclass, field
@@ -84,6 +86,7 @@ class PrefetchTask:
     target_tier: str  # "HBM", "DRAM", "SSD"
     status: str  # "PENDING", "PREFETCHING", "COMPLETED", "FAILED"
     allocated_block_ids: list[int]
+    session_ids: list[str] = field(default_factory=list)
 
 
 class SpeculativePrefetchEngine:
@@ -97,6 +100,17 @@ class SpeculativePrefetchEngine:
         self.allocator = allocator or HbmBlockAllocator()
         self.active_tasks: dict[str, PrefetchTask] = {}
 
+        # Start a dedicated daemon thread for background asyncio loop
+        self._loop = asyncio.new_event_loop()
+        self._daemon_thread = threading.Thread(
+            target=self._run_loop, daemon=True, name="PrefetchDaemonWorker"
+        )
+        self._daemon_thread.start()
+
+    def _run_loop(self) -> None:
+        asyncio.set_event_loop(self._loop)
+        self._loop.run_forever()
+
     def submit_intent_prefetch(
         self,
         task_id: str,
@@ -104,7 +118,29 @@ class SpeculativePrefetchEngine:
         predicted_suffix_tokens: Sequence[int],
         target_tier: str = "HBM",
     ) -> PrefetchTask:
-        total_tokens = len(prefix_tokens) + len(predicted_suffix_tokens)
+        task = PrefetchTask(
+            task_id=task_id,
+            prompt_tokens=list(prefix_tokens),
+            predicted_suffix_tokens=list(predicted_suffix_tokens),
+            target_tier=target_tier,
+            status="PENDING",
+            allocated_block_ids=[],
+        )
+        self.active_tasks[task_id] = task
+
+        # Schedule the background processing safely in the daemon's event loop
+        asyncio.run_coroutine_threadsafe(self._process_task_async(task_id), self._loop)
+        return task
+
+    async def _process_task_async(self, task_id: str) -> None:
+        task = self.active_tasks.get(task_id)
+        if not task:
+            return
+
+        task.status = "PREFETCHING"
+
+        # Simulate planning: token sequence to block resolution
+        total_tokens = len(task.prompt_tokens) + len(task.predicted_suffix_tokens)
         blocks_needed = max(1, total_tokens // 100)
 
         allocated_ids = []
@@ -112,16 +148,24 @@ class SpeculativePrefetchEngine:
             block = self.allocator.allocate_block()
             allocated_ids.append(block.block_id)
 
-        task = PrefetchTask(
-            task_id=task_id,
-            prompt_tokens=list(prefix_tokens),
-            predicted_suffix_tokens=list(predicted_suffix_tokens),
-            target_tier=target_tier,
-            status="COMPLETED",
-            allocated_block_ids=allocated_ids,
-        )
-        self.active_tasks[task_id] = task
-        return task
+        task.allocated_block_ids = allocated_ids
+
+        # In a real system, here we would integrate with `TransferSessionTracker`
+        # and wait for PCIe DMA transfer status to complete.
+        # We simulate the asynchronous transfer latency proportional to blocks.
+        transfer_latency_sec = 0.05 * blocks_needed
+        await asyncio.sleep(transfer_latency_sec)
+
+        task.status = "COMPLETED"
 
     def get_task(self, task_id: str) -> PrefetchTask | None:
         return self.active_tasks.get(task_id)
+
+    def shutdown(self) -> None:
+        if self._loop.is_closed():
+            return
+        if self._loop.is_running():
+            self._loop.call_soon_threadsafe(self._loop.stop)
+        self._daemon_thread.join(timeout=2.0)
+        if not self._daemon_thread.is_alive():
+            self._loop.close()
