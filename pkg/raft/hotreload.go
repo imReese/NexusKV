@@ -38,10 +38,12 @@ func (h *RaftReloadHandler) OnConfigReload(newCfg *config.ServerConfig) error {
 		return errors.New("election timeout must be greater than heartbeat timeout")
 	}
 
-	h.node.ApplyConfig(Config{
+	if err := h.node.ApplyConfig(Config{
 		ElectionTimeout:  newCfg.Raft.ElectionTimeout,
 		HeartbeatTimeout: newCfg.Raft.HeartbeatTimeout,
-	})
+	}); err != nil {
+		return err
+	}
 	h.logger.Info("Raft config reloaded",
 		zap.Duration("new_election_timeout", newCfg.Raft.ElectionTimeout),
 		zap.Duration("new_heartbeat_timeout", newCfg.Raft.HeartbeatTimeout))

@@ -1,12 +1,20 @@
 package cluster
 
 import (
+	"context"
 	"fmt"
 	"hash/fnv"
+	"io"
 	"sort"
 	"strconv"
+	"strings"
 	"sync"
 	"sync/atomic"
+	"time"
+
+	"github.com/hashicorp/raft"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/health/grpc_health_v1"
 )
 
 type NodeStatus string
@@ -31,10 +39,12 @@ type NodeMetrics struct {
 
 type ConsistentHashRing struct {
 	mu           sync.RWMutex
-	virtualNodes int
+	nodes        map[string]*NodeMetrics
 	ring         []uint32
 	nodeMap      map[uint32]string
-	nodes        map[string]*NodeMetrics
+	virtualNodes int
+	stopProber   chan struct{}
+	version      uint64
 }
 
 func NewConsistentHashRing(virtualNodes int) *ConsistentHashRing {
@@ -43,10 +53,104 @@ func NewConsistentHashRing(virtualNodes int) *ConsistentHashRing {
 	}
 	return &ConsistentHashRing{
 		virtualNodes: virtualNodes,
+		ring:         make([]uint32, 0),
 		nodeMap:      make(map[uint32]string),
 		nodes:        make(map[string]*NodeMetrics),
+		stopProber:   make(chan struct{}),
 	}
 }
+
+func (c *ConsistentHashRing) Apply(l *raft.Log) interface{} {
+	cmdStr := string(l.Data)
+	if len(cmdStr) > 9 && cmdStr[:9] == "ADD_NODE:" {
+		nodeAddr := cmdStr[9:]
+		c.AddNode(nodeAddr)
+		return nil
+	}
+	if len(cmdStr) > 12 && cmdStr[:12] == "REMOVE_NODE:" {
+		nodeAddr := cmdStr[12:]
+		c.RemoveNode(nodeAddr)
+		return nil
+	}
+	return fmt.Errorf("unknown command")
+}
+
+func (c *ConsistentHashRing) Snapshot() (raft.FSMSnapshot, error) {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+
+	// Clone the current node list for the snapshot
+	nodes := make([]string, 0, len(c.nodes))
+	for n := range c.nodes {
+		nodes = append(nodes, n)
+	}
+
+	return &fsmSnapshot{nodes: nodes}, nil
+}
+
+func (c *ConsistentHashRing) Restore(rc io.ReadCloser) error {
+	defer rc.Close()
+
+	// Simply read all lines and recreate the ring
+	data, err := io.ReadAll(rc)
+	if err != nil {
+		return err
+	}
+
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	// Reset state
+	c.nodes = make(map[string]*NodeMetrics)
+	c.ring = make([]uint32, 0)
+	c.nodeMap = make(map[uint32]string)
+	c.version++
+
+	if len(data) == 0 {
+		return nil
+	}
+
+	nodes := strings.Split(string(data), "\n")
+	for _, node := range nodes {
+		if node == "" {
+			continue
+		}
+		c.nodes[node] = &NodeMetrics{Status: NodeHealthy}
+		for i := 0; i < c.virtualNodes; i++ {
+			vKey := node + "#" + strconv.Itoa(i)
+			h := c.hash(vKey)
+			c.ring = append(c.ring, h)
+			c.nodeMap[h] = node
+		}
+	}
+
+	sort.Slice(c.ring, func(i, j int) bool {
+		return c.ring[i] < c.ring[j]
+	})
+
+	return nil
+}
+
+type fsmSnapshot struct {
+	nodes []string
+}
+
+func (f *fsmSnapshot) Persist(sink raft.SnapshotSink) error {
+	err := func() error {
+		data := strings.Join(f.nodes, "\n")
+		if _, err := sink.Write([]byte(data)); err != nil {
+			return err
+		}
+		return sink.Close()
+	}()
+
+	if err != nil {
+		sink.Cancel()
+	}
+	return err
+}
+
+func (f *fsmSnapshot) Release() {}
 
 func (c *ConsistentHashRing) hash(key string) uint32 {
 	h := fnv.New32a()
@@ -73,6 +177,7 @@ func (c *ConsistentHashRing) AddNode(node string) {
 	sort.Slice(c.ring, func(i, j int) bool {
 		return c.ring[i] < c.ring[j]
 	})
+	c.version++
 }
 
 func (c *ConsistentHashRing) SetNodeStatus(node string, status NodeStatus) []MigrationPlan {
@@ -129,6 +234,27 @@ func (c *ConsistentHashRing) RemoveNode(node string) {
 		}
 	}
 	c.ring = newRing
+	c.version++
+}
+
+func (c *ConsistentHashRing) GetTopologyInfo() (uint64, []string, []uint32, map[uint32]string) {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+
+	nodes := make([]string, 0, len(c.nodes))
+	for n := range c.nodes {
+		nodes = append(nodes, n)
+	}
+
+	ringCopy := make([]uint32, len(c.ring))
+	copy(ringCopy, c.ring)
+
+	mapCopy := make(map[uint32]string)
+	for k, v := range c.nodeMap {
+		mapCopy[k] = v
+	}
+
+	return c.version, nodes, ringCopy, mapCopy
 }
 
 func (c *ConsistentHashRing) GetNode(key string) (string, error) {
@@ -200,4 +326,55 @@ func (c *ConsistentHashRing) GetActiveNodeCount() int {
 		}
 	}
 	return count
+}
+
+func (c *ConsistentHashRing) StartHealthProber(interval time.Duration) {
+	ticker := time.NewTicker(interval)
+	go func() {
+		defer ticker.Stop()
+		for {
+			select {
+			case <-c.stopProber:
+				return
+			case <-ticker.C:
+				c.mu.RLock()
+				var nodesToCheck []string
+				for node := range c.nodes {
+					nodesToCheck = append(nodesToCheck, node)
+				}
+				c.mu.RUnlock()
+
+				for _, nodeAddr := range nodesToCheck {
+					go func(addr string) {
+						ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+						defer cancel()
+
+						conn, err := grpc.DialContext(ctx, addr, grpc.WithInsecure(), grpc.WithBlock())
+						if err != nil {
+							c.SetNodeStatus(addr, NodeOffline)
+							return
+						}
+						defer conn.Close()
+
+						client := grpc_health_v1.NewHealthClient(conn)
+						resp, err := client.Check(ctx, &grpc_health_v1.HealthCheckRequest{})
+
+						if err != nil || resp.Status != grpc_health_v1.HealthCheckResponse_SERVING {
+							c.SetNodeStatus(addr, NodeOffline)
+						} else {
+							c.SetNodeStatus(addr, NodeHealthy)
+						}
+					}(nodeAddr)
+				}
+			}
+		}
+	}()
+}
+
+func (c *ConsistentHashRing) StopHealthProber() {
+	select {
+	case <-c.stopProber:
+	default:
+		close(c.stopProber)
+	}
 }

@@ -1,0 +1,30 @@
+syntax = "proto3";
+
+package cp;
+
+option go_package = "github.com/imReese/NexusKV/pkg/cp";
+
+service ControlPlaneService {
+  rpc RegisterNode(RegisterNodeRequest) returns (RegisterNodeResponse);
+  rpc GetTopology(GetTopologyRequest) returns (GetTopologyResponse);
+}
+
+message RegisterNodeRequest {
+  string node_addr = 1;
+}
+
+message RegisterNodeResponse {
+  bool success = 1;
+  string leader_id = 2; // if redirect is needed
+}
+
+message GetTopologyRequest {
+  uint64 current_version = 1;
+}
+
+message GetTopologyResponse {
+  uint64 version = 1;
+  repeated string nodes = 2;
+  repeated uint32 ring = 3;
+  map<uint32, string> node_map = 4;
+}

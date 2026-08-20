@@ -9,13 +9,13 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/imReese/NexusKV/pkg/cluster"
 	"github.com/imReese/NexusKV/pkg/config"
+	"github.com/imReese/NexusKV/pkg/cp"
 	"github.com/imReese/NexusKV/pkg/health"
 	"github.com/imReese/NexusKV/pkg/log"
 	"github.com/imReese/NexusKV/pkg/metrics"
 	"github.com/imReese/NexusKV/pkg/raft"
-	"github.com/imReese/NexusKV/pkg/storage"
-	"github.com/imReese/NexusKV/pkg/wal"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/health/grpc_health_v1"
@@ -43,38 +43,31 @@ func setupLogger() (*zap.Logger, error) {
 	return log.SetupLoggerFromConfig(defaultCfg)
 }
 
-func initStorageEngine(logger *zap.Logger) (storage.Engine, error) {
-	engine := storage.NewHybridEngine(
-		storage.WithLSMTreeConfig(storage.DefaultLSMConfig),
-		storage.WithBPlusTreeConfig(storage.DefaultBPConfig),
-	)
-	return engine, nil
-}
-
-func initRaftNode(logger *zap.Logger, storageEngine storage.Engine) (*raft.Node, error) {
-	walInstance, err := wal.NewWAL(defaultDataDir)
-	if err != nil {
-		return nil, err
-	}
+func initRaftNode(logger *zap.Logger, hashRing *cluster.ConsistentHashRing) (*raft.Node, error) {
+	// For testing purpose, we default to bootstrap = true for the single node.
+	// In real cluster, we would get this from env or config.
 	return raft.NewNode(raft.NodeConfig{
-		Storage:    storageEngine,
-		WAL:        walInstance,
-		Transport:  raft.NewGRPCTransport(),
-		EtcdConfig: raft.EtcdConfig{Endpoints: []string{etcdEndpoints}},
+		ID:        "node-1", // hardcoded for test
+		RaftAddr:  "127.0.0.1:9099",
+		DataDir:   defaultDataDir,
+		Bootstrap: true,
+		FSM:       hashRing,
+		Logger:    logger,
 	})
 }
 
-func initGRPCServer(raftNode *raft.Node) *grpc.Server {
+func initGRPCServer(raftNode *raft.Node, hashRing *cluster.ConsistentHashRing) *grpc.Server {
 	server := grpc.NewServer(
 		grpc.MaxRecvMsgSize(1024*1024*10), // 10MB
 		grpc.ConnectionTimeout(30*time.Second),
 	)
 
-	// 注册Raft服务
-	raft.RegisterRaftServiceServer(server, raftNode)
+	// 注册控制面服务
+	cpServer := cp.NewControlPlaneServiceServer(raftNode, hashRing)
+	cp.RegisterControlPlaneServiceServer(server, cpServer)
 
 	// 注册健康检查服务
-	healthServer := &health.HealthServer{}
+	healthServer := health.NewHealthServer()
 	grpc_health_v1.RegisterHealthServer(server, healthServer)
 
 	// 注册指标服务
@@ -95,10 +88,9 @@ func startServer(grpcServer *grpc.Server, lis net.Listener, logger *zap.Logger) 
 	}()
 }
 
-func initConfigWatcher(logger *zap.Logger, storageEngine storage.Engine, raftNode *raft.Node) *config.ConfigWatcher {
+func initConfigWatcher(logger *zap.Logger, raftNode *raft.Node) *config.ConfigWatcher {
 	watcher := config.NewConfigWatcher("config/nexus-kv.yaml", logger, 5*time.Second)
 	config.RegisterReloadHandler(log.NewLogReloadHandler(logger))
-	config.RegisterReloadHandler(storage.NewStorageReloadHandler(storageEngine, logger))
 	config.RegisterReloadHandler(raft.NewRaftReloadHandler(raftNode, logger))
 	return watcher
 }
@@ -153,25 +145,23 @@ func main() {
 		logger.Fatal("Failed to create data directory", zap.Error(err))
 	}
 
-	storageEngine, err := initStorageEngine(logger)
-	if err != nil {
-		logger.Fatal("Failed to init storage", zap.Error(err))
-	}
-	defer storageEngine.Close()
+	hashRing := cluster.NewConsistentHashRing(100)
+	hashRing.StartHealthProber(10 * time.Second)
+	defer hashRing.StopHealthProber()
 
-	raftNode, err := initRaftNode(logger, storageEngine)
+	raftNode, err := initRaftNode(logger, hashRing)
 	if err != nil {
 		logger.Fatal("Failed to init raft", zap.Error(err))
 	}
 
-	grpcServer := initGRPCServer(raftNode)
+	grpcServer := initGRPCServer(raftNode, hashRing)
 	lis, err := net.Listen("tcp", ":"+defaultPort)
 	if err != nil {
 		logger.Fatal("Failed to listen", zap.Error(err))
 	}
 
 	startServer(grpcServer, lis, logger)
-	watcher := initConfigWatcher(logger, storageEngine, raftNode)
+	watcher := initConfigWatcher(logger, raftNode)
 	defer watcher.Stop()
 	watcher.Start()
 
