@@ -1,7 +1,7 @@
 <h1 align="center">NexusKV</h1>
 
 <p align="center">
-  <strong>NexusKV 是面向推理系统的引擎中立模型状态智能层。</strong>
+  <strong>NexusKV 是面向推理系统的模型状态智能层。</strong>
 </p>
 
 <p align="center">

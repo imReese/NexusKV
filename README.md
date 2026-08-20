@@ -1,7 +1,7 @@
 <h1 align="center">NexusKV</h1>
 
 <p align="center">
-  <strong>NexusKV is an engine-neutral model-state intelligence layer for inference systems.</strong>
+  <strong>NexusKV is a model-state intelligence layer for inference systems.</strong>
 </p>
 
 <p align="center">
