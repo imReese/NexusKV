@@ -4,6 +4,9 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+arc-swap = "1.9.2"
+dashmap = "6.2.1"
+im = "15.1.0"
 nexus-state = { path = "../nexus-state" }
 tracing = "0.1"
 

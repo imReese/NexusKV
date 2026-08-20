@@ -1,8 +1,10 @@
 //! nxradixtree core primitives for high-performance concurrent prefix matching.
 
-use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
+
+use arc_swap::ArcSwap;
+use dashmap::DashMap;
 
 pub use nexus_state::{
     CacheEntry, CompatibilitySignal, EntryIdentity, EntryLocation, EntryVersion, KeyIdentity,
@@ -64,9 +66,9 @@ pub fn partial_hit_plan_from_match(hit: &nexus_state::MatchResult) -> PartialHit
 }
 
 #[derive(Clone, Debug, Default)]
-struct RadixNode {
-    children: HashMap<u32, Arc<RadixNode>>,
-    terminal_entry: Option<CacheEntry>,
+pub struct RadixNode {
+    pub children: im::HashMap<u32, Arc<RadixNode>>,
+    pub terminal_entry: Option<CacheEntry>,
 }
 
 #[derive(Debug, Default)]
@@ -79,7 +81,7 @@ pub struct RadixTreeStats {
 
 #[derive(Debug)]
 pub struct RadixTree {
-    scopes: HashMap<KeyScope, Arc<RadixNode>>,
+    scopes: DashMap<KeyScope, Arc<ArcSwap<RadixNode>>>,
     total_lookups: AtomicU64,
     total_inserts: AtomicU64,
     exact_hits: AtomicU64,
@@ -89,7 +91,7 @@ pub struct RadixTree {
 impl Default for RadixTree {
     fn default() -> Self {
         Self {
-            scopes: HashMap::new(),
+            scopes: DashMap::new(),
             total_lookups: AtomicU64::new(0),
             total_inserts: AtomicU64::new(0),
             exact_hits: AtomicU64::new(0),
@@ -111,41 +113,89 @@ impl RadixTree {
         Self::default()
     }
 
-    pub fn insert(&mut self, key: ReuseKey, entry: CacheEntry) {
+    pub fn insert(&self, key: ReuseKey, entry: CacheEntry) {
         self.total_inserts.fetch_add(1, Ordering::Relaxed);
         let scope = KeyScope::from(&key.identity);
-        let root = self.scopes.entry(scope).or_default();
-        let mut curr = Arc::make_mut(root);
 
-        for token in &key.identity.tokens {
-            let child = curr.children.entry(*token).or_default();
-            curr = Arc::make_mut(child);
+        let root_swap = self
+            .scopes
+            .entry(scope)
+            .or_insert_with(|| Arc::new(ArcSwap::from_pointee(RadixNode::default())))
+            .clone();
+
+        let tokens = &key.identity.tokens;
+
+        loop {
+            let current_root = root_swap.load();
+
+            // 1. Traverse and collect path to avoid recursion
+            let mut path: Vec<Arc<RadixNode>> = Vec::with_capacity(tokens.len() + 1);
+            path.push(current_root.clone());
+            let mut curr = current_root.clone();
+
+            for token in tokens {
+                let child = curr
+                    .children
+                    .get(token)
+                    .cloned()
+                    .unwrap_or_else(|| Arc::new(RadixNode::default()));
+                path.push(child.clone());
+                curr = child;
+            }
+
+            // 2. Rebuild path bottom-up
+            let mut new_node = RadixNode {
+                children: path.last().unwrap().children.clone(),
+                terminal_entry: Some(entry.clone()),
+            };
+
+            for i in (0..tokens.len()).rev() {
+                let token = tokens[i];
+                let parent = &path[i];
+                let mut new_children = parent.children.clone();
+                new_children.insert(token, Arc::new(new_node));
+                new_node = RadixNode {
+                    children: new_children,
+                    terminal_entry: parent.terminal_entry.clone(),
+                };
+            }
+
+            // 3. CAS root
+            let new_root = Arc::new(new_node);
+            let prev = root_swap.compare_and_swap(&current_root, new_root);
+            if Arc::ptr_eq(&prev, &current_root) {
+                break;
+            }
         }
-        curr.terminal_entry = Some(entry);
     }
 
     pub fn fork_branch(&self, key: &ReuseKey, branch_id: &str) -> Option<RadixTreeBranch> {
         let scope = KeyScope::from(&key.identity);
-        let root = self.scopes.get(&scope)?;
+        let root_swap = self.scopes.get(&scope)?;
+        let root = root_swap.load().clone();
+
         self.active_cow_branches.fetch_add(1, Ordering::Relaxed);
         tracing::debug!(branch_id = %branch_id, "Forked CoW RadixTree branch");
 
         Some(RadixTreeBranch {
             branch_id: branch_id.to_string(),
             root_scope: scope,
-            node: Arc::clone(root),
+            node: root,
         })
     }
 
     pub fn lookup(&self, query: &QueryKey) -> Option<nexus_state::MatchResult> {
         self.total_lookups.fetch_add(1, Ordering::Relaxed);
         let scope = KeyScope::from(&query.identity);
-        let mut curr = self.scopes.get(&scope)?;
+        let root_swap = self.scopes.get(&scope)?;
+        let mut curr = root_swap.load().clone();
+
         let mut best_entry: Option<(usize, CacheEntry)> = None;
 
         for (index, token) in query.identity.tokens.iter().enumerate() {
-            let Some(child) = curr.children.get(token) else {
-                break;
+            let child = match curr.children.get(token) {
+                Some(c) => c.clone(),
+                None => break,
             };
             curr = child;
             if let Some(entry) = curr.terminal_entry.as_ref() {

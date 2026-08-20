@@ -94,7 +94,7 @@ fn default_descriptor() -> AttentionStateDescriptor {
 
 #[test]
 fn exact_lookup_returns_rich_match_result() {
-    let mut tree = RadixTree::default();
+    let tree = RadixTree::default();
     let entry = base_entry("chat", "llama-70b", &[1, 2, 3], "entry-exact");
     tree.insert(reuse_key(entry.identity.key.clone()), entry.clone());
 
@@ -110,7 +110,7 @@ fn exact_lookup_returns_rich_match_result() {
 
 #[test]
 fn longest_prefix_returns_partial_plan_for_remaining_tokens() {
-    let mut tree = RadixTree::default();
+    let tree = RadixTree::default();
     tree.insert(
         reuse_key(base_key("chat", "llama-70b", &[10, 11, 12])),
         base_entry("chat", "llama-70b", &[10, 11, 12], "entry-prefix"),
@@ -135,7 +135,7 @@ fn longest_prefix_returns_partial_plan_for_remaining_tokens() {
 
 #[test]
 fn planner_boundary_returns_partial_reuse_disposition() {
-    let mut tree = RadixTree::default();
+    let tree = RadixTree::default();
     tree.insert(
         reuse_key(base_key("chat", "llama-70b", &[30, 31])),
         base_entry("chat", "llama-70b", &[30, 31], "entry-plan"),
@@ -155,7 +155,7 @@ fn planner_boundary_returns_partial_reuse_disposition() {
 
 #[test]
 fn identity_boundaries_isolate_namespace_and_model() {
-    let mut tree = RadixTree::default();
+    let tree = RadixTree::default();
     tree.insert(
         reuse_key(base_key("chat", "llama-70b", &[1, 2, 3])),
         base_entry("chat", "llama-70b", &[1, 2, 3], "entry-chat"),
@@ -170,7 +170,7 @@ fn identity_boundaries_isolate_namespace_and_model() {
 
 #[test]
 fn deterministic_tie_behavior_prefers_longest_prefix() {
-    let mut tree = RadixTree::default();
+    let tree = RadixTree::default();
     tree.insert(
         reuse_key(base_key("chat", "llama-70b", &[5, 6])),
         base_entry("chat", "llama-70b", &[5, 6], "entry-short"),
@@ -191,7 +191,7 @@ fn deterministic_tie_behavior_prefers_longest_prefix() {
 
 #[test]
 fn page_identity_participates_in_key_stability() {
-    let mut tree = RadixTree::default();
+    let tree = RadixTree::default();
     let mut page_key = base_key("chat", "llama-70b", &[20, 21, 22]);
     page_key.page_id = Some(7);
 
@@ -227,7 +227,7 @@ fn page_identity_participates_in_key_stability() {
 
 #[test]
 fn agentic_multi_branch_cow_fork() {
-    let mut tree = RadixTree::default();
+    let tree = RadixTree::default();
     let rkey = reuse_key(base_key("agent", "tot-llama-70b", &[100, 101, 102]));
     tree.insert(
         rkey.clone(),

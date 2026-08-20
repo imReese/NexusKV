@@ -22,7 +22,7 @@ impl PyRustPlanner {
     fn insert(&self, reuse_key_json: &str, entry_json: &str) -> PyResult<()> {
         let reuse_key: ReuseKey = parse_json(reuse_key_json)?;
         let entry: CacheEntry = parse_json(entry_json)?;
-        let mut planner = self
+        let planner = self
             .inner
             .lock()
             .map_err(|_| PyValueError::new_err("planner mutex poisoned"))?;
