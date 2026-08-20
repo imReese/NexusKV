@@ -1,201 +1,236 @@
-<div align="center">
+<h1 align="center">NexusKV</h1>
 
-# NexusKV
+<p align="center">
+  <strong>NexusKV is an engine-neutral model-state intelligence layer for inference systems.</strong>
+</p>
 
-### *Beyond KV Cache: Decoupled Model State Intelligence Layer for LLM Inference Engines*
+<p align="center">
+  <a href="https://github.com/imReese/NexusKV/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/imReese/NexusKV/actions/workflows/ci.yml/badge.svg"></a>
+  <a href="LICENSE"><img alt="Apache 2.0" src="https://img.shields.io/badge/license-Apache--2.0-blue.svg"></a>
+  <img alt="API status: pre-1.0" src="https://img.shields.io/badge/API-pre--1.0-yellow.svg">
+  <img alt="Go 1.25.9" src="https://img.shields.io/badge/Go-1.25.9-00ADD8.svg">
+  <img alt="Python 3.11+" src="https://img.shields.io/badge/Python-3.11%2B-3776AB.svg">
+</p>
 
-[![NexusKV Unified CI](https://github.com/imReese/NexusKV/actions/workflows/ci.yml/badge.svg)](https://github.com/imReese/NexusKV/actions/workflows/ci.yml)
-[![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
-[![Go Version](https://img.shields.io/badge/Go-1.23%2B-00ADD8?logo=go)](pkg/)
-[![Rust Workspace](https://img.shields.io/badge/Rust-2021%20%7C%202024-000000?logo=rust)](rust/)
-[![Python Suite](https://img.shields.io/badge/Python-3.11%20%7C%203.12-3776AB?logo=python)](python/)
+<p align="center">
+  <a href="README_CN.md">简体中文</a> ·
+  <a href="#why-nexuskv">Why NexusKV</a> ·
+  <a href="#architecture">Architecture</a> ·
+  <a href="#current-implementation">Current implementation</a> ·
+  <a href="#try-it-locally">Try it</a> ·
+  <a href="#documentation">Docs</a> ·
+  <a href="#validation">Validation</a>
+</p>
 
-[English](README.md) | [简体中文](README_CN.md) | [📖 Quickstart Guide](docs/quickstart.md) | [🏛 Architecture Guide](docs/design/nexuskv-architecture.md)
+Reusable model state is more than a cache hit. Its identity, compatibility,
+reusable extent, location, transfer cost, and safe consumption rules all matter.
+NexusKV makes those facts explicit so an inference system can evaluate reuse
+without embedding state policy into one runtime or one data plane.
 
-</div>
+> **NexusKV answers what state can be reused, how much can be reused, and which
+> execution path is admissible. The inference control plane and runtime retain
+> placement, allocation, and final-consumption authority.**
 
----
+> [!NOTE]
+> NexusKV is pre-1.0. The repository contains executable contracts, a concurrent
+> matcher, a bounded local store, deterministic planning and execution paths,
+> and reference control-plane and integration surfaces. CI does not establish
+> native accelerator materialization, physical RDMA transfer, multi-node
+> production readiness, or live-runtime performance.
 
-## 💡 What is NexusKV?
+## Why NexusKV?
 
-**NexusKV** is an engine-agnostic **Universal Model State Intelligence Layer & Distributed Memory Fabric** engineered for enterprise LLM inference platforms (supporting vLLM V2 Engine, SGLang Unified Radix Cache, TensorRT-LLM, LMDeploy, TGI, and custom C++/Rust inference runtimes).
+Inference runtimes are good at owning device memory, block tables, kernels, and
+request-local scheduling. Data-plane systems are good at storing and moving
+bytes. A reusable-state decision sits between them: a byte range is useful only
+when its semantic identity, physical layout, lineage, and materialization path
+are compatible with the request and destination.
 
-NexusKV operates on three foundational decoupling principles: **Engine-Agnostic**, **Model-Agnostic**, and **Hardware-Agnostic**. 
+NexusKV provides a shared boundary for:
 
-As modern LLM serving transitions toward **Prefill-Decode (PD) Disaggregation**, **Sliding Window Attention (SWA)**, **Recurrent State Offloading**, and **Low-Rank Latent / Sparse Attention**, traditional KV cache management—which relies on naive, hit-driven local block eviction—faces bottleneck challenges: **network transfer overhead degrading TTFT, memory fragmentation, and a lack of compute cost awareness**.
+- versioned state identity, layout, compatibility, and capability contracts;
+- exact and longest-prefix discovery with explicit partial-hit plans;
+- reuse, recompute, prefetch, store, and fallback decisions;
+- payload handles and transfer-session records that do not confuse intent with
+  completed byte movement;
+- policy and backend capability filtering; and
+- structured evidence from lookup through execution outcome.
 
-NexusKV solves these limitations via a three-layer decoupled architecture:
-1. **Go Distributed Control Plane (`pkg/`)**: High-availability lease management and topology routing (`LeaseManager` / `EpochTracker`);
-2. **Rust High-Performance Data Engine (`rust/`)**: Concurrent prefix matching and Host DRAM management (`nxradixtree-core` / `nexus-store`);
-3. **Universal Engine Adapters (`python/` & `csrc/`)**: Zero-overhead Python hooks and Header-Only C-FFI interceptors.
+The contracts can describe paged attention state and other typed reusable model
+artifacts. Support for a state kind means its compatibility and materialization
+rules are implemented and validated—not merely that a label exists in a schema.
 
-Using an **Effective Gain Estimator ($G = T_{\text{compute}} - T_{\text{cache}} > 0$)**, NexusKV evaluates cross-node state reuse versus local prefill compute cost in microseconds. Coupled with **Quota Backpressure** and a **Sub-millisecond Fail-Open Fallback (<1ms)**, NexusKV ensures maximum throughput and resilience under high-concurrency workloads.
+## Architecture
 
----
+```mermaid
+flowchart LR
+    caller["Inference control plane<br/>or runtime adapter"]
 
-## ⚡ Technical Comparison: NexusKV vs. Native Engine Caches
+    subgraph nexus["NexusKV intelligence layer"]
+        contract["State contract"]
+        matcher["Index + matcher"]
+        planner["Reuse planner"]
+        execution["Execution boundary"]
+        policy["Versioned policy"]
 
-| Feature Dimension | Native Prefix Caching (vLLM V2 / SGLang) | HiCache & LMCache (Sidecar Cache) | Mooncake Store & NIXL (Raw Transport) | **NexusKV (Model State Intelligence Layer)** |
-| :--- | :--- | :--- | :--- | :--- |
-| **System Scope** | Worker-embedded cache module | Multiprocess Python Sidecar | Hardware transfer/storage drivers | **Decoupled Control Plane & Cost-Based Intelligence Platform** |
-| **Reuse Strategy** | Pure local hit ratio | Pure local hit ratio | Passive block pull | **Effective Gain Evaluation ($G = T_{\text{compute}} - T_{\text{cache}} > 0$)** |
-| **PD Disaggregation** | In-process IPC | Block-based transfer | Raw RDMA memory copy | **`pd_disaggregate_handshake` with Dynamic Cost Profiling** |
-| **Attention Support** | Standard Paged KV / Mamba | Standard MHA / Paged KV | Raw Tensor Blobs | **Native Support for MLA ($c_t^{KV} + k_t^R$), DSA Sparse & KDA Checkpoints** |
-| **Overload Control** | Passive block eviction | Passive block eviction | Network queue stalls | **`QuotaTracker` Active Pinned Memory & Concurrency Backpressure** |
-| **Resilience Guarantee** | Risk of I/O stalls | Risk of I/O stalls | Risk of transport hangs | **Sub-millisecond Fail-Open (<1ms Fallback to GPU Prefill)** |
-| **Tech Stack** | Tied to Worker process | Python Sidecar | C++ Transport Driver | **Go Control Plane + Rust Engine + Python/C++ FFI** |
+        contract --> matcher --> planner --> execution
+        policy --> planner
+        policy --> execution
+    end
 
----
+    backends["Replaceable data-plane backends"]
+    runtime["Runtime-owned memory<br/>and final consumption"]
 
-## 🏗 System Architecture & Integration Workflow
-
-```text
- ┌─────────────────────────────────────────────────────────────────────────────┐
- │              LLM Inference Engines (vLLM / SGLang / TensorRT-LLM)           │
- └──────────────────────────────────────┬──────────────────────────────────────┘
-                                        │ Native Fast FFI Interceptor (<1ms Guarantee)
-                                        ▼
- ┌─────────────────────────────────────────────────────────────────────────────┐
- │                         NexusKV Intelligence Layer                          │
- │  • DynamicCostProfiler: Live Auto-Tuning of GPU Prefill & Bandwidth Ratio  │
- │  • Effective Gain Estimator:  G = T_compute - T_cache                      │
- │  • Quota Admission Tracker: Active Pinned Memory & Concurrency Limits       │
- │  • PD Disaggregation Handshake: Prefill-to-Decode Asynchronous Mounting     │
- │  • Agentic CoW Radix Branch: ToT/MCTS Zero-Overhead Memory Sharing          │
- └──────────────┬──────────────────────────────────────────────┬───────────────┘
-                │ Key & Radix Prefix Matching                  │ Payload & Lease Management
-                ▼                                              ▼
- ┌──────────────────────────────┐              ┌──────────────────────────────┐
- │     Rust Data Engine         │              │      Go Control Plane        │
- │ • nxradixtree-core Matcher   │              │ • Distributed LeaseManager   │
- │ • nexus-store Host DRAM      │              │ • Monotonic EpochTracker     │
- │ • nexus-transfer Zero-Copy   │              │ • GarbageCollector & Policy  │
- └──────────────────────────────┘              └──────────────────────────────┘
-                ▲                                              ▲
-                │ Direct RDMA / NVLink / CXL 3.1 Registration  │ Policy Overlays
- ┌──────────────┴──────────────────────────────────────────────┴───────────────┐
- │    Physical Transport Drivers (Mooncake Transfer Engine / NIXL SDK / UALink2)│
- └─────────────────────────────────────────────────────────────────────────────┘
+    caller --> contract
+    execution <--> backends
+    execution --> runtime
 ```
 
----
+| Boundary | Ownership |
+| --- | --- |
+| Inference control plane | Request admission, global compute/state placement, and orchestration |
+| Inference runtime | Device allocation, block/page tables, streams, kernels, and final state consumption |
+| Runtime adapter | Lifecycle translation, descriptor construction, and the final safety handoff |
+| NexusKV | State compatibility, discovery, reuse planning, execution intent, fallback, and evidence |
+| Data plane | Payload capacity, registration, physical transfer, completion, and backend-specific failure reporting |
 
-## 🚀 Model State Taxonomy: Beyond Standard KV Cache
+NexusKV is composable with different control planes, runtimes, stores, and
+transport implementations. Runtime-specific types stay at the edges.
 
-NexusKV introduces a unified **Attention State Taxonomy** designed to parse the physical and mathematical structure of modern attention mechanisms:
+## Design invariants
 
-1. **MHA / GQA / MQA**: Standard contiguous or page-aligned Key/Value tensor caches.
-2. **DeepSeek MLA (Multi-Head Latent Attention)**:
-   - Compressed Latent KV Tensors ($c_t^{KV} \in \mathbb{R}^{d_{c}}$).
-   - Decoupled Positional RoPE Tensors ($k_t^R \in \mathbb{R}^{d_R}$).
-3. **DeepSeek DSA (DeepSeek Sparse Attention)**:
-   - Query-dependent sparse selection regions (`dsa` backend).
-   - Selector index auxiliary metadata ($top\_k$ routing tables).
-4. **Kimi KDA (Kimi Delta Attention)**:
-   - Recurrent terminal state checkpoints ($h_t$).
-   - Hybrid attention-recurrent boundary validation.
-5. **Agentic ToT / MCTS Multi-Branching**:
-   - Copy-on-Write Radix tree branching for zero-overhead prompt prefix sharing.
+- **Typed identity:** tenant, namespace, immutable model identity, state
+  semantics, lineage, layout, and parallel scope participate in compatibility
+  whenever correctness depends on them.
+- **Fail-closed compatibility:** missing or ambiguous evidence never becomes an
+  optimistic reuse decision.
+- **Match is not materialization:** metadata discovery, payload availability,
+  transfer completion, and runtime consumption remain distinct states.
+- **Runtime authority:** NexusKV does not seize allocator or kernel ownership
+  from the inference runtime.
+- **Replaceable data plane:** storage and transport capabilities are selected
+  through contracts instead of hard-coded into connectors.
+- **Evidence before performance claims:** deterministic fixtures, live runtimes,
+  and physical hardware are reported as separate validation levels.
 
----
+## Current implementation
 
-## ⚡ Integration Examples
+| Area | What exists in this repository | Evidence boundary |
+| --- | --- | --- |
+| State contract | Versioned JSON schemas plus generated Rust and Python types for state identity, descriptors, payload handles, and transfer sessions | Schema/codegen and deterministic contract tests |
+| Matcher | Rust exact and longest-prefix lookup, partial-hit planning, and concurrent copy-on-write updates | Deterministic lookup tests plus a concurrent insertion test |
+| Store | Bounded Host DRAM payload storage with identity isolation and capacity behavior | In-process byte-preserving tests; not a distributed store |
+| Planner and execution | Python cost primitives, capability-aware backend selection, deterministic actions, structured fallback, and background asynchronous prefetch simulation | Baseline in-memory behavior; staged-copy and remote-store paths remain stubs |
+| Integrations | Python planner bridge, lifecycle-aware runtime connector surfaces, and the versioned Locus HTTP bridge | Deterministic protocol evidence here and paired cross-process evidence in Locus; no native engine-state import |
+| Control plane | Go gRPC topology API, consistent-hash Raft FSM, BoltDB-backed single-node bootstrap, health probing, and versioned execution-policy handoff | Control-plane foundation; multi-node operation and production recovery are not qualified |
 
-### 1. Integration with LLM Inference Engines (vLLM / SGLang)
+The architecture deliberately keeps unfinished data movement behind the
+execution boundary. A successful stub response proves protocol behavior, not
+physical movement into accelerator memory.
 
-```python
-from nexuskv.connectors.vllm.connector import VLLMConnector
-from nexuskv.connectors.native_hooks import NativeEngineHookInterceptor
-from nexuskv.connectors.base import VLLMLifecycleContext, PDDisaggregateContext
+## Try it locally
 
-# 1. Initialize Connector & Interceptor with <1ms Guarantee
-connector = VLLMConnector()
-interceptor = NativeEngineHookInterceptor(connector=connector)
-
-# 2. Construct Request Context with DeepSeek MLA Descriptor
-context = VLLMLifecycleContext(
-    tenant="production_tenant",
-    namespace="chat_disaggregated",
-    model="deepseek-v3-mla",
-    tokens=[101, 2023, 2003, 1037, 3899, 5012],
-    descriptor=connector.default_descriptor(),
-)
-
-# 3. Intercept Lifecycle Hook and Evaluate Effective Gain
-decision = interceptor.intercept_hook("request_start", context)
-
-if decision.materialization_result.status == "completed":
-    print("Cache Hit: Successfully reused KV Cache, skipping GPU Prefill!")
-else:
-    print("Fallback: Cache miss or low gain, recomputing on local GPU.")
-
-# 4. Prefill-Decode (PD) Disaggregation Handshake
-pd_context = PDDisaggregateContext(
-    tenant="production_tenant",
-    namespace="chat_disaggregated",
-    model="deepseek-v3-mla",
-    tokens=context.tokens,
-    descriptor=context.descriptor,
-    prefill_worker_id="prefill-gpu-node-01",
-    decode_worker_id="decode-gpu-node-04",
-)
-pd_decision = connector.on_pd_disaggregate_handshake(pd_context, interceptor.planner)
-```
-
-### 2. Live Dynamic Cost Profiler & RDMA Driver Registration
-
-```python
-from nexuskv.planner.autotune import DynamicCostProfiler
-from nexuskv.execution.native_transport import MooncakeTransferEngineAdapter
-from nexuskv.contracts.generated import TierKind
-
-# Profile live GPU prefill throughput and network transfer bandwidth
-profiler = DynamicCostProfiler()
-profiler.record_prefill_sample(token_count=1000, duration_sec=0.001)  # 1us / token
-profiler.record_bandwidth_sample(TierKind.HOST_DRAM, payload_bytes=1000000, duration_sec=0.0001)
-
-# Register physical RDMA memory pool (Mooncake Transfer Engine / NIXL SDK)
-mooncake = MooncakeTransferEngineAdapter()
-reg = mooncake.register_rdma_pool(pool_id="pool_01", base_addr=0x7FFF0000, size_bytes=1048576)
-print(f"Registered RDMA Pool Handle: {reg.handle_id}, Active: {reg.is_registered}")
-```
-
----
-
-## 🛠 Toolchain & Verification
-
-### Running Full Test & Benchmark Suite
+The default test gate needs no model download, hosted API key, accelerator, or
+inference runtime. Install the toolchains described in the
+[Quickstart](docs/quickstart.md), then run:
 
 ```bash
-# Run Go distributed control plane tests
-go test ./...
-
-# Standard Makefile commands
-make build   # Build Go control plane & Rust dynamic PyO3 extensions
-make test    # Execute Go, Rust, and Python unit test suites (89+ tests)
-make bench   # Run performance benchmark suite
+git clone https://github.com/imReese/NexusKV.git
+cd NexusKV
+make test
 ```
 
----
+The same areas can be checked independently:
 
-## 📚 Documentation Sitemap Matrix
+```bash
+GOTOOLCHAIN=go1.25.9 go test ./...
+(cd rust && cargo test --workspace --locked)
+PYTHONPATH=python python3 -m unittest discover -s python/tests -p "test_*.py"
+python3 tools/generate_contracts.py --check
+```
 
-| Category | 🌐 English Specification | 📖 Chinese Guide (中文指南) | Key Topics |
-| :--- | :--- | :--- | :--- |
-| **Quickstart** | [Quickstart Guide](docs/quickstart.md) | [开箱即用与部署指南](docs/quickstart_cn.md) | Prerequisites, 3 deployment topologies & `make` commands |
-| **Architecture** | [Platform Architecture](docs/design/nexuskv-architecture.md) | [核心架构与多后端全景](docs/architecture_cn.md) | 3-layer decoupled design & multi-hardware matrix |
-| **Roadmap** | [Roadmap & Milestones](docs/roadmap.md) | [路线图与阶段规划](docs/roadmap_cn.md) | Roadmap milestones & development progress |
-| **State Contract** | [Attention Descriptor Spec](docs/design/attention-state-descriptor.md) | [Attention 状态描述符](docs/design/attention-state-descriptor_cn.md) | MLA / DSA / CSA / HCA state descriptors |
-| **Connector** | [Connector Lifecycle](docs/design/connector-lifecycle.md) | [引擎接插件生命周期](docs/design/connector-lifecycle_cn.md) | vLLM / SGLang hooks & PD disaggregation |
-| **Locus Bridge** | [Versioned Locus Integration](docs/design/locus-bridge.md) | — | Lookup, estimate, materialize, capability binding & evidence boundary |
-| **Control Policy** | [Controlplane Policy](docs/design/controlplane-execution-policy.md) | [控制面执行策略](docs/design/controlplane-execution-policy_cn.md) | Leases, monotonic epochs & quota backpressure |
-| **Benchmarking** | [Benchmark Methodology](docs/benchmarks/benchmark-methodology.md) | [基准测试方法论](docs/benchmarks/benchmark-methodology_cn.md) | Microsecond Wall-Clock timing & QPS / GB dual metrics |
-| **Reliability** | [Reliability Model](docs/ops/reliability-model.md) | [系统可靠性与降级熔断](docs/ops/reliability-model_cn.md) | <1ms Fail-Open fallback guarantees |
-| **Tech Blog** | [Zero-Overhead Runtime](docs/blog/zero-overhead-kv-cache-runtime.md) | [零开销状态智能层剖析](docs/blog/zero-overhead-kv-cache-runtime_cn.md) | Cost equation $G = T_{\text{compute}} - T_{\text{cache}}$ |
-| **Whitepaper** | [Beyond KV Cache Paper](docs/papers/beyond-kv-cache.md) | [Beyond KV Cache 论文中文版](docs/papers/beyond-kv-cache_cn.md) | Technical whitepaper |
+These commands exercise local deterministic and CPU-only paths. Their topology,
+transfer, and hardware descriptors are fixtures unless a test explicitly says
+it uses a live backend.
 
----
+## Current integrations
 
-## 📄 License
+Specific integrations are replaceable edge implementations, not the definition
+of NexusKV:
+
+| Boundary | Current surface | What it establishes |
+| --- | --- | --- |
+| Planner bridge | PyO3 binding to the Rust matcher | Real language boundary with versioned planner inputs and outputs |
+| Runtime adapters | Lifecycle-aware SGLang and vLLM connector surfaces | Deterministic lifecycle and execution-boundary conformance, not live-runtime certification |
+| Inference control plane | Versioned Locus lookup/estimate/materialize HTTP bridge | Protocol compatibility and capability binding; the paired Locus suite adds cross-process orchestration evidence, while physical transfer remains unverified |
+| Data-plane backends | Baseline in-memory backend plus staged-copy and remote-store stubs | Selection, fallback, payload-handle, and transfer-session semantics |
+
+## Documentation
+
+| If you want to… | Read |
+| --- | --- |
+| Understand system ownership and component boundaries | [Architecture](docs/design/nexuskv-architecture.md) |
+| Understand state identity and compatibility | [Attention State Descriptor](docs/design/attention-state-descriptor.md) · [Shared Schema](docs/design/shared-schema.md) |
+| Follow matching and partial-hit planning | [nxradixtree](docs/design/nxradixtree.md) · [Python/Rust Planner Bridge](docs/design/python-rust-planner-bridge.md) |
+| Implement an execution backend | [Execution Boundary](docs/design/execution-boundary.md) · [Payload Transfer Contract](docs/design/payload-transfer-contract.md) · [Backend Catalog](docs/design/transport-backend-catalog.md) |
+| Integrate an inference control plane | [Locus Bridge](docs/design/locus-bridge.md) |
+| Evaluate current evidence and future direction | [Whitepaper: Implementation Status](docs/papers/beyond-kv-cache.md#implementation-status) · [Roadmap](docs/roadmap.md) |
+
+## Repository map
+
+| Path | Responsibility |
+| --- | --- |
+| `schema/` | Versioned state, execution-policy, and integration contracts |
+| `rust/crates/nexus-state` | Canonical Rust state and planner types |
+| `rust/crates/nxradixtree-core` | Reuse index, matcher, and partial-hit planning |
+| `rust/crates/nexus-store` | Bounded local payload and memory primitives |
+| `rust/crates/nexus-transfer` | Runtime-owned region and transfer contract primitives |
+| `rust/crates/bindings-py` | Python bridge to the Rust planner |
+| `python/nexuskv` | Adapters, planning, execution policy, backend catalog, and integration services |
+| `pkg/` and `cmd/server` | Go control-plane foundation and server assembly |
+| `docs/` | Architecture, contracts, validation boundaries, roadmap, and research direction |
+
+## Development
+
+The main GitHub Actions gate runs Go tests on Linux and macOS, Rust formatting,
+strict Clippy and workspace tests, Python 3.11/3.12 tests on Linux and macOS,
+contract code generation, deterministic benchmark utilities, topology fixtures,
+and a Docker build check.
+
+Before submitting a change, run:
+
+```bash
+make fmt
+make test
+```
+
+Changes to state identity, compatibility, payload, or transfer semantics should
+start from the versioned schemas and preserve generated Rust/Python parity.
+
+## Validation
+
+NexusKV keeps protocol evidence separate from live-system and hardware evidence:
+
+| Evidence level | GitHub CI | What it establishes |
+| --- | --- | --- |
+| Static and deterministic | Yes | Schemas, codegen parity, matching, policy, action ordering, fallback, and local store behavior |
+| Concurrency and local HTTP protocol | Yes | Concurrent matcher behavior and versioned bridge requests over a real local socket |
+| CPU-only topology fixtures | Yes | Descriptor math, policy branches, and simulated control flow—not physical multi-accelerator execution |
+| Live inference runtime | No | Native runtime hooks, allocator integration, and model-correct state consumption |
+| Physical data movement | No | DMA, RDMA, GPUDirect, remote networking, and verified transferred bytes |
+| Production cluster | No | Multi-node recovery, tenant isolation, sustained load, tail latency, and operational readiness |
+
+## Scope
+
+NexusKV is not:
+
+- an inference runtime or replacement for engine-local scheduling;
+- a global inference placement control plane;
+- a general-purpose distributed database;
+- a transport fabric by itself; or
+- a claim that every state kind, runtime, or hardware path named in the design
+  documents is already implemented.
+
+## License
 
 NexusKV is licensed under the [Apache License 2.0](LICENSE).

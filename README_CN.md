@@ -1,200 +1,221 @@
-<div align="center">
+<h1 align="center">NexusKV</h1>
 
-# NexusKV
+<p align="center">
+  <strong>NexusKV 是面向推理系统的引擎中立模型状态智能层。</strong>
+</p>
 
-### *超越传统 KV Cache：打造解耦的大模型推理状态智能层*
+<p align="center">
+  <a href="https://github.com/imReese/NexusKV/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/imReese/NexusKV/actions/workflows/ci.yml/badge.svg"></a>
+  <a href="LICENSE"><img alt="Apache 2.0" src="https://img.shields.io/badge/license-Apache--2.0-blue.svg"></a>
+  <img alt="API 状态：pre-1.0" src="https://img.shields.io/badge/API-pre--1.0-yellow.svg">
+  <img alt="Go 1.25.9" src="https://img.shields.io/badge/Go-1.25.9-00ADD8.svg">
+  <img alt="Python 3.11+" src="https://img.shields.io/badge/Python-3.11%2B-3776AB.svg">
+</p>
 
-[![NexusKV Unified CI](https://github.com/imReese/NexusKV/actions/workflows/ci.yml/badge.svg)](https://github.com/imReese/NexusKV/actions/workflows/ci.yml)
-[![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
-[![Go Version](https://img.shields.io/badge/Go-1.23%2B-00ADD8?logo=go)](pkg/)
-[![Rust Workspace](https://img.shields.io/badge/Rust-2021%20%7C%202024-000000?logo=rust)](rust/)
-[![Python Suite](https://img.shields.io/badge/Python-3.11%20%7C%203.12-3776AB?logo=python)](python/)
+<p align="center">
+  <a href="README.md">English</a> ·
+  <a href="#为什么需要-nexuskv">为什么需要 NexusKV</a> ·
+  <a href="#架构">架构</a> ·
+  <a href="#当前实现">当前实现</a> ·
+  <a href="#本地体验">本地体验</a> ·
+  <a href="#文档">文档</a> ·
+  <a href="#验证边界">验证边界</a>
+</p>
 
-[English](README.md) | [简体中文](README_CN.md) | [📖 快速上手与部署指南](docs/quickstart_cn.md) | [🏛 架构全景指南](docs/architecture_cn.md)
+可复用模型状态不只是一次缓存命中。状态身份、兼容性、可复用范围、
+所在位置、传输成本和安全消费规则都会影响最终决策。NexusKV 将这些事实
+显式化，让推理系统能够评估状态复用，而不必把状态策略绑定到某个运行时
+或某个数据面实现中。
 
-</div>
+> **NexusKV 回答哪些状态可以复用、可以复用多少，以及哪些执行路径满足
+> 条件。推理控制面与运行时继续拥有放置、内存分配和最终消费的决定权。**
 
----
+> [!NOTE]
+> NexusKV 目前处于 pre-1.0 阶段。仓库已经包含可执行契约、并发匹配器、
+> 有界本地存储、确定性规划与执行路径，以及参考控制面和集成接口。
+> CI 并不能证明原生加速器状态物化、真实 RDMA 传输、多节点生产就绪性，
+> 或真实推理运行时性能。
 
-## 💡 什么是 NexusKV？
+## 为什么需要 NexusKV？
 
-**NexusKV** 是专为大语言模型（LLM）推理平台设计的**引擎无关通用模型状态智能与分布式内存基础设施层（Universal Model State Intelligence & Memory Fabric）**。
+推理运行时擅长管理设备内存、块表、内核和请求内调度；数据面系统擅长
+保存和移动字节。状态复用决策位于二者之间：只有当语义身份、物理布局、
+状态谱系和物化路径都与请求及目标兼容时，一段数据才真正可用。
 
-NexusKV 的核心架构理念在于**三重解耦**：**引擎无关 (Engine-Agnostic)**、**模型架构无关 (Model-Agnostic)** 以及 **硬件无关 (Hardware-Agnostic)**。无论是主流开源推理引擎（如 vLLM、SGLang、TensorRT-LLM、LMDeploy、TGI）还是企业自研的 C++/Rust 推理引擎与 API 网关，均可通过统一的契约无缝接入。
+NexusKV 提供一组共享边界：
 
-随着 LLM 推理全面迈向 **Prefill-Decode (PD) 分离架构**、**滑动窗口注意力 (SWA)**、**线性/递归状态 (Recurrent State)** 以及 **低秩隐向量/稀疏 Attention**，传统将 KV Cache 视为“纯命中率驱动 (Hit-Driven)”的缓存方案暴露出了严重的瓶颈：**网络传输导致首 Token 延迟 (TTFT) 恶化、内存碎片化以及缺乏计算收益感知**。
+- 版本化的状态身份、布局、兼容性与能力契约；
+- 精确匹配、最长前缀发现和显式部分命中计划；
+- 复用、重算、预取、存储与降级决策；
+- 不会把“传输意图”误报为“字节已移动”的 Payload Handle 与 Transfer Session；
+- 策略与后端能力过滤；
+- 从查询、匹配到执行结果的结构化证据。
 
-NexusKV 通过三层解耦设计打破了这一局限：
-1. **Go 分布式控制面 (`pkg/`)**：提供高可用的租约管理与拓扑路由（`LeaseManager` / `EpochTracker`）；
-2. **Rust 高性能数据引擎 (`rust/`)**：基于并发前缀匹配与 Host DRAM 管理（`nxradixtree-core` / `nexus-store`）；
-3. **通用接插件适配层 (`python/` & `csrc/`)**：提供无侵入的 Python Hook 与 C-FFI 拦截器。
+这些契约能够描述分页 Attention 状态以及其他有类型的可复用模型产物。
+一个状态类型只有在兼容和物化规则都已实现并验证后，才能称为受支持；
+Schema 中存在一个标签并不等于已经支持。
 
-基于 **计算收益评估方程 ($G = T_{\text{compute}} - T_{\text{cache}} > 0$)**，NexusKV 能够在微秒级内评估跨节点复用与本地重算成本，结合 **Quota 动态反压机制** 与 **<1ms Fail-Open 降级保障**，确保高并发推理下的极佳吞吐与系统韧性。
+## 架构
 
----
+```mermaid
+flowchart LR
+    caller["推理控制面<br/>或运行时适配器"]
 
-## ⚡ 技术对比：NexusKV vs. 传统 Cache 体系
+    subgraph nexus["NexusKV 状态智能层"]
+        contract["状态契约"]
+        matcher["索引与匹配器"]
+        planner["复用规划器"]
+        execution["执行边界"]
+        policy["版本化策略"]
 
-| 架构维度 | 原生 Prefix Caching (vLLM V2 / SGLang Unified Radix) | HiCache & LMCache (多级缓存) | Mooncake Store & NIXL (传输/存储底层) | **NexusKV (模型状态智能层)** |
-| :--- | :--- | :--- | :--- | :--- |
-| **定位与目标** | 引擎内置缓存模块 | 引擎 Sidecar 进程 | 硬件传输与存储驱动 | **解耦的分布式控制与计算收益决策平台** |
-| **缓存复用策略** | 纯命中率驱动 | 纯命中率驱动 | 存储块被动拉取 | **基于算力/带宽比的收益评估 ($G = T_{\text{compute}} - T_{\text{cache}} > 0$)** |
-| **PD 分离握手** | 引擎进程间 IPC | 块级别传输 | 裸 RDMA 内存拷贝 | **`pd_disaggregate_handshake` 结合动态 Cost 调优** |
-| **Attention 拓扑支持** | 仅标准 Paged KV / Mamba | 标准 MHA / Paged KV | 裸 Tensor Blobs | **原生支持 MLA ($c_t^{KV} + k_t^R$)、DSA 稀疏区及 KDA Checkpoint** |
-| **过载保护能力** | 被动驱逐本地块 | 被动驱逐本地块 | 网络队列阻塞 | **`QuotaTracker` 锁页内存与并发主动反压限制** |
-| **系统降级保障** | I/O 导致引擎挂起 | I/O 阻塞风险 | 传输超时挂起 | **<1ms Fail-Open 毫秒级自动降级至 GPU 重算** |
-| **技术栈架构** | 绑定具体 Worker 进程 | Python 单体 Sidecar | C++ 传输驱动 | **Go 分布式控制面 + Rust 零开销引擎 + Python/C++ FFI** |
+        contract --> matcher --> planner --> execution
+        policy --> planner
+        policy --> execution
+    end
 
----
+    backends["可替换的数据面后端"]
+    runtime["运行时拥有的内存<br/>与最终状态消费"]
 
-## 🏗 系统架构与集成拓扑
-
-```text
- ┌─────────────────────────────────────────────────────────────────────────────┐
- │              LLM 推理引擎层 (vLLM / SGLang / TensorRT-LLM)                  │
- └──────────────────────────────────────┬──────────────────────────────────────┘
-                                        │ Native Fast FFI 拦截器 (<1ms 降级保障)
-                                        ▼
- ┌─────────────────────────────────────────────────────────────────────────────┐
- │                       NexusKV 智能决策层 (Intelligence Layer)               │
- │  • DynamicCostProfiler: 实时自适应 Prefill 算力与传输带宽比                 │
- │  • Effective Gain Estimator: 算力收益评估  G = T_compute - T_cache           │
- │  • Quota Admission Tracker: 锁页内存与并发传输主动反压                      │
- │  • PD Disaggregation Handshake: Prefill 到 Decode 节点的异步状态挂载握手      │
- │  • Agentic CoW Radix Branch: ToT/MCTS 多分支写时复制零开销内存共享          │
- └──────────────┬──────────────────────────────────────────────┬───────────────┘
-                │ Key 匹配与 Radix 前缀树查询                  │ Payload 存储与租约管控
-                ▼                                              ▼
- ┌──────────────────────────────┐              ┌──────────────────────────────┐
- │       Rust 数据引擎          │              │        Go 分布式控制面       │
- │ • nxradixtree-core 匹配引擎  │              │ • LeaseManager 分布式租约    │
- │ • nexus-store Host DRAM 存储 │              │ • Monotonic EpochTracker     │
- │ • nexus-transfer 零拷贝句柄  │              │ • GarbageCollector 垃圾回收  │
- └──────────────────────────────┘              └──────────────────────────────┘
-                ▲                                              ▲
-                │ 物理 RDMA / NVLink / CXL3.1 内存池注册        │ 策略覆盖推发
- ┌──────────────┴──────────────────────────────────────────────┴───────────────┐
- │      物理传输驱动层 (Mooncake Transfer Engine / NVIDIA NIXL SDK / UALink2)  │
- └─────────────────────────────────────────────────────────────────────────────┘
+    caller --> contract
+    execution <--> backends
+    execution --> runtime
 ```
 
----
+| 边界 | 职责归属 |
+| --- | --- |
+| 推理控制面 | 请求准入、全局计算/状态放置与编排 |
+| 推理运行时 | 设备分配、块/页表、Stream、Kernel 与最终状态消费 |
+| 运行时适配器 | 生命周期翻译、Descriptor 构造与最终安全交接 |
+| NexusKV | 状态兼容、发现、复用规划、执行意图、降级与证据 |
+| 数据面 | Payload 容量、注册、物理传输、完成状态与后端故障报告 |
 
-## 🚀 统一模型状态体系：超越标准 KV Cache
+NexusKV 可以与不同的控制面、运行时、存储和传输实现组合使用。
+运行时专属类型只停留在系统边缘。
 
-NexusKV 引入了统一的 **Attention State Taxonomy（注意力状态描述符体系）**，原生适配下一代大模型架构：
+## 设计不变量
 
-1. **MHA / GQA / MQA**：标准的连续或 Block/Page 对齐 Key/Value 张量缓存。
-2. **DeepSeek MLA (Multi-Head Latent Attention)**：
-   - 压缩隐向量张量 ($c_t^{KV} \in \mathbb{R}^{d_{c}}$)；
-   - 解耦的 RoPE 位置编码张量 ($k_t^R \in \mathbb{R}^{d_R}$)。
-3. **DeepSeek DSA (DeepSeek Sparse Attention)**：
-   - Query 相关的稀疏选择区域 (`dsa` backend)；
-   - Selector 索引辅助元数据 ($top\_k$ 路由表)。
-4. **Kimi KDA (Kimi Delta Attention)**：
-   - 递归终端状态 Checkpoint ($h_t$)；
-   - 混合 Attention-Recurrent 边界校验。
-5. **Agentic ToT / MCTS 多分支**：
-   - 基于写时复制 (Copy-on-Write) 的前缀树分支派生，共享公共 Prompt 显存。
+- **有类型的身份：** 当正确性依赖租户、命名空间、不可变模型身份、状态语义、
+  谱系、布局或并行域时，这些事实必须参与兼容判断。
+- **兼容性 Fail-Closed：** 缺失或含糊的证据不会被乐观解释为可复用。
+- **匹配不等于物化：** 元数据发现、Payload 可用、传输完成和运行时消费是
+  四个不同状态。
+- **运行时拥有最终权力：** NexusKV 不接管推理运行时的分配器或 Kernel。
+- **数据面可替换：** 存储和传输能力通过契约选择，不硬编码进 Connector。
+- **性能结论以证据为先：** 确定性 Fixture、真实运行时和物理硬件属于不同
+  验证等级，不能相互替代。
 
----
+## 当前实现
 
-## ⚡ 快速集成示例
+| 领域 | 仓库中已经存在的实现 | 证据边界 |
+| --- | --- | --- |
+| 状态契约 | 版本化 JSON Schema，以及状态身份、Descriptor、Payload Handle、Transfer Session 对应的 Rust/Python 生成类型 | Schema/代码生成一致性与确定性契约测试 |
+| 匹配器 | Rust 精确/最长前缀查询、部分命中规划和并发写时复制更新 | 确定性查询测试，以及并发插入测试 |
+| 存储 | 有界 Host DRAM Payload 存储、身份隔离与容量行为 | 进程内字节保持测试；不是分布式存储 |
+| 规划与执行 | Python 成本计算原语、能力感知后端选择、确定性动作、结构化降级与后台异步预取模拟 | 基线为内存内实现；staged-copy 和 remote-store 仍是 Stub |
+| 集成 | Python Planner Bridge、生命周期感知的运行时 Connector 接口，以及版本化 Locus HTTP Bridge | 本仓库提供确定性协议证据，Locus 配套测试提供跨进程证据；不含原生引擎状态导入 |
+| 控制面 | Go gRPC 拓扑 API、一致性哈希 Raft FSM、BoltDB 持久化的单节点启动路径、健康探测与版本化执行策略交接 | 控制面基础；尚未验证多节点运行与生产恢复 |
 
-### 1. 与 LLM 推理引擎集成 (vLLM / SGLang)
+架构刻意把尚未完成的数据移动隐藏在执行边界之后。Stub 返回成功只能证明
+协议行为，不能证明状态已经物理移动到加速器内存。
 
-```python
-from nexuskv.connectors.vllm.connector import VLLMConnector
-from nexuskv.connectors.native_hooks import NativeEngineHookInterceptor
-from nexuskv.connectors.base import VLLMLifecycleContext, PDDisaggregateContext
+## 本地体验
 
-# 1. 初始化 Connector 与 <1ms Fail-Open 降级拦截器
-connector = VLLMConnector()
-interceptor = NativeEngineHookInterceptor(connector=connector)
-
-# 2. 构建包含 DeepSeek MLA 描述符的请求上下文
-context = VLLMLifecycleContext(
-    tenant="production_tenant",
-    namespace="chat_disaggregated",
-    model="deepseek-v3-mla",
-    tokens=[101, 2023, 2003, 1037, 3899, 5012],
-    descriptor=connector.default_descriptor(),
-)
-
-# 3. 拦截请求 Lifecycle Hook 并执行收益评估
-decision = interceptor.intercept_hook("request_start", context)
-
-if decision.materialization_result.status == "completed":
-    print("缓存命中：成功复用 KV Cache，跳过 GPU Prefill 重算！")
-else:
-    print("降级处理：未命中或传输不划算，退回本地 GPU 重新计算。")
-
-# 4. Prefill-Decode (PD) 分离节点异步握手
-pd_context = PDDisaggregateContext(
-    tenant="production_tenant",
-    namespace="chat_disaggregated",
-    model="deepseek-v3-mla",
-    tokens=context.tokens,
-    descriptor=context.descriptor,
-    prefill_worker_id="prefill-gpu-node-01",
-    decode_worker_id="decode-gpu-node-04",
-)
-pd_decision = connector.on_pd_disaggregate_handshake(pd_context, interceptor.planner)
-```
-
-### 2. 动态硬件 Cost Profiler 与物理 RDMA 注册
-
-```python
-from nexuskv.planner.autotune import DynamicCostProfiler
-from nexuskv.execution.native_transport import MooncakeTransferEngineAdapter
-from nexuskv.contracts.generated import TierKind
-
-# 实时采样 GPU Prefill 吞吐与网络传输带宽
-profiler = DynamicCostProfiler()
-profiler.record_prefill_sample(token_count=1000, duration_sec=0.001)  # 1us / token
-profiler.record_bandwidth_sample(TierKind.HOST_DRAM, payload_bytes=1000000, duration_sec=0.0001)
-
-# 注册物理 RDMA 内存池 (支持 Mooncake Transfer Engine 与 NIXL SDK)
-mooncake = MooncakeTransferEngineAdapter()
-reg = mooncake.register_rdma_pool(pool_id="pool_01", base_addr=0x7FFF0000, size_bytes=1048576)
-print(f"已成功注册物理 RDMA 内存池 Handle: {reg.handle_id}, 状态: {reg.is_registered}")
-```
-
----
-
-## 🛠 构建与测试
-
-### 运行全量单元测试与基准套件
+默认测试门禁不需要下载模型、托管 API Key、加速器或推理运行时。先按照
+[快速上手指南](docs/quickstart_cn.md)安装工具链，然后运行：
 
 ```bash
-# 运行分布式 Go 控制面单元测试
-go test ./...
-
-# 使用标准 Makefile 一键构建与测试
-make build   # 编译 Go 控制面与 Rust 动态扩展
-make test    # 顺序运行 Go, Rust, Python 全量 89+ 项单元测试
-make bench   # 运行性能 Benchmark 评估看板
+git clone https://github.com/imReese/NexusKV.git
+cd NexusKV
+make test
 ```
 
----
+也可以分别验证各实现区域：
 
-## 📚 文档矩阵 (Documentation Matrix)
+```bash
+GOTOOLCHAIN=go1.25.9 go test ./...
+(cd rust && cargo test --workspace --locked)
+PYTHONPATH=python python3 -m unittest discover -s python/tests -p "test_*.py"
+python3 tools/generate_contracts.py --check
+```
 
-| 分类 | 📖 中文文档 | 🌐 英文 Specification | 核心主题 |
-| :--- | :--- | :--- | :--- |
-| **快速上手** | [开箱即用与部署指南](docs/quickstart_cn.md) | [Quickstart Guide](docs/quickstart.md) | 环境准备、3大部署形态与 `make` 命令 |
-| **架构设计** | [核心架构与多后端全景](docs/architecture_cn.md) | [Platform Architecture](docs/design/nexuskv-architecture.md) | 三层解耦设计与异构硬件支持矩阵 |
-| **路线规划** | [路线图与阶段规划](docs/roadmap_cn.md) | [Roadmap & Milestones](docs/roadmap.md) | 研发路线图与功能落地进展 |
-| **状态契约** | [Attention 状态描述符](docs/design/attention-state-descriptor_cn.md) | [Attention Descriptor Spec](docs/design/attention-state-descriptor.md) | MLA / DSA / CSA / HCA 描述符结构 |
-| **接插件周期**| [引擎接插件生命周期](docs/design/connector-lifecycle_cn.md) | [Connector Lifecycle](docs/design/connector-lifecycle.md) | vLLM / SGLang 挂载与 PD 分离握手 |
-| **控制面策略** | [控制面执行策略](docs/design/controlplane-execution-policy_cn.md) | [Controlplane Policy](docs/design/controlplane-execution-policy.md) | Lease 租约、Epoch 纪元与 Quota 反压 |
-| **基准测试** | [基准测试方法论](docs/benchmarks/benchmark-methodology_cn.md) | [Benchmark Methodology](docs/benchmarks/benchmark-methodology.md) | 微秒级打点与 QPS / GB 双维度测试 |
-| **可靠性模型** | [系统可靠性与降级熔断](docs/ops/reliability-model_cn.md) | [Reliability Model](docs/ops/reliability-model.md) | <1ms 强保障 Fail-Open 平滑降级 |
-| **技术剖析** | [零开销状态智能层剖析](docs/blog/zero-overhead-kv-cache-runtime_cn.md) | [Zero-Overhead Runtime](docs/blog/zero-overhead-kv-cache-runtime.md) | 算力收益评估方程 $G = T_{\text{compute}} - T_{\text{cache}}$ |
-| **论文白皮书**| [Beyond KV Cache 论文中文版](docs/papers/beyond-kv-cache_cn.md) | [Beyond KV Cache Paper](docs/papers/beyond-kv-cache.md) | 系统技术架构白皮书 |
+这些命令覆盖本地确定性与 CPU-only 路径。除非测试明确声明连接真实后端，
+其中的拓扑、传输和硬件 Descriptor 都应视为 Fixture。
 
----
+## 当前集成
 
-## 📄 开源许可证
+具体集成是可替换的边缘实现，不是 NexusKV 的定义：
 
-NexusKV 采用 [Apache License 2.0](LICENSE) 许可证开源。
+| 边界 | 当前接口 | 能证明什么 |
+| --- | --- | --- |
+| Planner Bridge | Rust 匹配器的 PyO3 Binding | 真实语言边界上的版本化 Planner 输入与输出 |
+| 运行时适配器 | 生命周期感知的 SGLang 与 vLLM Connector 接口 | 确定性生命周期和执行边界一致性；不是 Live Runtime 认证 |
+| 推理控制面 | 版本化 Locus lookup/estimate/materialize HTTP Bridge | 协议兼容与能力绑定；配套 Locus 测试补充跨进程编排证据，物理传输仍未验证 |
+| 数据面后端 | 基线内存后端，以及 staged-copy、remote-store Stub | 后端选择、降级、Payload Handle 与 Transfer Session 语义 |
+
+## 文档
+
+| 如果你希望…… | 阅读 |
+| --- | --- |
+| 理解系统职责和组件边界 | [架构](docs/design/nexuskv-architecture_cn.md) |
+| 理解状态身份与兼容性 | [Attention 状态描述符](docs/design/attention-state-descriptor_cn.md) · [共享 Schema](docs/design/shared-schema_cn.md) |
+| 跟踪匹配与部分命中规划 | [nxradixtree](docs/design/nxradixtree_cn.md) · [Python/Rust Planner Bridge](docs/design/python-rust-planner-bridge_cn.md) |
+| 实现执行后端 | [执行边界](docs/design/execution-boundary_cn.md) · [Payload 传输契约](docs/design/payload-transfer-contract_cn.md) · [后端目录](docs/design/transport-backend-catalog_cn.md) |
+| 集成推理控制面 | [Locus Bridge](docs/design/locus-bridge.md) |
+| 评估当前证据和未来方向 | [白皮书：实现状态](docs/papers/beyond-kv-cache_cn.md#implementation-status-实现状态说明) · [路线图](docs/roadmap_cn.md) |
+
+## 仓库结构
+
+| 路径 | 职责 |
+| --- | --- |
+| `schema/` | 版本化状态、执行策略和集成契约 |
+| `rust/crates/nexus-state` | Rust 规范状态与 Planner 类型 |
+| `rust/crates/nxradixtree-core` | 复用索引、匹配器与部分命中规划 |
+| `rust/crates/nexus-store` | 有界本地 Payload 与内存原语 |
+| `rust/crates/nexus-transfer` | 运行时拥有内存区域与传输契约原语 |
+| `rust/crates/bindings-py` | Rust Planner 的 Python Bridge |
+| `python/nexuskv` | 适配器、规划、执行策略、后端目录与集成服务 |
+| `pkg/` 与 `cmd/server` | Go 控制面基础与 Server 装配 |
+| `docs/` | 架构、契约、验证边界、路线图与研究方向 |
+
+## 开发
+
+主 GitHub Actions 门禁在 Linux 和 macOS 上运行 Go 测试、Rust 格式检查、
+严格 Clippy 与 Workspace 测试、Python 3.11/3.12 测试，同时检查契约代码生成、
+确定性 Benchmark 工具、拓扑 Fixture 和 Docker 构建。
+
+提交变更前运行：
+
+```bash
+make fmt
+make test
+```
+
+修改状态身份、兼容性、Payload 或传输语义时，应从版本化 Schema 开始，
+并保持 Rust/Python 生成类型一致。
+
+## 验证边界
+
+NexusKV 将协议证据、真实系统证据和硬件证据分开报告：
+
+| 证据等级 | GitHub CI | 能证明什么 |
+| --- | --- | --- |
+| 静态与确定性 | 是 | Schema、代码生成一致性、匹配、策略、动作顺序、降级与本地存储行为 |
+| 并发与本地 HTTP 协议 | 是 | 并发匹配器行为，以及通过真实本地 Socket 的版本化 Bridge 请求 |
+| CPU-only 拓扑 Fixture | 是 | Descriptor 数学、策略分支与模拟控制流；不是物理多加速器执行 |
+| 真实推理运行时 | 否 | 原生 Runtime Hook、分配器集成和模型正确的状态消费 |
+| 物理数据移动 | 否 | DMA、RDMA、GPUDirect、远程网络和经验证的传输字节数 |
+| 生产集群 | 否 | 多节点恢复、租户隔离、持续负载、尾延迟与运维就绪性 |
+
+## 范围
+
+NexusKV 不是：
+
+- 推理运行时或引擎内调度器的替代品；
+- 全局推理放置控制面；
+- 通用分布式数据库；
+- 自身即可完成物理传输的数据 Fabric；
+- “设计文档中出现的每种状态、运行时或硬件路径都已经实现”的声明。
+
+## 许可证
+
+NexusKV 采用 [Apache License 2.0](LICENSE) 许可证。
