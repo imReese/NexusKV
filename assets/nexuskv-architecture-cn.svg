@@ -1,0 +1,154 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="600" viewBox="0 0 1400 600" role="img" aria-labelledby="title desc">
+  <title id="title">NexusKV 可复用状态决策架构</title>
+  <desc id="desc">调用方提交有类型的状态查询与目标约束。NexusKV 检查身份、匹配范围、兼容性与复用收益，再选择状态数据面路径。推理运行时负责分配、验证、消费并返回结果证据。</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M0 0L10 5L0 10Z" fill="#475569"/>
+    </marker>
+    <marker id="purple-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M0 0L10 5L0 10Z" fill="#6d28d9"/>
+    </marker>
+    <style>
+      text { font-family: Arial, "PingFang SC", "Microsoft YaHei", sans-serif; fill: #172033; }
+      .kicker { font-size: 11px; font-weight: 700; letter-spacing: 1.7px; fill: #6d28d9; }
+      .figure-title { font-size: 23px; font-weight: 700; }
+      .group-title { font-size: 11px; font-weight: 700; letter-spacing: 1.2px; fill: #334155; }
+      .box-title { font-size: 13px; font-weight: 700; }
+      .box-note { font-size: 11px; fill: #64748b; }
+      .edge-label { font-size: 10px; font-weight: 600; fill: #64748b; }
+      .boundary { fill: #f8fafc; stroke: #94a3b8; stroke-width: 1.1; }
+      .decision-boundary { fill: #fbfaff; stroke: #6d28d9; stroke-width: 1.35; }
+      .data-boundary { fill: #fafafa; stroke: #7c3aed; stroke-width: 1.2; }
+      .header-band { fill: #f0eaff; }
+      .external { fill: #ffffff; stroke: #94a3b8; stroke-width: 1.1; }
+      .stage { fill: #ffffff; stroke: #7c3aed; stroke-width: 1.25; }
+      .metadata { fill: #f8fafc; stroke: #64748b; stroke-width: 1.1; }
+      .fallback { fill: #fffaf0; stroke: #d97706; stroke-width: 1.25; }
+      .contract { fill: #f5f3ff; stroke: #6d28d9; stroke-width: 1.35; }
+      .backend { fill: #ffffff; stroke: #7c3aed; stroke-width: 1.15; }
+      .runtime { fill: #ffffff; stroke: #0f766e; stroke-width: 1.25; }
+      .flow { fill: none; stroke: #475569; stroke-width: 1.3; marker-end: url(#arrow); }
+      .decision-flow { fill: none; stroke: #6d28d9; stroke-width: 1.35; marker-end: url(#purple-arrow); }
+      .bus { fill: none; stroke: #6d28d9; stroke-width: 1.15; }
+      .phase { fill: #6d28d9; }
+      .phase-text { font-size: 10px; font-weight: 700; fill: #ffffff; }
+    </style>
+  </defs>
+
+  <rect width="1400" height="600" fill="#ffffff"/>
+  <text x="40" y="32" class="kicker">NEXUSKV / 系统架构</text>
+  <text x="40" y="64" class="figure-title">从元数据命中到可执行、可观测的模型状态复用</text>
+  <line x1="40" y1="82" x2="1360" y2="82" stroke="#cbd5e1" stroke-width="1"/>
+
+  <rect x="40" y="118" width="210" height="360" rx="4" class="boundary"/>
+  <text x="62" y="148" class="group-title">调用方 / 运行时适配器</text>
+  <rect x="62" y="176" width="166" height="58" rx="3" class="external"/>
+  <text x="145" y="199" text-anchor="middle" class="box-title">StateQuery</text>
+  <text x="145" y="218" text-anchor="middle" class="box-note">身份 · 状态语义范围</text>
+  <rect x="62" y="254" width="166" height="58" rx="3" class="external"/>
+  <text x="145" y="277" text-anchor="middle" class="box-title">TargetDescriptor</text>
+  <text x="145" y="296" text-anchor="middle" class="box-note">能力 · 布局 · 位置</text>
+  <rect x="62" y="382" width="166" height="62" rx="3" class="external"/>
+  <text x="145" y="407" text-anchor="middle" class="box-title">决策 / 回执</text>
+  <text x="145" y="426" text-anchor="middle" class="box-note">动作 · 降级 · 结果</text>
+
+  <rect x="285" y="102" width="790" height="310" rx="5" class="decision-boundary"/>
+  <rect x="285" y="102" width="790" height="48" rx="5" class="header-band"/>
+  <path d="M285 142V150H1075V142" fill="#f0eaff"/>
+  <text x="309" y="132" class="group-title" fill="#5b21b6">NEXUSKV 决策面</text>
+  <text x="1049" y="132" text-anchor="end" class="box-note">身份 → 匹配 → 合格判断 → 规划</text>
+
+  <rect x="315" y="176" width="155" height="66" rx="3" class="stage"/>
+  <circle cx="332" cy="193" r="9" class="phase"/>
+  <text x="332" y="197" text-anchor="middle" class="phase-text">1</text>
+  <text x="393" y="202" text-anchor="middle" class="box-title">有类型身份</text>
+  <text x="393" y="222" text-anchor="middle" class="box-note">租户 · 模型 · 布局</text>
+
+  <rect x="495" y="176" width="155" height="66" rx="3" class="stage"/>
+  <circle cx="512" cy="193" r="9" class="phase"/>
+  <text x="512" y="197" text-anchor="middle" class="phase-text">2</text>
+  <text x="573" y="202" text-anchor="middle" class="box-title">匹配与范围</text>
+  <text x="573" y="222" text-anchor="middle" class="box-note">精确 · 前缀 · 谱系</text>
+
+  <rect x="675" y="176" width="155" height="66" rx="3" class="stage"/>
+  <circle cx="692" cy="193" r="9" class="phase"/>
+  <text x="692" y="197" text-anchor="middle" class="phase-text">3</text>
+  <text x="753" y="202" text-anchor="middle" class="box-title">兼容性门禁</text>
+  <text x="753" y="222" text-anchor="middle" class="box-note">策略 · 能力 · 作用域</text>
+
+  <rect x="855" y="176" width="185" height="66" rx="3" class="stage"/>
+  <circle cx="872" cy="193" r="9" class="phase"/>
+  <text x="872" y="197" text-anchor="middle" class="phase-text">4</text>
+  <text x="948" y="202" text-anchor="middle" class="box-title">复用规划器</text>
+  <text x="948" y="222" text-anchor="middle" class="box-note">成本 · 拓扑 · 降级</text>
+
+  <path d="M228 205H315" class="flow"/>
+  <path d="M470 209H495" class="decision-flow"/>
+  <path d="M650 209H675" class="decision-flow"/>
+  <path d="M830 209H855" class="decision-flow"/>
+  <path d="M228 283H660V209H675" class="flow"/>
+
+  <rect x="315" y="296" width="335" height="70" rx="3" class="metadata"/>
+  <text x="483" y="321" text-anchor="middle" class="box-title">元数据索引与 Payload 目录</text>
+  <text x="483" y="342" text-anchor="middle" class="box-note">Descriptor · 位置 · Handle · 谱系</text>
+  <path d="M573 296V242" class="flow"/>
+
+  <rect x="675" y="296" width="170" height="70" rx="3" class="fallback"/>
+  <text x="760" y="321" text-anchor="middle" class="box-title">安全降级</text>
+  <text x="760" y="342" text-anchor="middle" class="box-note">重算或跳过复用</text>
+  <path d="M753 242V296" class="flow"/>
+  <path d="M948 242V268H825V296" class="flow"/>
+  <text x="837" y="261" class="edge-label">拒绝 / 收益不足</text>
+
+  <rect x="870" y="296" width="170" height="70" rx="3" class="contract"/>
+  <circle cx="887" cy="313" r="9" class="phase"/>
+  <text x="887" y="317" text-anchor="middle" class="phase-text">5</text>
+  <text x="955" y="321" text-anchor="middle" class="box-title">执行契约</text>
+  <text x="955" y="342" text-anchor="middle" class="box-note">动作 · Handle · 证据</text>
+  <path d="M948 242V296" class="decision-flow"/>
+  <text x="956" y="270" class="edge-label">满足执行条件</text>
+
+  <path d="M675 331H662V395H270V413H228" class="flow"/>
+
+  <rect x="285" y="445" width="790" height="132" rx="4" class="data-boundary"/>
+  <text x="309" y="474" class="group-title" fill="#5b21b6">状态数据面</text>
+  <text x="1049" y="474" text-anchor="end" class="box-note">选择物化或 Route-to-state 路径</text>
+
+  <path d="M955 366V487H395M955 487H948" class="bus"/>
+  <rect x="315" y="500" width="160" height="48" rx="3" class="backend"/>
+  <text x="395" y="520" text-anchor="middle" class="box-title">有界 Host DRAM</text>
+  <text x="395" y="538" text-anchor="middle" class="box-note">本地 Payload 存储</text>
+  <rect x="495" y="500" width="160" height="48" rx="3" class="backend"/>
+  <text x="575" y="520" text-anchor="middle" class="box-title">加速器状态导入</text>
+  <text x="575" y="538" text-anchor="middle" class="box-note">Runtime-native 路径</text>
+  <rect x="675" y="500" width="160" height="48" rx="3" class="backend"/>
+  <text x="755" y="520" text-anchor="middle" class="box-title">RDMA / GPUDirect</text>
+  <text x="755" y="538" text-anchor="middle" class="box-note">拓扑感知传输</text>
+  <rect x="855" y="500" width="185" height="48" rx="3" class="backend"/>
+  <text x="948" y="520" text-anchor="middle" class="box-title">远端共享层级</text>
+  <text x="948" y="538" text-anchor="middle" class="box-note">分布式状态容量</text>
+  <path d="M395 487V500M575 487V500M755 487V500M948 487V500" class="decision-flow"/>
+  <path d="M395 548V562H1088M575 548V562M755 548V562M948 548V562" class="bus"/>
+
+  <rect x="1110" y="118" width="250" height="360" rx="4" class="boundary"/>
+  <text x="1134" y="148" class="group-title">推理运行时</text>
+  <rect x="1134" y="176" width="202" height="58" rx="3" class="runtime"/>
+  <text x="1235" y="199" text-anchor="middle" class="box-title">目标内存分配</text>
+  <text x="1235" y="218" text-anchor="middle" class="box-note">设备内存 · Page · Stream</text>
+  <rect x="1134" y="254" width="202" height="58" rx="3" class="runtime"/>
+  <text x="1235" y="277" text-anchor="middle" class="box-title">验证并导入状态</text>
+  <text x="1235" y="296" text-anchor="middle" class="box-note">布局 · 边界 · 完成状态</text>
+  <rect x="1134" y="332" width="202" height="58" rx="3" class="runtime"/>
+  <text x="1235" y="355" text-anchor="middle" class="box-title">模型执行</text>
+  <text x="1235" y="374" text-anchor="middle" class="box-note">Runtime 拥有最终消费权</text>
+  <rect x="1134" y="410" width="202" height="44" rx="3" class="runtime"/>
+  <text x="1235" y="437" text-anchor="middle" class="box-title">结果证据</text>
+
+  <path d="M1040 331H1092V205H1134" class="flow"/>
+  <text x="1050" y="319" class="edge-label">预留</text>
+  <path d="M1088 562H1096V283H1134" class="decision-flow"/>
+  <text x="1098" y="552" class="edge-label">Payload Handle / Transfer Session</text>
+  <path d="M1235 234V254M1235 312V332M1235 390V410" class="flow"/>
+  <path d="M1235 454V588H270V413H228" class="flow"/>
+  <text x="724" y="584" class="edge-label">接收 / 失败 / 降级证据</text>
+</svg>
