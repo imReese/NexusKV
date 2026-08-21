@@ -1,0 +1,95 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="430" viewBox="0 0 1200 430" role="img" aria-labelledby="title desc">
+  <title id="title">NexusKV product vision</title>
+  <desc id="desc">A typed state query passes through identity, matching, compatibility, and execution evidence. Solid borders show current repository surfaces. Dashed borders show future native import, physical transfer, and production cluster scope.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#57606a"/>
+    </marker>
+    <marker id="green-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#1a7f37"/>
+    </marker>
+    <style>
+      text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; fill: #1f2328; }
+      .title { font-size: 25px; font-weight: 600; }
+      .subtitle { font-size: 14px; fill: #57606a; }
+      .label { font-size: 13px; font-weight: 600; }
+      .small { font-size: 12px; fill: #57606a; }
+      .now { fill: #ffffff; stroke: #1a7f37; stroke-width: 2; }
+      .vision { fill: #ffffff; stroke: #8c959f; stroke-width: 1.5; stroke-dasharray: 7 6; }
+      .line { fill: none; stroke: #57606a; stroke-width: 1.6; marker-end: url(#arrow); }
+      .ok-line { fill: none; stroke: #1a7f37; stroke-width: 1.8; marker-end: url(#green-arrow); }
+      .fallback { fill: #fff8c5; stroke: #d4a72c; stroke-width: 1.4; }
+    </style>
+  </defs>
+
+  <rect width="1200" height="430" rx="18" fill="#f6f8fa"/>
+
+  <text x="48" y="48" class="title">A hit is only the first fact.</text>
+  <text x="48" y="74" class="subtitle">NexusKV separates discovery, compatibility, execution intent, physical movement, and runtime acceptance.</text>
+
+  <line x1="854" y1="48" x2="890" y2="48" stroke="#1a7f37" stroke-width="2"/>
+  <text x="900" y="52" class="small">Current surface</text>
+  <line x1="1016" y1="48" x2="1052" y2="48" stroke="#8c959f" stroke-width="1.5" stroke-dasharray="7 6"/>
+  <text x="1062" y="52" class="small">Vision</text>
+
+  <text x="48" y="119" class="small">REUSE DECISION</text>
+
+  <rect x="48" y="142" width="160" height="72" rx="10" class="now"/>
+  <text x="128" y="171" text-anchor="middle" class="label">Typed identity</text>
+  <text x="128" y="191" text-anchor="middle" class="small">model · tenant · layout</text>
+
+  <rect x="246" y="142" width="160" height="72" rx="10" class="now"/>
+  <text x="326" y="171" text-anchor="middle" class="label">Exact / prefix match</text>
+  <text x="326" y="191" text-anchor="middle" class="small">extent · lineage</text>
+
+  <rect x="444" y="142" width="160" height="72" rx="10" class="now"/>
+  <text x="524" y="171" text-anchor="middle" class="label">Compatibility</text>
+  <text x="524" y="191" text-anchor="middle" class="small">capability · policy</text>
+
+  <rect x="642" y="142" width="160" height="72" rx="10" class="now"/>
+  <text x="722" y="171" text-anchor="middle" class="label">Reuse plan</text>
+  <text x="722" y="191" text-anchor="middle" class="small">cost · action · fallback</text>
+
+  <rect x="840" y="142" width="160" height="72" rx="10" class="now"/>
+  <text x="920" y="171" text-anchor="middle" class="label">Execution evidence</text>
+  <text x="920" y="191" text-anchor="middle" class="small">handle · session · outcome</text>
+
+  <rect x="1038" y="142" width="114" height="72" rx="10" class="vision"/>
+  <text x="1095" y="169" text-anchor="middle" class="label">Runtime</text>
+  <text x="1095" y="189" text-anchor="middle" class="small">native import</text>
+
+  <path d="M208 178 H246" class="ok-line"/>
+  <path d="M406 178 H444" class="ok-line"/>
+  <path d="M604 178 H642" class="ok-line"/>
+  <path d="M802 178 H840" class="ok-line"/>
+  <path d="M1000 178 H1038" class="line"/>
+
+  <rect x="444" y="260" width="358" height="56" rx="9" class="fallback"/>
+  <text x="623" y="284" text-anchor="middle" class="label">Safe fallback: recompute or skip</text>
+  <text x="623" y="303" text-anchor="middle" class="small">unknown, incompatible, unavailable, or unprofitable</text>
+  <path d="M524 214 V241 H623 V260" class="line"/>
+  <path d="M722 214 V241 H623" fill="none" stroke="#57606a" stroke-width="1.6"/>
+
+  <text x="48" y="355" class="small">DATA-PLANE AND CLUSTER VISION</text>
+
+  <rect x="48" y="372" width="190" height="40" rx="8" class="now"/>
+  <text x="143" y="397" text-anchor="middle" class="label">Bounded Host DRAM</text>
+
+  <rect x="260" y="372" width="190" height="40" rx="8" class="vision"/>
+  <text x="355" y="397" text-anchor="middle" class="label">Native accelerator import</text>
+
+  <rect x="472" y="372" width="190" height="40" rx="8" class="vision"/>
+  <text x="567" y="397" text-anchor="middle" class="label">RDMA / GPUDirect</text>
+
+  <rect x="684" y="372" width="190" height="40" rx="8" class="vision"/>
+  <text x="779" y="397" text-anchor="middle" class="label">Remote shared tiers</text>
+
+  <rect x="896" y="372" width="256" height="40" rx="8" class="vision"/>
+  <text x="1024" y="397" text-anchor="middle" class="label">Qualified multi-node operation</text>
+
+  <path d="M920 214 V339 H143 V372" class="line"/>
+  <path d="M238 392 H260" class="line"/>
+  <path d="M450 392 H472" class="line"/>
+  <path d="M662 392 H684" class="line"/>
+  <path d="M874 392 H896" class="line"/>
+</svg>
