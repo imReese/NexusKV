@@ -5,8 +5,8 @@
 </p>
 
 <p align="center">
-  面向推理系统的引擎无关契约与决策层：识别、匹配、规划，<br/>
-  并安全地物化可复用模型状态。
+  面向可复用模型状态的契约与决策层：识别、匹配、规划，<br/>
+  并安全地完成物化。
 </p>
 
 <p align="center">
@@ -28,11 +28,7 @@
 </p>
 
 <p align="center">
-  <img src="docs/assets/nexuskv-vision.svg" alt="NexusKV 愿景图：状态身份、匹配、兼容判断、复用规划、执行证据与未来数据面路径">
-</p>
-
-<p align="center">
-  <sub><strong>产品愿景：</strong>实线边框表示仓库当前接口；虚线边框表示已设计但尚未完成验证的路径。</sub>
+  <img src="docs/assets/nexuskv-architecture-cn.svg" alt="NexusKV 架构：状态身份、匹配、兼容判断、复用规划、执行证据、运行时消费与数据面路径">
 </p>
 
 匹配 Token 并不难。真正困难的是判断对应的模型状态是否兼容、是否完整、

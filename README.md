@@ -5,8 +5,8 @@
 </p>
 
 <p align="center">
-  Engine-neutral contracts and decision logic for identifying, matching, planning,<br/>
-  and safely materializing reusable state in inference systems.
+  Contracts and decision logic for identifying, matching, planning,<br/>
+  and safely materializing reusable model state.
 </p>
 
 <p align="center">
@@ -28,11 +28,7 @@
 </p>
 
 <p align="center">
-  <img src="docs/assets/nexuskv-vision.svg" alt="NexusKV vision map showing typed identity, matching, compatibility, reuse planning, execution evidence, and future data-plane paths">
-</p>
-
-<p align="center">
-  <sub><strong>Product vision:</strong> solid borders are current repository surfaces; dashed borders are designed but not yet qualified paths.</sub>
+  <img src="docs/assets/nexuskv-architecture.svg" alt="NexusKV architecture showing typed identity, matching, compatibility, reuse planning, execution evidence, runtime consumption, and data-plane paths">
 </p>
 
 Matching tokens is easy. Knowing whether their model state is compatible,

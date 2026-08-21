@@ -1,0 +1,158 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="600" viewBox="0 0 1400 600" role="img" aria-labelledby="title desc">
+  <title id="title">NexusKV reusable-state decision architecture</title>
+  <desc id="desc">A caller submits a typed state query and target constraints. NexusKV checks identity, match extent, compatibility, and reuse economics before selecting a state data-plane path. The inference runtime allocates, validates, consumes, and reports outcome evidence.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M0 0L10 5L0 10Z" fill="#475569"/>
+    </marker>
+    <marker id="purple-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M0 0L10 5L0 10Z" fill="#6d28d9"/>
+    </marker>
+    <style>
+      text { font-family: Arial, Helvetica, sans-serif; fill: #172033; }
+      .kicker { font-size: 11px; font-weight: 700; letter-spacing: 1.7px; fill: #6d28d9; }
+      .figure-title { font-size: 23px; font-weight: 700; }
+      .group-title { font-size: 11px; font-weight: 700; letter-spacing: 1.2px; fill: #334155; }
+      .box-title { font-size: 13px; font-weight: 700; }
+      .box-note { font-size: 11px; fill: #64748b; }
+      .edge-label { font-size: 10px; font-weight: 600; fill: #64748b; }
+      .boundary { fill: #f8fafc; stroke: #94a3b8; stroke-width: 1.1; }
+      .decision-boundary { fill: #fbfaff; stroke: #6d28d9; stroke-width: 1.35; }
+      .data-boundary { fill: #fafafa; stroke: #7c3aed; stroke-width: 1.2; }
+      .header-band { fill: #f0eaff; }
+      .external { fill: #ffffff; stroke: #94a3b8; stroke-width: 1.1; }
+      .stage { fill: #ffffff; stroke: #7c3aed; stroke-width: 1.25; }
+      .metadata { fill: #f8fafc; stroke: #64748b; stroke-width: 1.1; }
+      .fallback { fill: #fffaf0; stroke: #d97706; stroke-width: 1.25; }
+      .contract { fill: #f5f3ff; stroke: #6d28d9; stroke-width: 1.35; }
+      .backend { fill: #ffffff; stroke: #7c3aed; stroke-width: 1.15; }
+      .runtime { fill: #ffffff; stroke: #0f766e; stroke-width: 1.25; }
+      .flow { fill: none; stroke: #475569; stroke-width: 1.3; marker-end: url(#arrow); }
+      .decision-flow { fill: none; stroke: #6d28d9; stroke-width: 1.35; marker-end: url(#purple-arrow); }
+      .bus { fill: none; stroke: #6d28d9; stroke-width: 1.15; }
+      .phase { fill: #6d28d9; }
+      .phase-text { font-size: 10px; font-weight: 700; fill: #ffffff; }
+    </style>
+  </defs>
+
+  <rect width="1400" height="600" fill="#ffffff"/>
+  <text x="40" y="32" class="kicker">NEXUSKV / SYSTEM ARCHITECTURE</text>
+  <text x="40" y="64" class="figure-title">From a metadata hit to admissible, observable model-state reuse</text>
+  <line x1="40" y1="82" x2="1360" y2="82" stroke="#cbd5e1" stroke-width="1"/>
+
+  <!-- Caller boundary -->
+  <rect x="40" y="118" width="210" height="360" rx="4" class="boundary"/>
+  <text x="62" y="148" class="group-title">CALLER / RUNTIME ADAPTER</text>
+  <rect x="62" y="176" width="166" height="58" rx="3" class="external"/>
+  <text x="145" y="199" text-anchor="middle" class="box-title">StateQuery</text>
+  <text x="145" y="218" text-anchor="middle" class="box-note">identity · semantic extent</text>
+  <rect x="62" y="254" width="166" height="58" rx="3" class="external"/>
+  <text x="145" y="277" text-anchor="middle" class="box-title">TargetDescriptor</text>
+  <text x="145" y="296" text-anchor="middle" class="box-note">capability · layout · location</text>
+  <rect x="62" y="382" width="166" height="62" rx="3" class="external"/>
+  <text x="145" y="407" text-anchor="middle" class="box-title">Decision / receipt</text>
+  <text x="145" y="426" text-anchor="middle" class="box-note">action · fallback · outcome</text>
+
+  <!-- NexusKV decision plane -->
+  <rect x="285" y="102" width="790" height="310" rx="5" class="decision-boundary"/>
+  <rect x="285" y="102" width="790" height="48" rx="5" class="header-band"/>
+  <path d="M285 142V150H1075V142" fill="#f0eaff"/>
+  <text x="309" y="132" class="group-title" fill="#5b21b6">NEXUSKV DECISION PLANE</text>
+  <text x="1049" y="132" text-anchor="end" class="box-note">identity → match → qualify → plan</text>
+
+  <rect x="315" y="176" width="155" height="66" rx="3" class="stage"/>
+  <circle cx="332" cy="193" r="9" class="phase"/>
+  <text x="332" y="197" text-anchor="middle" class="phase-text">1</text>
+  <text x="393" y="202" text-anchor="middle" class="box-title">Typed identity</text>
+  <text x="393" y="222" text-anchor="middle" class="box-note">tenant · model · layout</text>
+
+  <rect x="495" y="176" width="155" height="66" rx="3" class="stage"/>
+  <circle cx="512" cy="193" r="9" class="phase"/>
+  <text x="512" y="197" text-anchor="middle" class="phase-text">2</text>
+  <text x="573" y="202" text-anchor="middle" class="box-title">Match &amp; extent</text>
+  <text x="573" y="222" text-anchor="middle" class="box-note">exact · prefix · lineage</text>
+
+  <rect x="675" y="176" width="155" height="66" rx="3" class="stage"/>
+  <circle cx="692" cy="193" r="9" class="phase"/>
+  <text x="692" y="197" text-anchor="middle" class="phase-text">3</text>
+  <text x="753" y="202" text-anchor="middle" class="box-title">Compatibility gate</text>
+  <text x="753" y="222" text-anchor="middle" class="box-note">policy · capability · scope</text>
+
+  <rect x="855" y="176" width="185" height="66" rx="3" class="stage"/>
+  <circle cx="872" cy="193" r="9" class="phase"/>
+  <text x="872" y="197" text-anchor="middle" class="phase-text">4</text>
+  <text x="948" y="202" text-anchor="middle" class="box-title">Reuse planner</text>
+  <text x="948" y="222" text-anchor="middle" class="box-note">cost · topology · fallback</text>
+
+  <path d="M228 205H315" class="flow"/>
+  <path d="M470 209H495" class="decision-flow"/>
+  <path d="M650 209H675" class="decision-flow"/>
+  <path d="M830 209H855" class="decision-flow"/>
+  <path d="M228 283H660V209H675" class="flow"/>
+
+  <rect x="315" y="296" width="335" height="70" rx="3" class="metadata"/>
+  <text x="483" y="321" text-anchor="middle" class="box-title">Metadata index &amp; payload catalog</text>
+  <text x="483" y="342" text-anchor="middle" class="box-note">descriptors · locations · handles · lineage</text>
+  <path d="M573 296V242" class="flow"/>
+
+  <rect x="675" y="296" width="170" height="70" rx="3" class="fallback"/>
+  <text x="760" y="321" text-anchor="middle" class="box-title">Safe fallback</text>
+  <text x="760" y="342" text-anchor="middle" class="box-note">recompute or skip reuse</text>
+  <path d="M753 242V296" class="flow"/>
+  <path d="M948 242V268H825V296" class="flow"/>
+  <text x="837" y="261" class="edge-label">reject / not worth it</text>
+
+  <rect x="870" y="296" width="170" height="70" rx="3" class="contract"/>
+  <circle cx="887" cy="313" r="9" class="phase"/>
+  <text x="887" y="317" text-anchor="middle" class="phase-text">5</text>
+  <text x="955" y="321" text-anchor="middle" class="box-title">Execution contract</text>
+  <text x="955" y="342" text-anchor="middle" class="box-note">action · handle · evidence</text>
+  <path d="M948 242V296" class="decision-flow"/>
+  <text x="956" y="270" class="edge-label">admissible</text>
+
+  <path d="M675 331H662V395H270V413H228" class="flow"/>
+
+  <!-- State data plane -->
+  <rect x="285" y="445" width="790" height="132" rx="4" class="data-boundary"/>
+  <text x="309" y="474" class="group-title" fill="#5b21b6">STATE DATA PLANE</text>
+  <text x="1049" y="474" text-anchor="end" class="box-note">selected materialization or route-to-state path</text>
+
+  <path d="M955 366V487H395M955 487H948" class="bus"/>
+  <rect x="315" y="500" width="160" height="48" rx="3" class="backend"/>
+  <text x="395" y="520" text-anchor="middle" class="box-title">Bounded Host DRAM</text>
+  <text x="395" y="538" text-anchor="middle" class="box-note">local payload store</text>
+  <rect x="495" y="500" width="160" height="48" rx="3" class="backend"/>
+  <text x="575" y="520" text-anchor="middle" class="box-title">Accelerator import</text>
+  <text x="575" y="538" text-anchor="middle" class="box-note">runtime-native path</text>
+  <rect x="675" y="500" width="160" height="48" rx="3" class="backend"/>
+  <text x="755" y="520" text-anchor="middle" class="box-title">RDMA / GPUDirect</text>
+  <text x="755" y="538" text-anchor="middle" class="box-note">topology-aware transfer</text>
+  <rect x="855" y="500" width="185" height="48" rx="3" class="backend"/>
+  <text x="948" y="520" text-anchor="middle" class="box-title">Remote shared tiers</text>
+  <text x="948" y="538" text-anchor="middle" class="box-note">distributed state capacity</text>
+  <path d="M395 487V500M575 487V500M755 487V500M948 487V500" class="decision-flow"/>
+  <path d="M395 548V562H1088M575 548V562M755 548V562M948 548V562" class="bus"/>
+
+  <!-- Inference runtime -->
+  <rect x="1110" y="118" width="250" height="360" rx="4" class="boundary"/>
+  <text x="1134" y="148" class="group-title">INFERENCE RUNTIME</text>
+  <rect x="1134" y="176" width="202" height="58" rx="3" class="runtime"/>
+  <text x="1235" y="199" text-anchor="middle" class="box-title">Destination allocation</text>
+  <text x="1235" y="218" text-anchor="middle" class="box-note">device memory · pages · streams</text>
+  <rect x="1134" y="254" width="202" height="58" rx="3" class="runtime"/>
+  <text x="1235" y="277" text-anchor="middle" class="box-title">Validate &amp; import state</text>
+  <text x="1235" y="296" text-anchor="middle" class="box-note">layout · boundary · completion</text>
+  <rect x="1134" y="332" width="202" height="58" rx="3" class="runtime"/>
+  <text x="1235" y="355" text-anchor="middle" class="box-title">Model execution</text>
+  <text x="1235" y="374" text-anchor="middle" class="box-note">runtime owns final consumption</text>
+  <rect x="1134" y="410" width="202" height="44" rx="3" class="runtime"/>
+  <text x="1235" y="437" text-anchor="middle" class="box-title">Outcome evidence</text>
+
+  <path d="M1040 331H1092V205H1134" class="flow"/>
+  <text x="1050" y="319" class="edge-label">reserve</text>
+  <path d="M1088 562H1096V283H1134" class="decision-flow"/>
+  <text x="1098" y="552" class="edge-label">payload handle + transfer session</text>
+  <path d="M1235 234V254M1235 312V332M1235 390V410" class="flow"/>
+  <path d="M1235 454V588H270V413H228" class="flow"/>
+  <text x="724" y="584" class="edge-label">accepted / failed / fallback evidence</text>
+</svg>
