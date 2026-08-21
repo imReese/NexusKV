@@ -1,7 +1,12 @@
 <h1 align="center">NexusKV</h1>
 
 <p align="center">
-  <strong>NexusKV is a model-state intelligence layer for inference systems.</strong>
+  <strong>Make model-state reuse a correctness decision—not a cache-hit guess.</strong>
+</p>
+
+<p align="center">
+  Engine-neutral contracts and decision logic for identifying, matching, planning,<br/>
+  and safely materializing reusable state in inference systems.
 </p>
 
 <p align="center">
@@ -14,222 +19,229 @@
 
 <p align="center">
   <a href="README_CN.md">简体中文</a> ·
-  <a href="#why-nexuskv">Why NexusKV</a> ·
-  <a href="#architecture">Architecture</a> ·
-  <a href="#current-implementation">Current implementation</a> ·
-  <a href="#try-it-locally">Try it</a> ·
-  <a href="#documentation">Docs</a> ·
-  <a href="#validation">Validation</a>
+  <a href="#a-hit-is-only-the-first-fact">Core idea</a> ·
+  <a href="#follow-a-reuse-decision">Decision flow</a> ·
+  <a href="#try-the-deterministic-core">Quickstart</a> ·
+  <a href="#what-runs-today">Current status</a> ·
+  <a href="#evidence-boundaries">Validation</a> ·
+  <a href="#documentation-by-task">Docs</a>
 </p>
 
-Reusable model state is more than a cache hit. Its identity, compatibility,
-reusable extent, location, transfer cost, and safe consumption rules all matter.
-NexusKV makes those facts explicit so an inference system can evaluate reuse
-without embedding state policy into one runtime or one data plane.
+<p align="center">
+  <img src="docs/assets/nexuskv-vision.svg" alt="NexusKV vision map showing typed identity, matching, compatibility, reuse planning, execution evidence, and future data-plane paths">
+</p>
 
-> **NexusKV answers what state can be reused, how much can be reused, and which
-> execution path is admissible. The inference control plane and runtime retain
-> placement, allocation, and final-consumption authority.**
+<p align="center">
+  <sub><strong>Product vision:</strong> solid borders are current repository surfaces; dashed borders are designed but not yet qualified paths.</sub>
+</p>
 
-> [!NOTE]
-> NexusKV is pre-1.0. The repository contains executable contracts, a concurrent
-> matcher, a bounded local store, deterministic planning and execution paths,
-> and reference control-plane and integration surfaces. CI does not establish
-> native accelerator materialization, physical RDMA transfer, multi-node
-> production readiness, or live-runtime performance.
+Matching tokens is easy. Knowing whether their model state is compatible,
+complete, reachable, economical to reuse, and safe for a runtime to consume is
+the harder systems problem.
 
-## Why NexusKV?
+NexusKV gives inference control planes and runtime adapters a shared language
+for that decision. It answers **what state matches, how much is reusable, and
+which execution path is admissible**. The inference runtime retains authority
+over destination allocation and final consumption; replaceable data-plane
+backends retain authority over physical bytes.
 
-Inference runtimes are good at owning device memory, block tables, kernels, and
-request-local scheduling. Data-plane systems are good at storing and moving
-bytes. A reusable-state decision sits between them: a byte range is useful only
-when its semantic identity, physical layout, lineage, and materialization path
-are compatible with the request and destination.
+> [!IMPORTANT]
+> NexusKV is pre-1.0. Today the repository proves contracts, matching, bounded
+> local storage, deterministic action selection, fallback, and integration
+> protocols. It does not yet prove native accelerator materialization, physical
+> RDMA transfer, live-runtime correctness, or multi-node production readiness.
 
-NexusKV provides a shared boundary for:
+## A hit is only the first fact
 
-- versioned state identity, layout, compatibility, and capability contracts;
-- exact and longest-prefix discovery with explicit partial-hit plans;
-- reuse, recompute, prefetch, store, and fallback decisions;
-- payload handles and transfer-session records that do not confuse intent with
-  completed byte movement;
-- policy and backend capability filtering; and
-- structured evidence from lookup through execution outcome.
+A reusable-state system must answer several questions before saving any model
+work:
 
-The contracts can describe paged attention state and other typed reusable model
-artifacts. Support for a state kind means its compatibility and materialization
-rules are implemented and validated—not merely that a label exists in a schema.
-
-## Architecture
-
-```mermaid
-flowchart LR
-    caller["Inference control plane<br/>or runtime adapter"]
-
-    subgraph nexus["NexusKV intelligence layer"]
-        contract["State contract"]
-        matcher["Index + matcher"]
-        planner["Reuse planner"]
-        execution["Execution boundary"]
-        policy["Versioned policy"]
-
-        contract --> matcher --> planner --> execution
-        policy --> planner
-        policy --> execution
-    end
-
-    backends["Replaceable data-plane backends"]
-    runtime["Runtime-owned memory<br/>and final consumption"]
-
-    caller --> contract
-    execution <--> backends
-    execution --> runtime
-```
-
-| Boundary | Ownership |
-| --- | --- |
-| Inference control plane | Request admission, global compute/state placement, and orchestration |
-| Inference runtime | Device allocation, block/page tables, streams, kernels, and final state consumption |
-| Runtime adapter | Lifecycle translation, descriptor construction, and the final safety handoff |
-| NexusKV | State compatibility, discovery, reuse planning, execution intent, fallback, and evidence |
-| Data plane | Payload capacity, registration, physical transfer, completion, and backend-specific failure reporting |
-
-NexusKV is composable with different control planes, runtimes, stores, and
-transport implementations. Runtime-specific types stay at the edges.
-
-## Design invariants
-
-- **Typed identity:** tenant, namespace, immutable model identity, state
-  semantics, lineage, layout, and parallel scope participate in compatibility
-  whenever correctness depends on them.
-- **Fail-closed compatibility:** missing or ambiguous evidence never becomes an
-  optimistic reuse decision.
-- **Match is not materialization:** metadata discovery, payload availability,
-  transfer completion, and runtime consumption remain distinct states.
-- **Runtime authority:** NexusKV does not seize allocator or kernel ownership
-  from the inference runtime.
-- **Replaceable data plane:** storage and transport capabilities are selected
-  through contracts instead of hard-coded into connectors.
-- **Evidence before performance claims:** deterministic fixtures, live runtimes,
-  and physical hardware are reported as separate validation levels.
-
-## Current implementation
-
-| Area | What exists in this repository | Evidence boundary |
+| Question | NexusKV representation | Failure if ignored |
 | --- | --- | --- |
-| State contract | Versioned JSON schemas plus generated Rust and Python types for state identity, descriptors, payload handles, and transfer sessions | Schema/codegen and deterministic contract tests |
-| Matcher | Rust exact and longest-prefix lookup, partial-hit planning, and concurrent copy-on-write updates | Deterministic lookup tests plus a concurrent insertion test |
-| Store | Bounded Host DRAM payload storage with identity isolation and capacity behavior | In-process byte-preserving tests; not a distributed store |
-| Planner and execution | Python cost primitives, capability-aware backend selection, deterministic actions, structured fallback, and background asynchronous prefetch simulation | Baseline in-memory behavior; staged-copy and remote-store paths remain stubs |
-| Integrations | Python planner bridge, lifecycle-aware runtime connector surfaces, and the versioned Locus HTTP bridge | Deterministic protocol evidence here and paired cross-process evidence in Locus; no native engine-state import |
-| Control plane | Go gRPC topology API, consistent-hash Raft FSM, BoltDB-backed single-node bootstrap, health probing, and versioned execution-policy handoff | Control-plane foundation; multi-node operation and production recovery are not qualified |
+| Is this the same state? | Tenant, namespace, model revision, semantic kind, lineage, layout, dtype, quantization, and parallel scope | Silent cross-model or cross-tenant corruption |
+| How much is reusable? | Exact/longest-prefix match, matched extent, and explicit partial-hit plan | Reusing beyond the valid boundary |
+| Can the destination consume it? | Capabilities, target tier/device/buffer constraints, and runtime handoff | A metadata hit that cannot execute |
+| Is reuse better than recompute? | Cost inputs, policy, topology, and fallback disposition | Moving state that costs more than rebuilding it |
+| Did bytes actually arrive? | Payload handles, transfer sessions, completion evidence, and final runtime acceptance | Treating intent as completed movement |
 
-The architecture deliberately keeps unfinished data movement behind the
-execution boundary. A successful stub response proves protocol behavior, not
-physical movement into accelerator memory.
+This is why NexusKV models **match**, **plan**, **materialization**, and
+**consumption** as distinct stages.
 
-## Try it locally
+## Follow a reuse decision
 
-The default test gate needs no model download, hosted API key, accelerator, or
-inference runtime. Install the toolchains described in the
-[Quickstart](docs/quickstart.md), then run:
+~~~mermaid
+flowchart LR
+    query["Typed state query"]
+    match["Exact or prefix match"]
+    check{"Compatible and<br/>admissible?"}
+    plan{"Reuse is worth<br/>the path?"}
+    action["Materialize / prefetch<br/>or route to state"]
+    fallback["Recompute or skip"]
+    receipt["Payload handle +<br/>transfer session"]
+    runtime["Runtime validates and<br/>consumes state"]
 
-```bash
+    query --> match --> check
+    check -- no --> fallback
+    check -- yes --> plan
+    plan -- no --> fallback
+    plan -- yes --> action --> receipt --> runtime
+~~~
+
+The important state transitions are explicit:
+
+- a MatchResult proves discovery, not byte availability;
+- a PartialHitPlan identifies reusable and remaining work, not profitability;
+- a materialization decision records intent, not transfer completion;
+- a TransferSession carries observable progress and outcome metadata; and
+- only the runtime can accept state into runtime-owned memory for model
+  execution.
+
+## Try the deterministic core
+
+The default repository gate needs no model download, hosted API key,
+accelerator, inference runtime, or remote storage service:
+
+~~~bash
 git clone https://github.com/imReese/NexusKV.git
 cd NexusKV
 make test
-```
+~~~
 
-The same areas can be checked independently:
+It runs the Go, Rust, and Python suites plus CPU-only topology and read/write
+precision fixtures. To isolate the main layers:
 
-```bash
+~~~bash
 GOTOOLCHAIN=go1.25.9 go test ./...
 (cd rust && cargo test --workspace --locked)
 PYTHONPATH=python python3 -m unittest discover -s python/tests -p "test_*.py"
 python3 tools/generate_contracts.py --check
-```
+~~~
 
-These commands exercise local deterministic and CPU-only paths. Their topology,
-transfer, and hardware descriptors are fixtures unless a test explicitly says
-it uses a live backend.
+These are deterministic development checks. Hardware and topology descriptors
+inside them are fixtures unless a test explicitly connects to a live backend.
 
-## Current integrations
+## What runs today
 
-Specific integrations are replaceable edge implementations, not the definition
-of NexusKV:
-
-| Boundary | Current surface | What it establishes |
+| Layer | Working implementation | What remains outside the claim |
 | --- | --- | --- |
-| Planner bridge | PyO3 binding to the Rust matcher | Real language boundary with versioned planner inputs and outputs |
-| Runtime adapters | Lifecycle-aware SGLang and vLLM connector surfaces | Deterministic lifecycle and execution-boundary conformance, not live-runtime certification |
-| Inference control plane | Versioned Locus lookup/estimate/materialize HTTP bridge | Protocol compatibility and capability binding; the paired Locus suite adds cross-process orchestration evidence, while physical transfer remains unverified |
-| Data-plane backends | Baseline in-memory backend plus staged-copy and remote-store stubs | Selection, fallback, payload-handle, and transfer-session semantics |
+| State contract | Versioned JSON schemas plus generated Rust and Python types for identity, descriptors, payload handles, and transfer sessions | A schema label alone does not qualify a state kind or hardware path |
+| Index and matcher | Rust exact and longest-prefix lookup, explicit partial-hit planning, and concurrent copy-on-write updates | Profitability, destination reservation, and byte movement |
+| Local store | Bounded Host DRAM payload storage with identity isolation and capacity behavior | Distributed durability or a production storage service |
+| Planner boundary | Rust matcher exposed through a thin PyO3 bridge with deterministic planner inputs and outputs | A fully calibrated production cost model |
+| Execution boundary | Capability/policy-aware backend selection, structured actions, fallback, payload handles, and transfer-session records | Staged-copy and remote-store paths are stubs, not physical transfers |
+| Runtime edges | Lifecycle-aware SGLang and vLLM connector surfaces | Native live-engine state import and model-correct consumption |
+| Control-plane edge | Versioned policy handoff, topology/control APIs, and a single-node foundation | Multi-node recovery and production cluster operation are not qualified |
+| Locus integration | Versioned lookup/estimate/materialize HTTP bridge backed by the Rust matcher | Cross-process protocol evidence is zero-byte; physical state movement remains unverified |
 
-## Documentation
+## Where NexusKV sits
+
+~~~text
+Inference control plane
+  owns admission and global request placement
+            │
+            ▼
+Runtime adapter
+  translates lifecycle and constructs typed descriptors
+            │
+            ▼
+NexusKV
+  identity → match → reuse plan → execution intent → evidence
+            │                                      │
+            ▼                                      ▼
+Data-plane backend                         Inference runtime
+  stores and moves bytes                     allocates and consumes
+~~~
+
+NexusKV is the intelligence layer in the middle:
+
+- **Control planes** decide where the whole inference request should run.
+- **Runtime adapters** translate engine lifecycle events and perform the final
+  safety handoff.
+- **NexusKV** owns compatibility, discovery, reuse planning, action selection,
+  deterministic fallback, and outcome evidence.
+- **Data planes** own payload capacity, registration, transfer, completion, and
+  backend-specific failures.
+- **Inference runtimes** own device allocation, block/page tables, streams,
+  kernels, and final state consumption.
+
+Runtime-specific types stay at the edges, and no match can override a failed
+compatibility, authorization, policy, or capability check.
+
+## Beyond a single KV-cache shape
+
+The contracts are designed to describe typed reusable model artifacts rather
+than hard-coding one attention layout:
+
+| Contract dimension | Examples of what can matter |
+| --- | --- |
+| Semantic identity | Model and adapter revision, tokenizer/template identity, state kind, tenant/namespace |
+| Logical extent | Tokens, pages, blocks, layers, checkpoint lineage, reusable boundary |
+| Physical layout | Tensor shape, dtype, quantization, stride, parallel partition |
+| Location | Device, Host DRAM, local SSD, remote shared tier, topology |
+| Materialization | Supported transfer path, destination capability, partial-reuse support |
+| Evidence | Match classification, selected action, fallback reason, payload handle, transfer outcome |
+
+The abstraction can represent paged attention state and future typed artifacts.
+Representation is not implementation: each state kind still needs concrete
+compatibility rules, materialization logic, and validation before it is called
+supported.
+
+## Integration surfaces
+
+| Consumer or boundary | Current surface | Evidence |
+| --- | --- | --- |
+| Python planning | PyO3 binding to the Rust matcher | Real language boundary with versioned planner results |
+| SGLang and vLLM adapters | Lifecycle-aware connector surfaces | Deterministic lifecycle/execution conformance only |
+| Locus control plane | Versioned HTTP bridge for lookup, estimate, and materialize | Local HTTP here plus paired cross-process orchestration in Locus |
+| Storage/transport backends | Baseline in-memory backend and staged/remote stubs | Selection, fallback, and record semantics; no physical remote transfer |
+| Go control plane | Versioned execution policy and topology foundation | Local contract/control behavior; no production multi-node claim |
+
+## Evidence boundaries
+
+| Evidence level | In GitHub CI | Establishes |
+| --- | --- | --- |
+| Static and deterministic | Yes | Schema parity, matching, action ordering, policy, fallback, and local store behavior |
+| Concurrency and local HTTP | Yes | Concurrent matcher behavior and versioned bridge transport through a real socket |
+| CPU-only topology fixtures | Yes | Descriptor math and simulated control flow, not multi-accelerator execution |
+| Live inference runtime | No | Native hooks, allocator integration, and model-correct state consumption |
+| Physical data movement | No | DMA, RDMA, GPUDirect, remote networking, and verified transferred bytes |
+| Production cluster | No | Multi-node recovery, tenant isolation, sustained load, tail latency, and operations |
+
+Performance claims belong with reproducible workload, hardware, configuration,
+and methodology. See [Benchmark Methodology](docs/benchmarks/benchmark-methodology.md);
+do not treat simulator throughput or descriptor math as serving performance.
+
+## Documentation by task
 
 | If you want to… | Read |
 | --- | --- |
-| Understand system ownership and component boundaries | [Architecture](docs/design/nexuskv-architecture.md) |
-| Understand state identity and compatibility | [Attention State Descriptor](docs/design/attention-state-descriptor.md) · [Shared Schema](docs/design/shared-schema.md) |
-| Follow matching and partial-hit planning | [nxradixtree](docs/design/nxradixtree.md) · [Python/Rust Planner Bridge](docs/design/python-rust-planner-bridge.md) |
-| Implement an execution backend | [Execution Boundary](docs/design/execution-boundary.md) · [Payload Transfer Contract](docs/design/payload-transfer-contract.md) · [Backend Catalog](docs/design/transport-backend-catalog.md) |
-| Integrate an inference control plane | [Locus Bridge](docs/design/locus-bridge.md) |
-| Evaluate current evidence and future direction | [Whitepaper: Implementation Status](docs/papers/beyond-kv-cache.md#implementation-status) · [Roadmap](docs/roadmap.md) |
-
-## Repository map
-
-| Path | Responsibility |
-| --- | --- |
-| `schema/` | Versioned state, execution-policy, and integration contracts |
-| `rust/crates/nexus-state` | Canonical Rust state and planner types |
-| `rust/crates/nxradixtree-core` | Reuse index, matcher, and partial-hit planning |
-| `rust/crates/nexus-store` | Bounded local payload and memory primitives |
-| `rust/crates/nexus-transfer` | Runtime-owned region and transfer contract primitives |
-| `rust/crates/bindings-py` | Python bridge to the Rust planner |
-| `python/nexuskv` | Adapters, planning, execution policy, backend catalog, and integration services |
-| `pkg/` and `cmd/server` | Go control-plane foundation and server assembly |
-| `docs/` | Architecture, contracts, validation boundaries, roadmap, and research direction |
+| Understand ownership and component boundaries | [Architecture](docs/design/nexuskv-architecture.md) |
+| Define identity and compatibility | [Attention State Descriptor](docs/design/attention-state-descriptor.md) · [Shared Schema](docs/design/shared-schema.md) |
+| Work on matching and partial hits | [nxradixtree](docs/design/nxradixtree.md) · [Python/Rust Planner Bridge](docs/design/python-rust-planner-bridge.md) |
+| Implement a real backend | [Execution Boundary](docs/design/execution-boundary.md) · [Payload Transfer Contract](docs/design/payload-transfer-contract.md) · [Backend Catalog](docs/design/transport-backend-catalog.md) |
+| Connect an inference control plane | [Locus Bridge](docs/design/locus-bridge.md) |
+| Separate implementation from research direction | [Implementation Status](docs/papers/beyond-kv-cache.md#implementation-status) · [Migration Status](docs/architecture/migration-status.md) · [Roadmap](docs/roadmap.md) |
 
 ## Development
 
-The main GitHub Actions gate runs Go tests on Linux and macOS, Rust formatting,
-strict Clippy and workspace tests, Python 3.11/3.12 tests on Linux and macOS,
-contract code generation, deterministic benchmark utilities, topology fixtures,
-and a Docker build check.
+Before submitting a change:
 
-Before submitting a change, run:
-
-```bash
+~~~bash
 make fmt
 make test
-```
+~~~
 
-Changes to state identity, compatibility, payload, or transfer semantics should
-start from the versioned schemas and preserve generated Rust/Python parity.
-
-## Validation
-
-NexusKV keeps protocol evidence separate from live-system and hardware evidence:
-
-| Evidence level | GitHub CI | What it establishes |
-| --- | --- | --- |
-| Static and deterministic | Yes | Schemas, codegen parity, matching, policy, action ordering, fallback, and local store behavior |
-| Concurrency and local HTTP protocol | Yes | Concurrent matcher behavior and versioned bridge requests over a real local socket |
-| CPU-only topology fixtures | Yes | Descriptor math, policy branches, and simulated control flow—not physical multi-accelerator execution |
-| Live inference runtime | No | Native runtime hooks, allocator integration, and model-correct state consumption |
-| Physical data movement | No | DMA, RDMA, GPUDirect, remote networking, and verified transferred bytes |
-| Production cluster | No | Multi-node recovery, tenant isolation, sustained load, tail latency, and operational readiness |
+Changes to identity, compatibility, payload, or transfer semantics should begin
+from the versioned schemas and preserve generated Rust/Python parity. The main
+CI matrix also checks supported Go/Rust/Python environments, deterministic
+benchmark utilities, topology fixtures, and a Docker build.
 
 ## Scope
 
-NexusKV is not:
-
-- an inference runtime or replacement for engine-local scheduling;
-- a global inference placement control plane;
-- a general-purpose distributed database;
-- a transport fabric by itself; or
-- a claim that every state kind, runtime, or hardware path named in the design
-  documents is already implemented.
+NexusKV is not an inference runtime, a global request-placement control plane, a
+general-purpose distributed database, or a transport fabric by itself. It does
+not claim that every state kind, runtime, topology, or hardware path named in a
+design document is implemented.
 
 ## License
 
